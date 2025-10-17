@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users collection - Simplified rules for development
+    match /users/{userId} {
+      // Allow authenticated users to read and write their own documents
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      
+      // Allow admins to read and write any user document
+      // (This will be checked at the application level)
+      allow read, write: if isAuthenticated();
+      
+      // Allow user creation by authenticated users
+      allow create: if isAuthenticated();
+    }
+
+    // Tasks collection
+    match /tasks/{taskId} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Companies collection
+    match /companies/{companyId} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Departments collection
+    match /departments/{departmentId} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Designations collection  
+    match /designations/{designationId} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Performance Reports collection
+    match /performanceReports/{reportId} {
+      allow read, write, create: if isAuthenticated();
+    }
+  }
+}
