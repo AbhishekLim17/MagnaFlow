@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { LogIn, User, Lock, Briefcase } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { LogIn, User, Lock, Briefcase } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { toast } = useToast();
@@ -19,27 +19,50 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
 
-    const result = login(email, password);
-    
-    if (result.success) {
-      toast({
-        title: "Welcome back!",
-        description: `Logged in as ${result.user.role}`,
-      });
-    } else {
+    console.log("🚀 LOGIN FORM SUBMITTED");
+    console.log("📧 Form email state:", `"${email}"`);
+    console.log("🔑 Form password state:", `"${password}"`);
+    console.log("📏 Form email length:", email?.length);
+    console.log("📏 Form password length:", password?.length);
+    console.log("🌐 User Agent:", navigator.userAgent);
+    console.log(
+      "🌐 Browser localStorage support:",
+      typeof Storage !== "undefined"
+    );
+
+    try {
+      const result = login(email, password);
+      console.log("🎯 Login result:", result);
+
+      if (result.success) {
+        console.log("✅ Login successful, showing success toast");
+        toast({
+          title: "Welcome back!",
+          description: `Logged in as ${result.user.role}`,
+        });
+      } else {
+        console.log("❌ Login failed, showing error toast");
+        toast({
+          title: "Login failed",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("💥 Exception during login:", error);
       toast({
         title: "Login failed",
-        description: result.error,
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const demoCredentials = [
-    { role: 'Admin', email: 'admin@projectflow.com', password: 'admin123' },
-    { role: 'Staff', email: 'staff@projectflow.com', password: 'staff123' }
+    { role: "Admin", email: "admin@projectflow.com", password: "admin123" },
+    { role: "Staff", email: "staff@projectflow.com", password: "staff123" },
   ];
 
   return (
@@ -67,13 +90,17 @@ const LoginPage = () => {
             >
               <Briefcase className="w-8 h-8 text-white" />
             </motion.div>
-            <h1 className="text-3xl font-bold gradient-text mb-2">ProjectFlow</h1>
+            <h1 className="text-3xl font-bold gradient-text mb-2">
+              ProjectFlow
+            </h1>
             <p className="text-gray-300">Advanced Project Management System</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-200">Email</Label>
+              <Label htmlFor="email" className="text-gray-200">
+                Email
+              </Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -89,7 +116,9 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-200">Password</Label>
+              <Label htmlFor="password" className="text-gray-200">
+                Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -125,7 +154,9 @@ const LoginPage = () => {
           </form>
 
           <div className="mt-8 pt-6 border-t border-white/20">
-            <p className="text-sm text-gray-300 mb-4 text-center">Demo Credentials:</p>
+            <p className="text-sm text-gray-300 mb-4 text-center">
+              Demo Credentials:
+            </p>
             <div className="space-y-3">
               {demoCredentials.map((cred, index) => (
                 <motion.div
@@ -135,17 +166,24 @@ const LoginPage = () => {
                   transition={{ delay: 0.4 + index * 0.1 }}
                   className="glass-effect p-3 rounded-lg cursor-pointer hover:bg-white/20 transition-all duration-200"
                   onClick={() => {
+                    console.log("🎯 Demo credentials clicked:", cred);
+                    console.log("📧 Setting email to:", `"${cred.email}"`);
+                    console.log(
+                      "🔑 Setting password to:",
+                      `"${cred.password}"`
+                    );
                     setEmail(cred.email);
                     setPassword(cred.password);
+                    console.log("✅ Form state updated");
                   }}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-blue-300">{cred.role}</span>
+                    <span className="font-medium text-blue-300">
+                      {cred.role}
+                    </span>
                     <span className="text-xs text-gray-400">Click to use</span>
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {cred.email}
-                  </div>
+                  <div className="text-xs text-gray-400 mt-1">{cred.email}</div>
                 </motion.div>
               ))}
             </div>
