@@ -113,20 +113,25 @@ const DesignationsManagement = () => {
         <CardContent>
           {designations.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {designations.map((designation, index) => (
+              {designations.map((designation) => (
                 <motion.div
-                  key={index}
+                  key={designation.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: designations.indexOf(designation) * 0.05 }}
                   className="flex items-center justify-between p-4 rounded-lg bg-white/5"
                 >
-                  <span className="font-medium text-white">{designation}</span>
+                  <div className="flex-1">
+                    <span className="font-medium text-white">{designation.name}</span>
+                    {designation.description && (
+                      <p className="text-sm text-gray-400 mt-1">{designation.description}</p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300" onClick={() => openEditDialog(designation)}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20 hover:text-red-300" onClick={() => removeDesignation(designation)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20 hover:text-red-300" onClick={() => removeDesignation(designation.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

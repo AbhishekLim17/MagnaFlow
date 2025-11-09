@@ -17,8 +17,7 @@ import {
   Edit,
   Trash2,
   TrendingUp,
-  Target,
-  KeyRound
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -29,7 +28,6 @@ import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
 import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
-import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
 
 const StaffDashboard = () => {
   const { user, logout } = useAuth();
@@ -40,7 +38,6 @@ const StaffDashboard = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Filter tasks for current user
   const myTasks = allTasks.filter(task => task.assignedTo === user?.id);
@@ -179,14 +176,6 @@ const StaffDashboard = () => {
               <p className="text-xs text-gray-400 capitalize">{user?.designation || user?.role}</p>
             </div>
           </div>
-          <Button
-            onClick={() => setShowChangePassword(true)}
-            variant="outline"
-            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
-          >
-            <KeyRound className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Change Password</span>
-          </Button>
           <Button
             onClick={handleLogout}
             variant="outline"
@@ -383,11 +372,6 @@ const StaffDashboard = () => {
           task={editingTask}
         />
       )}
-
-      <ChangePasswordDialog
-        open={showChangePassword}
-        onOpenChange={setShowChangePassword}
-      />
     </div>
   );
 };

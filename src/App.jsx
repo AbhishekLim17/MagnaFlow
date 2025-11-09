@@ -9,9 +9,10 @@ import { Helmet } from "react-helmet";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DesignationsProvider } from "@/contexts/DesignationsContext";
+import { TasksProvider } from "@/contexts/TasksContext";
 import LoginPage from "@/pages/LoginPage";
-import AdminDashboard from "@/pages/AdminDashboard";
-import StaffDashboard from "@/pages/StaffDashboard";
+import AdminDashboard from "@/pages/AdminDashboardNew";
+import StaffDashboard from "@/pages/StaffDashboardNew";
 import DebugAuthPage from "@/pages/DebugAuthPage";
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -87,29 +88,31 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <DesignationsProvider>
-        <Router>
-          <Helmet>
-            <title>ProjectFlow - Advanced Project Management System</title>
-            <meta
-              name="description"
-              content="Streamline your project management with our advanced system featuring role-based access, task tracking, and performance analytics."
-            />
-            <meta
-              property="og:title"
-              content="ProjectFlow - Advanced Project Management System"
-            />
-            <meta
-              property="og:description"
-              content="Streamline your project management with our advanced system featuring role-based access, task tracking, and performance analytics."
-            />
-          </Helmet>
-          <div className="min-h-screen">
-            <AppRoutes />
-            <Toaster />
-          </div>
-        </Router>
-      </DesignationsProvider>
+      <TasksProvider>
+        <DesignationsProvider>
+          <Router>
+            <Helmet>
+              <title>MagnaFlow - Role-Based Project & Task Management</title>
+              <meta
+                name="description"
+                content="Streamline your project management with role-based access, task tracking, and performance analytics."
+              />
+              <meta
+                property="og:title"
+                content="MagnaFlow - Role-Based Project & Task Management"
+              />
+              <meta
+                property="og:description"
+                content="Streamline your project management with role-based access, task tracking, and performance analytics."
+              />
+            </Helmet>
+            <div className="min-h-screen">
+              <AppRoutes />
+              <Toaster />
+            </div>
+          </Router>
+        </DesignationsProvider>
+      </TasksProvider>
     </AuthProvider>
   );
 }

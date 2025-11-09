@@ -31,7 +31,7 @@ const LoginPage = () => {
     );
 
     try {
-      const result = login(email, password);
+      const result = await login(email, password);
       console.log("🎯 Login result:", result);
 
       if (result.success) {
@@ -60,11 +60,6 @@ const LoginPage = () => {
     }
   };
 
-  const demoCredentials = [
-    { role: "Admin", email: "admin@projectflow.com", password: "admin123" },
-    { role: "Staff", email: "staff@projectflow.com", password: "staff123" },
-  ];
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background elements */}
@@ -91,9 +86,9 @@ const LoginPage = () => {
               <Briefcase className="w-8 h-8 text-white" />
             </motion.div>
             <h1 className="text-3xl font-bold gradient-text mb-2">
-              ProjectFlow
+              MagnaFlow
             </h1>
-            <p className="text-gray-300">Advanced Project Management System</p>
+            <p className="text-gray-300">Role-Based Task Management System</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -152,42 +147,6 @@ const LoginPage = () => {
               )}
             </Button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-white/20">
-            <p className="text-sm text-gray-300 mb-4 text-center">
-              Demo Credentials:
-            </p>
-            <div className="space-y-3">
-              {demoCredentials.map((cred, index) => (
-                <motion.div
-                  key={cred.role}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + index * 0.1 }}
-                  className="glass-effect p-3 rounded-lg cursor-pointer hover:bg-white/20 transition-all duration-200"
-                  onClick={() => {
-                    console.log("🎯 Demo credentials clicked:", cred);
-                    console.log("📧 Setting email to:", `"${cred.email}"`);
-                    console.log(
-                      "🔑 Setting password to:",
-                      `"${cred.password}"`
-                    );
-                    setEmail(cred.email);
-                    setPassword(cred.password);
-                    console.log("✅ Form state updated");
-                  }}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-blue-300">
-                      {cred.role}
-                    </span>
-                    <span className="text-xs text-gray-400">Click to use</span>
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">{cred.email}</div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
         </Card>
       </motion.div>
     </div>

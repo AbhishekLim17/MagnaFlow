@@ -39,34 +39,58 @@ import {
   Area,
   AreaChart
 } from 'recharts';
+import { useTasks } from '@/contexts/TasksContext';
+import { getAllUsers } from '@/services/userService';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const PerformanceReports = () => {
-  const [tasks, setTasks] = useState([]);
+  const { tasks: allTasks } = useTasks();
   const [staff, setStaff] = useState([]);
   const [timeRange, setTimeRange] = useState('30');
+  const [filteredTasks, setFilteredTasks] = useState([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load data from localStorage
-    const savedTasks = localStorage.getItem('projectflow_tasks');
-    const savedStaff = localStorage.getItem('projectflow_staff');
-    
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+    // Load data from Firebase
+    loadData();
+  }, [allTasks, timeRange]);
+
+  const loadData = async () => {
+    try {
+      // Get all staff members
+      const users = await getAllUsers({ role: 'staff' });
+      setStaff(users);
+      
+      // Filter tasks by selected time range
+      const filtered = filterTasksByTimeRange(allTasks || [], timeRange);
+      setFilteredTasks(filtered);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Error loading data",
+        description: error.message,
+        variant: "destructive"
+      });
     }
+  };
+
+  // Filter tasks based on time range
+  const filterTasksByTimeRange = (tasks, range) => {
+    if (range === 'all') return tasks;
     
-    if (savedStaff) {
-      setStaff(JSON.parse(savedStaff));
-    } else {
-      // Default staff data
-      setStaff([
-        { id: 2, name: 'Staff Member', status: 'active' },
-        { id: 3, name: 'Sarah Johnson', status: 'active' },
-        { id: 4, name: 'Mike Chen', status: 'active' },
-        { id: 5, name: 'Emma Davis', status: 'active' }
-      ]);
-    }
-  }, []);
+    const now = new Date();
+    const daysAgo = parseInt(range);
+    const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+    
+    return tasks.filter(task => {
+      const createdDate = task.createdAt?.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
+      return createdDate >= cutoffDate;
+    });
+  };
+
+  const tasks = filteredTasks;
 
   // Calculate completion rate
   const completionRate = tasks.length > 0 
@@ -81,14 +105,14 @@ const PerformanceReports = () => {
     const pendingTasks = memberTasks.filter(t => t.status === 'pending');
     
     return {
-      name: member.name,
+      name: member.name || member.email,
       completed: completedTasks.length,
       inProgress: inProgressTasks.length,
       pending: pendingTasks.length,
       total: memberTasks.length,
       productivity: memberTasks.length > 0 ? Math.round((completedTasks.length / memberTasks.length) * 100) : 0
     };
-  });
+  }).filter(member => member.total > 0); // Only show members with tasks
 
   // Task status distribution
   const taskStatusData = [
@@ -99,30 +123,218 @@ const PerformanceReports = () => {
 
   // Priority distribution
   const priorityData = [
+    { name: 'Critical', value: tasks.filter(t => t.priority === 'critical').length, color: '#DC2626' },
     { name: 'High', value: tasks.filter(t => t.priority === 'high').length, color: '#EF4444' },
     { name: 'Medium', value: tasks.filter(t => t.priority === 'medium').length, color: '#F97316' },
     { name: 'Low', value: tasks.filter(t => t.priority === 'low').length, color: '#6B7280' }
-  ];
+  ].filter(p => p.value > 0); // Only show priorities that have tasks
 
-  // Weekly progress data (mock data for demonstration)
-  const weeklyProgress = [
-    { week: 'Week 1', completed: 8, created: 12 },
-    { week: 'Week 2', completed: 12, created: 10 },
-    { week: 'Week 3', completed: 15, created: 14 },
-    { week: 'Week 4', completed: 18, created: 16 },
-  ];
+  // Calculate weekly progress from actual task data
+  const getWeeklyProgress = () => {
+    if (tasks.length === 0) return [];
 
-  const handleExportReport = () => {
-    toast({
-      title: "🚧 Export feature not implemented yet",
-      description: "You can request this feature in your next prompt! 🚀",
+    const now = new Date();
+    const weeksData = [];
+    
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (i * 7 + 7));
+      const weekEnd = new Date(now);
+      weekEnd.setDate(now.getDate() - (i * 7));
+      
+      const weekTasks = tasks.filter(task => {
+        const createdDate = task.createdAt?.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
+        return createdDate >= weekStart && createdDate <= weekEnd;
+      });
+      
+      const completedInWeek = weekTasks.filter(task => {
+        if (task.completedAt) {
+          const completedDate = task.completedAt?.toDate ? task.completedAt.toDate() : new Date(task.completedAt);
+          return completedDate >= weekStart && completedDate <= weekEnd;
+        }
+        return false;
+      });
+      
+      weeksData.push({
+        week: `Week ${4 - i}`,
+        completed: completedInWeek.length,
+        created: weekTasks.length
+      });
+    }
+    
+    return weeksData;
+  };
+
+  const weeklyProgress = getWeeklyProgress();
+
+  const handleExportReport = (format = 'pdf') => {
+    try {
+      if (format === 'pdf') {
+        exportToPDF();
+      } else {
+        exportToExcel();
+      }
+      toast({
+        title: "Report Exported",
+        description: `Report downloaded as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(20);
+    doc.text('Performance Report - MagnaFlow', 14, 20);
+    
+    // Add date
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 28);
+    
+    // Add summary statistics
+    doc.setFontSize(12);
+    doc.text('Summary Statistics', 14, 38);
+    doc.autoTable({
+      startY: 42,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Total Tasks', tasks.length.toString()],
+        ['Completed Tasks', tasks.filter(t => t.status === 'completed').length.toString()],
+        ['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length.toString()],
+        ['Pending Tasks', tasks.filter(t => t.status === 'pending').length.toString()],
+        ['Completion Rate', `${completionRate}%`],
+        ['Active Staff', staff.length.toString()],
+      ],
     });
+    
+    // Add staff productivity
+    let finalY = doc.lastAutoTable.finalY + 10;
+    doc.text('Staff Productivity', 14, finalY);
+    doc.autoTable({
+      startY: finalY + 4,
+      head: [['Staff Member', 'Total Tasks', 'Completed', 'In Progress', 'Pending', 'Productivity']],
+      body: staffProductivity.map(s => [
+        s.name,
+        s.total.toString(),
+        s.completed.toString(),
+        s.inProgress.toString(),
+        s.pending.toString(),
+        `${s.productivity}%`
+      ]),
+    });
+    
+    // Save
+    doc.save(`performance-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const exportToExcel = () => {
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Summary sheet
+    const summaryData = [
+      ['Performance Report - MagnaFlow'],
+      ['Generated: ' + new Date().toLocaleDateString()],
+      [],
+      ['Summary Statistics'],
+      ['Metric', 'Value'],
+      ['Total Tasks', tasks.length],
+      ['Completed Tasks', tasks.filter(t => t.status === 'completed').length],
+      ['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length],
+      ['Pending Tasks', tasks.filter(t => t.status === 'pending').length],
+      ['Completion Rate', `${completionRate}%`],
+      ['Active Staff', staff.length],
+    ];
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+    
+    // Staff productivity sheet
+    const staffData = [
+      ['Staff Productivity'],
+      [],
+      ['Staff Member', 'Total Tasks', 'Completed', 'In Progress', 'Pending', 'Productivity %'],
+      ...staffProductivity.map(s => [
+        s.name,
+        s.total,
+        s.completed,
+        s.inProgress,
+        s.pending,
+        s.productivity
+      ])
+    ];
+    const staffSheet = XLSX.utils.aoa_to_sheet(staffData);
+    XLSX.utils.book_append_sheet(wb, staffSheet, 'Staff Productivity');
+    
+    // Task details sheet
+    const taskData = [
+      ['All Tasks'],
+      [],
+      ['Title', 'Status', 'Priority', 'Assigned To', 'Created Date'],
+      ...tasks.map(t => [
+        t.title,
+        t.status,
+        t.priority,
+        staff.find(s => s.id === t.assignedTo)?.name || 'Unassigned',
+        t.createdAt?.toDate ? t.createdAt.toDate().toLocaleDateString() : 'N/A'
+      ])
+    ];
+    const taskSheet = XLSX.utils.aoa_to_sheet(taskData);
+    XLSX.utils.book_append_sheet(wb, taskSheet, 'Tasks');
+    
+    // Save
+    XLSX.writeFile(wb, `performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const topPerformers = staffProductivity
     .filter(member => member.total > 0)
     .sort((a, b) => b.productivity - a.productivity)
     .slice(0, 3);
+
+  // Calculate average task completion time
+  const calculateAvgTaskTime = () => {
+    const completedTasks = tasks.filter(t => t.status === 'completed' && t.completedAt && t.createdAt);
+    if (completedTasks.length === 0) return 0;
+    
+    const totalDays = completedTasks.reduce((sum, task) => {
+      const created = task.createdAt?.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
+      const completed = task.completedAt?.toDate ? task.completedAt.toDate() : new Date(task.completedAt);
+      const days = Math.ceil((completed - created) / (1000 * 60 * 60 * 24));
+      return sum + days;
+    }, 0);
+    
+    return (totalDays / completedTasks.length).toFixed(1);
+  };
+
+  const avgTaskTime = calculateAvgTaskTime();
+
+  // Calculate team efficiency (percentage of tasks completed on time)
+  const calculateTeamEfficiency = () => {
+    const tasksWithDeadline = tasks.filter(t => t.deadline && t.status === 'completed' && t.completedAt);
+    if (tasksWithDeadline.length === 0) return 0;
+    
+    const completedOnTime = tasksWithDeadline.filter(task => {
+      const deadline = task.deadline?.toDate ? task.deadline.toDate() : new Date(task.deadline);
+      const completed = task.completedAt?.toDate ? task.completedAt.toDate() : new Date(task.completedAt);
+      return completed <= deadline;
+    });
+    
+    return Math.round((completedOnTime.length / tasksWithDeadline.length) * 100);
+  };
+
+  const teamEfficiency = calculateTeamEfficiency();
+
+  // Count active projects (unique assignments)
+  const activeProjects = staff.filter(member => {
+    const memberTasks = tasks.filter(t => t.assignedTo === member.id);
+    return memberTasks.some(t => t.status === 'in-progress' || t.status === 'pending');
+  }).length;
 
   return (
     <motion.div
@@ -138,58 +350,82 @@ const PerformanceReports = () => {
         </div>
         <div className="flex items-center space-x-4">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-40 glass-effect border-white/20 text-white">
+            <SelectTrigger className="w-48 glass-effect border-white/20 text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass-effect border-white/20">
-              <SelectItem value="7">Last 7 days</SelectItem>
               <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="180">Last 6 months</SelectItem>
+              <SelectItem value="365">Last 1 year</SelectItem>
+              <SelectItem value="all">All time</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            onClick={handleExportReport}
-            variant="outline"
-            className="border-white/20 text-gray-300 hover:bg-white/10"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleExportReport('pdf')}
+              variant="outline"
+              className="border-white/20 text-gray-300 hover:bg-white/10"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+            <Button
+              onClick={() => handleExportReport('excel')}
+              variant="outline"
+              className="border-white/20 text-gray-300 hover:bg-white/10"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Excel
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {[
-          { 
-            title: 'Completion Rate', 
-            value: `${completionRate}%`, 
-            icon: Target, 
-            color: 'from-green-500 to-emerald-500',
-            trend: '+5%'
-          },
-          { 
-            title: 'Active Projects', 
-            value: '12', 
-            icon: BarChart3, 
-            color: 'from-blue-500 to-cyan-500',
-            trend: '+2'
-          },
-          { 
-            title: 'Team Efficiency', 
-            value: '94%', 
-            icon: Award, 
-            color: 'from-purple-500 to-pink-500',
-            trend: '+8%'
-          },
-          { 
-            title: 'Avg. Task Time', 
-            value: '2.3d', 
-            icon: Clock, 
-            color: 'from-orange-500 to-red-500',
-            trend: '-0.5d'
-          },
-        ].map((metric, index) => (
+      {/* Show empty state if no data */}
+      {tasks.length === 0 ? (
+        <Card className="glass-effect border-white/20 p-12 text-center">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <BarChart3 className="w-16 h-16 text-gray-400" />
+            <h3 className="text-xl font-semibold text-white">No Data Available</h3>
+            <p className="text-gray-400 max-w-md">
+              There are no tasks in the system yet. Create tasks and assign them to staff members to see performance analytics and reports.
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {/* Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {[
+              { 
+                title: 'Completion Rate', 
+                value: `${completionRate}%`, 
+                icon: Target, 
+                color: 'from-green-500 to-emerald-500',
+                trend: completionRate > 0 ? `${completionRate}%` : '0%'
+              },
+              { 
+                title: 'Active Staff', 
+                value: activeProjects.toString(), 
+                icon: BarChart3, 
+                color: 'from-blue-500 to-cyan-500',
+                trend: `${staff.length} total`
+              },
+              { 
+                title: 'Team Efficiency', 
+                value: teamEfficiency > 0 ? `${teamEfficiency}%` : 'N/A', 
+                icon: Award, 
+                color: 'from-purple-500 to-pink-500',
+                trend: teamEfficiency > 0 ? `${teamEfficiency}%` : 'No data'
+              },
+              { 
+                title: 'Avg. Task Time', 
+                value: avgTaskTime > 0 ? `${avgTaskTime}d` : 'N/A', 
+                icon: Clock, 
+                color: 'from-orange-500 to-red-500',
+                trend: avgTaskTime > 0 ? `${avgTaskTime}d avg` : 'No data'
+              },
+            ].map((metric, index) => (
           <motion.div
             key={metric.title}
             initial={{ opacity: 0, y: 20 }}
@@ -369,6 +605,8 @@ const PerformanceReports = () => {
           </div>
         </Card>
       </div>
+        </>
+      )}
     </motion.div>
   );
 };
