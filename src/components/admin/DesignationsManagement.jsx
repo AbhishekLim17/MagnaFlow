@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Plus, Edit, Trash2 } from 'lucide-react';
+import { Briefcase, Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               {initialValue ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             </div>
             <span>{initialValue ? 'Edit Designation' : 'Add New Designation'}</span>
@@ -57,7 +57,7 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
               {initialValue ? 'Save Changes' : 'Add Designation'}
             </Button>
           </DialogFooter>
@@ -68,20 +68,32 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
 };
 
 const DesignationsManagement = () => {
-  const { designations, addDesignation, updateDesignation, removeDesignation } = useDesignations();
+  const { designations, loading, addDesignation, updateDesignation, removeDesignation, refreshDesignations } = useDesignations();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [currentDesignation, setCurrentDesignation] = useState('');
+  const [currentDesignation, setCurrentDesignation] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleAdd = (newDesignation) => {
-    if (addDesignation(newDesignation)) {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshDesignations();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
+  const handleAdd = async (newDesignation) => {
+    const success = await addDesignation(newDesignation);
+    if (success) {
       setIsAddDialogOpen(false);
     }
   };
 
-  const handleEdit = (updatedDesignation) => {
-    if (updateDesignation(currentDesignation, updatedDesignation)) {
-      setIsEditDialogOpen(false);
+  const handleEdit = async (updatedDesignation) => {
+    if (currentDesignation) {
+      const success = await updateDesignation(currentDesignation.id, updatedDesignation);
+      if (success) {
+        setIsEditDialogOpen(false);
+        setCurrentDesignation(null);
+      }
     }
   };
 
@@ -97,10 +109,21 @@ const DesignationsManagement = () => {
           <h2 className="text-2xl font-bold text-white mb-2">Manage Designations</h2>
           <p className="text-gray-300">Add, edit, or remove staff roles and designations.</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Designation
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline"
+            className="border-gray-700 hover:bg-gray-800"
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 shadow-lg flex-1 sm:flex-none">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Designation
+          </Button>
+        </div>
       </div>
 
       <Card className="glass-effect p-6">
@@ -108,10 +131,16 @@ const DesignationsManagement = () => {
           <CardTitle className="flex items-center gap-2">
             <Briefcase className="text-blue-300" />
             <span>Available Designations ({designations.length})</span>
+            {loading && <span className="text-sm text-gray-400 ml-2">(Loading...)</span>}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {designations.length > 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
+              <span className="ml-3 text-gray-400">Loading designations...</span>
+            </div>
+          ) : designations.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {designations.map((designation) => (
                 <motion.div
@@ -149,7 +178,12 @@ const DesignationsManagement = () => {
       </Card>
       
       <DesignationDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onSubmit={handleAdd} />
-      <DesignationDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} onSubmit={handleEdit} initialValue={currentDesignation} />
+      <DesignationDialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen} 
+        onSubmit={handleEdit} 
+        initialValue={currentDesignation?.name || ''} 
+      />
     </motion.div>
   );
 };

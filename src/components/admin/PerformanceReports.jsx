@@ -30,6 +30,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -401,28 +402,28 @@ const PerformanceReports = () => {
                 title: 'Completion Rate', 
                 value: `${completionRate}%`, 
                 icon: Target, 
-                color: 'from-green-500 to-emerald-500',
+                color: 'teal-600',
                 trend: completionRate > 0 ? `${completionRate}%` : '0%'
               },
               { 
                 title: 'Active Staff', 
                 value: activeProjects.toString(), 
                 icon: BarChart3, 
-                color: 'from-blue-500 to-cyan-500',
+                color: 'blue-600',
                 trend: `${staff.length} total`
               },
               { 
                 title: 'Team Efficiency', 
                 value: teamEfficiency > 0 ? `${teamEfficiency}%` : 'N/A', 
                 icon: Award, 
-                color: 'from-purple-500 to-pink-500',
+                color: 'indigo-600',
                 trend: teamEfficiency > 0 ? `${teamEfficiency}%` : 'No data'
               },
               { 
                 title: 'Avg. Task Time', 
                 value: avgTaskTime > 0 ? `${avgTaskTime}d` : 'N/A', 
                 icon: Clock, 
-                color: 'from-orange-500 to-red-500',
+                color: 'slate-600',
                 trend: avgTaskTime > 0 ? `${avgTaskTime}d avg` : 'No data'
               },
             ].map((metric, index) => (
@@ -442,7 +443,7 @@ const PerformanceReports = () => {
                     {metric.trend}
                   </p>
                 </div>
-                <div className={`w-12 h-12 bg-gradient-to-r ${metric.color} rounded-lg flex items-center justify-center`}>
+                <div className={`w-12 h-12 bg-${metric.color} rounded-lg flex items-center justify-center shadow-lg`}>
                   <metric.icon className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -462,7 +463,7 @@ const PerformanceReports = () => {
             </Badge>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={staffProductivity}>
+            <BarChart data={staffProductivity} margin={{ left: 20, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis 
                 dataKey="name" 
@@ -475,15 +476,15 @@ const PerformanceReports = () => {
               <YAxis stroke="#9CA3AF" fontSize={12} />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'rgba(17, 24, 39, 0.9)', 
-                  border: '1px solid rgba(75, 85, 99, 0.3)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                  border: '1px solid rgba(200, 200, 200, 0.5)',
                   borderRadius: '8px',
-                  color: '#F9FAFB'
+                  color: '#1F2937'
                 }}
               />
-              <Bar dataKey="completed" fill="#10B981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="inProgress" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="pending" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="completed" fill="#10B981" radius={[4, 4, 0, 0]} barSize={60} />
+              <Bar dataKey="inProgress" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={60} />
+              <Bar dataKey="pending" fill="#F59E0B" radius={[4, 4, 0, 0]} barSize={60} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -502,21 +503,46 @@ const PerformanceReports = () => {
                 data={taskStatusData}
                 cx="50%"
                 cy="50%"
-                outerRadius={100}
+                labelLine={false}
+                label={({ name, percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                  const RADIAN = Math.PI / 180;
+                  const radius = outerRadius + 25;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  return (
+                    <text 
+                      x={x} 
+                      y={y} 
+                      fill="white" 
+                      textAnchor={x > cx ? 'start' : 'end'} 
+                      dominantBaseline="central"
+                      fontSize="14px"
+                      fontWeight="600"
+                    >
+                      {`${name} ${(percent * 100).toFixed(0)}%`}
+                    </text>
+                  );
+                }}
+                outerRadius={90}
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {taskStatusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${index}`} fill={entry.color} stroke="#1e293b" strokeWidth={2} />
                 ))}
               </Pie>
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'rgba(17, 24, 39, 0.9)', 
-                  border: '1px solid rgba(75, 85, 99, 0.3)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                  border: '1px solid rgba(200, 200, 200, 0.5)',
                   borderRadius: '8px',
-                  color: '#F9FAFB'
+                  color: '#1F2937'
                 }}
+              />
+              <Legend 
+                verticalAlign="bottom" 
+                height={36}
+                iconType="circle"
+                wrapperStyle={{ color: '#F9FAFB', fontSize: '14px', paddingTop: '10px' }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -584,10 +610,10 @@ const PerformanceReports = () => {
                 className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm ${
-                    index === 0 ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
-                    index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
-                    'bg-gradient-to-r from-orange-400 to-red-500'
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg ${
+                    index === 0 ? 'bg-yellow-500' :
+                    index === 1 ? 'bg-slate-400' :
+                    'bg-orange-500'
                   }`}>
                     {index + 1}
                   </div>

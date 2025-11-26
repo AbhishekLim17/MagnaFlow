@@ -113,7 +113,7 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
               <Plus className="w-4 h-4 text-white" />
             </div>
             <span>Create Personal Task</span>
@@ -190,7 +190,7 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              className="bg-teal-600 hover:bg-teal-700"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Task

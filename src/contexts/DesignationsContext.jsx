@@ -23,27 +23,90 @@ export const DesignationsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load designations from Firebase on mount
+  // Load designations from Firebase on mount with real-time listener
   useEffect(() => {
-    loadDesignations();
+    console.log("🚀 Setting up designations real-time listener");
+    
+    // Set up real-time listener for instant updates
+    const unsubscribe = setupDesignationsListener();
+    
+    // Cleanup listener on unmount
+    return () => {
+      console.log("🔌 Cleaning up designations listener");
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
+
+  // Set up real-time listener for designations
+  const setupDesignationsListener = () => {
+    try {
+      const { onSnapshot, collection } = require('firebase/firestore');
+      const { db } = require('@/config/firebase');
+      
+      const designationsRef = collection(db, 'designations');
+      
+      const unsubscribe = onSnapshot(
+        designationsRef,
+        (snapshot) => {
+          console.log("📡 Designations snapshot received:", snapshot.size, "documents");
+          
+          const data = [];
+          snapshot.forEach((doc) => {
+            data.push({ id: doc.id, ...doc.data() });
+          });
+          
+          // Sort by name
+          data.sort((a, b) => {
+            const nameA = (a.name || '').toLowerCase();
+            const nameB = (b.name || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+          });
+          
+          console.log("✅ Setting designations from listener:", data.length);
+          setDesignations(data);
+          setLoading(false);
+        },
+        (error) => {
+          console.error("❌ Designations listener error:", error);
+          setLoading(false);
+          
+          // Fallback to manual load on error
+          loadDesignations();
+        }
+      );
+      
+      return unsubscribe;
+    } catch (error) {
+      console.error("❌ Error setting up listener:", error);
+      // Fallback to manual load
+      loadDesignations();
+      return null;
+    }
+  };
 
   const loadDesignations = async () => {
     try {
       console.log("📥 Loading designations from Firestore");
       const data = await getAllDesignations();
       
-      // Don't auto-initialize - let admin add designations manually
-      setDesignations(data);
+      console.log("📊 Raw data from Firebase:", data);
       
-      console.log("✅ Designations loaded:", data.length);
+      // Set designations directly without duplicate removal
+      // (Duplicate prevention is handled on add/edit, not on load)
+      setDesignations(data || []);
+      
+      console.log("✅ Designations loaded and set:", data?.length || 0);
     } catch (error) {
       console.error("❌ Error loading designations:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load designations. Please try again.",
-        variant: "destructive",
-      });
+      // Only show error toast if there's an actual error, not if collection is empty
+      if (error.code !== 'permission-denied') {
+        toast({
+          title: "Error",
+          description: "Failed to load designations. Please try again.",
+          variant: "destructive",
+        });
+      }
+      setDesignations([]);
     } finally {
       setLoading(false);
     }
@@ -51,28 +114,40 @@ export const DesignationsProvider = ({ children }) => {
 
   const addDesignation = async (name, description = '') => {
     try {
-      // Check for duplicates
-      const duplicate = designations.find(
-        d => d.name.toLowerCase() === name.toLowerCase()
-      );
+      // Trim and validate
+      const trimmedName = name.trim();
       
-      if (duplicate) {
+      if (!trimmedName) {
         toast({
-          title: "Duplicate Designation",
-          description: `The designation "${name}" already exists.`,
+          title: "Invalid Designation",
+          description: "Designation name cannot be empty.",
           variant: "destructive",
         });
         return false;
       }
 
-      console.log("➕ Adding new designation:", name);
-      const newDesignation = await createDesignation({ name, description });
+      // Check for duplicates (case-insensitive, trimmed)
+      const duplicate = designations.find(
+        d => d.name.toLowerCase().trim() === trimmedName.toLowerCase()
+      );
+      
+      if (duplicate) {
+        toast({
+          title: "Duplicate Designation",
+          description: `The designation "${trimmedName}" already exists.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log("➕ Adding new designation:", trimmedName);
+      const newDesignation = await createDesignation({ name: trimmedName, description });
       
       setDesignations(prev => [...prev, newDesignation]);
       
       toast({
         title: "Designation Added",
-        description: `"${name}" has been added successfully.`,
+        description: `"${trimmedName}" has been added successfully.`,
       });
       
       return true;
@@ -89,22 +164,34 @@ export const DesignationsProvider = ({ children }) => {
 
   const updateDesignation = async (designationId, name, description = '') => {
     try {
-      // Check for duplicates (excluding current designation)
+      // Trim and validate
+      const trimmedName = name.trim();
+      
+      if (!trimmedName) {
+        toast({
+          title: "Invalid Designation",
+          description: "Designation name cannot be empty.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Check for duplicates (case-insensitive, trimmed, excluding current designation)
       const duplicate = designations.find(
-        d => d.id !== designationId && d.name.toLowerCase() === name.toLowerCase()
+        d => d.id !== designationId && d.name.toLowerCase().trim() === trimmedName.toLowerCase()
       );
       
       if (duplicate) {
         toast({
           title: "Duplicate Designation",
-          description: `The designation "${name}" already exists.`,
+          description: `The designation "${trimmedName}" already exists.`,
           variant: "destructive",
         });
         return false;
       }
 
       console.log("✏️  Updating designation:", designationId);
-      const updated = await updateDesignationService(designationId, { name, description });
+      const updated = await updateDesignationService(designationId, { name: trimmedName, description });
       
       setDesignations(prev => 
         prev.map(d => d.id === designationId ? updated : d)
@@ -112,7 +199,7 @@ export const DesignationsProvider = ({ children }) => {
       
       toast({
         title: "Designation Updated",
-        description: `Designation has been updated to "${name}".`,
+        description: `Designation has been updated to "${trimmedName}".`,
       });
       
       return true;

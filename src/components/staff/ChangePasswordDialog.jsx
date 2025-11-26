@@ -139,8 +139,8 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-              <KeyRound className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <Lock className="w-4 h-4 text-white" />
             </div>
             <span>Change Password</span>
           </DialogTitle>
@@ -254,7 +254,7 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+              className="bg-indigo-600 hover:bg-indigo-700"
               disabled={loading}
             >
               {loading ? (

@@ -42,13 +42,19 @@ export const getDesignationById = async (designationId) => {
  */
 export const getAllDesignations = async () => {
   try {
-    // Remove orderBy to avoid index requirement
-    // We'll sort in memory instead
-    const snapshot = await getDocs(collection(db, DESIGNATIONS_COLLECTION));
+    console.log("📥 Fetching all designations from Firestore...");
+    
+    const designationsRef = collection(db, DESIGNATIONS_COLLECTION);
+    const snapshot = await getDocs(designationsRef);
+    
+    console.log("📊 Received snapshot with", snapshot.size, "documents");
+    
     const designations = [];
     
     snapshot.forEach((doc) => {
-      designations.push({ id: doc.id, ...doc.data() });
+      const data = doc.data();
+      console.log("📄 Document:", doc.id, data);
+      designations.push({ id: doc.id, ...data });
     });
     
     // Sort by name in memory
@@ -58,10 +64,15 @@ export const getAllDesignations = async () => {
       return nameA.localeCompare(nameB);
     });
     
+    console.log("✅ Returning", designations.length, "designations");
     return designations;
   } catch (error) {
-    console.error('Error getting designations:', error);
-    throw error;
+    console.error('❌ Error getting designations:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    
+    // Return empty array instead of throwing to prevent app crashes
+    return [];
   }
 };
 

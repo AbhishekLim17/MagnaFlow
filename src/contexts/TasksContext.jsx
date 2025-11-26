@@ -12,6 +12,8 @@ import {
   deleteTask as deleteTaskService,
   getTaskStatistics,
 } from '@/services/taskService';
+import { getUserById } from '@/services/userService';
+import { sendTaskAssignedEmail, sendCriticalTaskAlert, sendTaskStatusChangedEmail, sendTaskCompletedEmail } from '@/services/emailService';
 
 const TasksContext = createContext();
 
@@ -95,6 +97,44 @@ export const TasksProvider = ({ children }) => {
       const newTask = await createTaskService(newTaskData);
       
       setTasks(prev => [newTask, ...prev]);
+      
+      // Send email notification to assigned staff member
+      if (taskData.assignedTo) {
+        try {
+          console.log("📧 Fetching assigned user data...");
+          const assignedUser = await getUserById(taskData.assignedTo);
+          
+          console.log("📧 Assigned user:", assignedUser);
+          
+          if (assignedUser && assignedUser.email) {
+            const emailParams = {
+              toEmail: assignedUser.email,
+              toName: assignedUser.name,
+              taskTitle: taskData.title,
+              taskDescription: taskData.description || 'No description provided',
+              taskPriority: taskData.priority?.charAt(0).toUpperCase() + taskData.priority?.slice(1) || 'Medium',
+              dueDate: taskData.dueDate ? new Date(taskData.dueDate).toLocaleDateString() : 'Not specified',
+              assignedBy: user?.name || 'Admin',
+            };
+
+            console.log("📧 Sending email with params:", emailParams);
+
+            // Send critical alert for critical priority tasks
+            if (taskData.priority === 'critical') {
+              const result = await sendCriticalTaskAlert(emailParams);
+              console.log("📧 Critical email result:", result);
+            } else {
+              const result = await sendTaskAssignedEmail(emailParams);
+              console.log("📧 Email result:", result);
+            }
+          } else {
+            console.warn("⚠️ No email address found for assigned user");
+          }
+        } catch (emailError) {
+          console.error("❌ Error sending email notification:", emailError);
+          // Don't fail task creation if email fails
+        }
+      }
       
       // Refresh statistics
       await refreshStatistics();

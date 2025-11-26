@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,6 +14,7 @@ import LoginPage from "@/pages/LoginPage";
 import AdminDashboard from "@/pages/AdminDashboardNew";
 import StaffDashboard from "@/pages/StaffDashboardNew";
 import DebugAuthPage from "@/pages/DebugAuthPage";
+import { setupDailyRemindersAtTime } from "@/services/reminderService";
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated } = useAuth();
@@ -86,6 +87,12 @@ function AppRoutes() {
 }
 
 function App() {
+  // Set up daily reminders to run at 8 AM every day
+  useEffect(() => {
+    const cleanup = setupDailyRemindersAtTime(8, 0); // 8:00 AM daily
+    return cleanup; // Cleanup on unmount
+  }, []);
+
   return (
     <AuthProvider>
       <TasksProvider>

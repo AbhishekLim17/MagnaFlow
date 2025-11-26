@@ -19,8 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
+import { useAuth } from '@/contexts/AuthContext';
+import { getAllUsers } from '@/services/userService';
 
 const AddTaskDialog = ({ open, onOpenChange, onAddTask }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,34 +34,80 @@ const AddTaskDialog = ({ open, onOpenChange, onAddTask }) => {
     assignedTo: ''
   });
   const [staff, setStaff] = useState([]);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    // Load staff from localStorage
-    const savedStaff = localStorage.getItem('projectflow_staff');
-    if (savedStaff) {
-      setStaff(JSON.parse(savedStaff));
-    } else {
-      // Default staff if none exists
-      setStaff([
-        { id: 2, name: 'Staff Member', status: 'active' },
-        { id: 3, name: 'Sarah Johnson', status: 'active' },
-        { id: 4, name: 'Mike Chen', status: 'active' },
-        { id: 5, name: 'Emma Davis', status: 'active' }
-      ]);
-    }
+    // Load staff from Firebase
+    loadStaff();
   }, []);
 
-  const handleSubmit = (e) => {
+  const loadStaff = async () => {
+    try {
+      const staffData = await getAllUsers({ role: 'staff' });
+      setStaff(staffData.filter(s => s.status === 'active'));
+    } catch (error) {
+      console.error('Error loading staff:', error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
+    console.log('🚀 handleSubmit called!');
+    console.log('📝 Form data:', formData);
+    console.log('👥 Staff list:', staff);
+    
     if (!formData.title.trim() || !formData.assignedTo) {
+      console.warn('⚠️ Validation failed - missing title or assignedTo');
       return;
     }
 
-    onAddTask({
-      ...formData,
-      assignedTo: parseInt(formData.assignedTo)
-    });
+    setIsSending(true);
+
+    try {
+      // Add the task
+      onAddTask({
+        ...formData,
+        assignedTo: formData.assignedTo // Keep as string (Firebase ID)
+      });
+      
+      console.log('✅ Task added, now finding staff member...');
+      
+      // Send email notification to assigned staff member
+      const assignedStaffMember = staff.find(s => s.id === formData.assignedTo);
+      
+      console.log('📧 Sending email to:', assignedStaffMember);
+      
+      if (assignedStaffMember && assignedStaffMember.email) {
+        const emailParams = {
+          toEmail: assignedStaffMember.email,
+          toName: assignedStaffMember.name,
+          taskTitle: formData.title,
+          taskDescription: formData.description || 'No description provided',
+          taskPriority: formData.priority.charAt(0).toUpperCase() + formData.priority.slice(1),
+          dueDate: formData.dueDate ? new Date(formData.dueDate).toLocaleDateString() : 'Not specified',
+          assignedBy: user?.name || 'Admin',
+        };
+
+        console.log('📧 Email params:', emailParams);
+
+        // Send critical alert for high priority tasks, otherwise regular notification
+        if (formData.priority === 'critical') {
+          const result = await sendCriticalTaskAlert(emailParams);
+          console.log('📧 Critical email result:', result);
+        } else {
+          const result = await sendTaskAssignedEmail(emailParams);
+          console.log('📧 Email result:', result);
+        }
+      } else {
+        console.warn('⚠️ No email address found for staff member:', assignedStaffMember);
+      }
+    } catch (error) {
+      console.error('Error sending email notification:', error);
+      // Continue even if email fails - task is already created
+    } finally {
+      setIsSending(false);
+    }
     
     // Reset form
     setFormData({
@@ -79,14 +129,14 @@ const AddTaskDialog = ({ open, onOpenChange, onAddTask }) => {
     }));
   };
 
-  const activeStaff = staff.filter(member => member.status === 'active');
+  const activeStaff = staff;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
               <Plus className="w-4 h-4 text-white" />
             </div>
             <span>Create New Task</span>
@@ -129,8 +179,8 @@ const AddTaskDialog = ({ open, onOpenChange, onAddTask }) => {
               </SelectTrigger>
               <SelectContent className="glass-effect border-white/20">
                 {activeStaff.map((member) => (
-                  <SelectItem key={member.id} value={member.id.toString()}>
-                    {member.name}
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name} ({member.email})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -188,15 +238,30 @@ const AddTaskDialog = ({ open, onOpenChange, onAddTask }) => {
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="border-white/20 text-gray-300 hover:bg-white/10"
+              disabled={isSending}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              className="bg-teal-600 hover:bg-teal-700"
+              disabled={isSending}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Task
+              {isSending ? (
+                <>
+                  <motion.div
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Task
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

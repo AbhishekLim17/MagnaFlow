@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
+import { sendTaskCompletedEmail, sendTaskStatusChangedEmail } from '@/services/emailService';
 import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
@@ -72,6 +73,8 @@ const StaffDashboard = () => {
 
   const handleCompleteTask = async (taskId) => {
     try {
+      const task = myTasks.find(t => t.id === taskId);
+      
       await updateTask(taskId, {
         status: 'completed',
         completedAt: new Date().toISOString()
@@ -81,6 +84,21 @@ const StaffDashboard = () => {
         title: "Task completed!",
         description: "Great job! The task has been marked as completed.",
       });
+
+      // Send completion email to admin/task creator
+      if (task && task.assignedByEmail) {
+        try {
+          await sendTaskCompletedEmail({
+            toEmail: task.assignedByEmail,
+            toName: task.assignedBy || 'Admin',
+            taskTitle: task.title,
+            completedBy: user?.name || 'Staff',
+            completionDate: new Date().toLocaleDateString(),
+          });
+        } catch (emailError) {
+          console.error('Failed to send completion email:', emailError);
+        }
+      }
     } catch (error) {
       toast({
         title: "Error",

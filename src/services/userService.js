@@ -21,7 +21,7 @@ import {
   updatePassword,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { auth, db } from '@/config/firebase';
+import { auth, db, secondaryAuth } from '@/config/firebase';
 
 // Collection reference
 const USERS_COLLECTION = 'users';
@@ -116,15 +116,25 @@ export const getAllStaff = async () => {
  * @param {Object} userData - User data (name, email, password, role, designation, status)
  * @returns {Promise<Object>} Created user data
  */
+/**
+ * Create a new user (Authentication + Firestore)
+ * Admin function to add new staff members
+ * Uses secondary Firebase auth instance to prevent admin logout
+ * @param {Object} userData - User data (name, email, password, role, designation, status)
+ * @returns {Promise<Object>} Created user data
+ */
 export const createUser = async (userData) => {
   try {
     const { email, password, name, role, designation, status } = userData;
     
-    // Store current user to restore session
-    const currentUser = auth.currentUser;
+    // Verify admin is logged in
+    const currentAdmin = auth.currentUser;
+    if (!currentAdmin) {
+      throw new Error('You must be logged in as an admin to create users.');
+    }
     
-    // Create user in Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    // Create user using SECONDARY auth instance (won't affect admin session)
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     const uid = userCredential.user.uid;
     
     // Create user document in Firestore
@@ -140,16 +150,31 @@ export const createUser = async (userData) => {
     
     await setDoc(doc(db, USERS_COLLECTION, uid), userDoc);
     
-    // Sign out the newly created user to prevent auto-login
-    // This ensures admin stays logged in
-    await signOut(auth);
+    // Sign out from secondary auth (cleanup)
+    await signOut(secondaryAuth);
     
-    // Note: Firebase will automatically restore the previous session
-    // via onAuthStateChanged listener in AuthContext
+    console.log('✅ User created successfully. Admin session maintained.');
     
     return { id: uid, ...userDoc };
   } catch (error) {
     console.error('Error creating user:', error);
+    
+    // Provide helpful error messages
+    if (error.code === 'auth/email-already-in-use') {
+      const helpfulError = new Error(
+        `❌ Email already registered: ${email}\n\n` +
+        `This email exists in Firebase Authentication but may have been deleted from your portal.\n\n` +
+        `📋 TO FIX:\n` +
+        `1. Go to Firebase Console: https://console.firebase.google.com/project/magnaflow-07sep25/authentication/users\n` +
+        `2. Search for: ${email}\n` +
+        `3. Click the ⋮ menu → Delete account\n` +
+        `4. Try adding this user again\n\n` +
+        `💡 TIP: Check Admin Dashboard → System tab for pending deletions.`
+      );
+      helpfulError.code = error.code;
+      throw helpfulError;
+    }
+    
     throw error;
   }
 };
@@ -181,20 +206,34 @@ export const updateUser = async (uid, updates) => {
 };
 
 /**
- * Delete user (both Firestore and Authentication)
+ * Delete user (Firestore + creates marker for manual Firebase Auth cleanup)
  * @param {string} uid - User ID
  * @returns {Promise<void>}
  */
 export const deleteUser = async (uid) => {
   try {
+    // Get user data before deletion
+    const userData = await getUserById(uid);
+    if (!userData) {
+      throw new Error('User not found');
+    }
+    
     // Delete from Firestore
     await deleteDoc(doc(db, USERS_COLLECTION, uid));
     
-    // Note: Deleting from Firebase Auth requires the user to be signed in
-    // or admin SDK on backend. For client-side, we only delete Firestore doc
-    // and set status to 'deleted' instead of fully removing auth account
+    // Create deletion marker for manual Firebase Auth cleanup
+    await setDoc(doc(db, 'userDeletions', uid), {
+      userId: uid,
+      email: userData.email,
+      name: userData.name,
+      deletedAt: Timestamp.now(),
+      deletedBy: auth.currentUser?.email || 'unknown',
+      completed: false,
+      instructions: 'Go to Firebase Console → Authentication → Search email → Delete account'
+    });
     
-    console.log('User deleted from Firestore:', uid);
+    console.log('✅ User deleted from Firestore. Manual Firebase Auth cleanup required.');
+    console.log('📋 Check Admin Dashboard → System tab for deletion instructions.');
   } catch (error) {
     console.error('Error deleting user:', error);
     throw error;
@@ -264,6 +303,49 @@ export const resetUserPassword = async (email) => {
     console.log('Password reset email sent to:', email);
   } catch (error) {
     console.error('Error sending password reset email:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all pending user deletions (users deleted from portal but not from Firebase Auth)
+ * @returns {Promise<Array>} Array of pending deletions
+ */
+export const getPendingDeletions = async () => {
+  try {
+    const q = query(
+      collection(db, 'userDeletions'),
+      where('completed', '==', false),
+      orderBy('deletedAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    const deletions = [];
+    snapshot.forEach((doc) => {
+      deletions.push({ id: doc.id, ...doc.data() });
+    });
+    return deletions;
+  } catch (error) {
+    console.error('Error getting pending deletions:', error);
+    // Return empty array if collection doesn't exist yet
+    return [];
+  }
+};
+
+/**
+ * Mark a deletion as completed (after manual Firebase Auth cleanup)
+ * @param {string} deletionId - Deletion marker document ID
+ * @returns {Promise<void>}
+ */
+export const markDeletionCompleted = async (deletionId) => {
+  try {
+    await updateDoc(doc(db, 'userDeletions', deletionId), {
+      completed: true,
+      completedAt: Timestamp.now(),
+      completedBy: auth.currentUser?.email || 'unknown'
+    });
+    console.log('✅ Deletion marked as completed:', deletionId);
+  } catch (error) {
+    console.error('Error marking deletion completed:', error);
     throw error;
   }
 };

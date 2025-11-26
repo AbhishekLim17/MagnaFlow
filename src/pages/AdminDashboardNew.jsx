@@ -31,6 +31,7 @@ import TaskManagement from '@/components/admin/TaskManagementNew';
 import PerformanceReports from '@/components/admin/PerformanceReports';
 import DesignationsManagement from '@/components/admin/DesignationsManagement';
 import AdminManagement from '@/components/admin/AdminManagement';
+import TestReminderButton from '@/components/admin/TestReminderButton';
 import { getAllUsers } from '@/services/userService';
 
 const AdminDashboard = () => {
@@ -87,41 +88,41 @@ const AdminDashboard = () => {
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   ];
 
-  // Dashboard statistics cards
+  // Dashboard statistics cards - Professional Theme
   const dashboardStats = [
     { 
       title: 'Total Tasks', 
       value: statistics?.total || 0, 
       icon: Target, 
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-blue-600 to-blue-700',
       description: 'All tasks in system'
     },
     { 
       title: 'Pending Tasks', 
       value: statistics?.pending || 0, 
       icon: Clock, 
-      color: 'from-yellow-500 to-orange-500',
+      color: 'from-slate-600 to-slate-700',
       description: 'Awaiting action'
     },
     { 
       title: 'In Progress', 
       value: statistics?.inProgress || 0, 
       icon: TrendingUp, 
-      color: 'from-purple-500 to-pink-500',
+      color: 'from-indigo-600 to-indigo-700',
       description: 'Currently active'
     },
     { 
       title: 'Completed', 
       value: statistics?.completed || 0, 
       icon: CheckSquare, 
-      color: 'from-green-500 to-emerald-500',
+      color: 'from-teal-600 to-teal-700',
       description: 'Successfully done'
     },
     { 
       title: 'Team Members', 
       value: staffCount, 
       icon: Users, 
-      color: 'from-indigo-500 to-blue-500',
+      color: 'from-gray-600 to-gray-700',
       description: 'Active staff'
     },
   ];
@@ -131,7 +132,7 @@ const AdminDashboard = () => {
     <>
       <div className="p-6">
         <div className="flex items-center space-x-3 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
             <LayoutDashboard className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -149,12 +150,12 @@ const AdminDashboard = () => {
               onClick={() => navigateToTab(item.id)}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 activeTab === item.id
-                  ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300'
+                  ? 'bg-blue-600/20 border border-blue-500/30 text-blue-300'
                   : 'hover:bg-gray-800/50 text-gray-300 hover:text-white'
               }`}
             >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium whitespace-nowrap">{item.label}</span>
             </motion.button>
           ))}
         </nav>
@@ -162,7 +163,7 @@ const AdminDashboard = () => {
 
       <div className="p-6 border-t border-gray-800">
         <div className="flex items-center space-x-3 mb-4 p-3 bg-gray-800/50 rounded-lg">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
             {user?.name?.charAt(0) || 'A'}
           </div>
           <div className="flex-1">
@@ -201,7 +202,7 @@ const AdminDashboard = () => {
             <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${stat.color} flex items-center justify-center`}>
+                  <div className={`w-12 h-12 rounded-lg bg-${stat.color.split(' ')[1].replace('to-', '')} flex items-center justify-center`}>
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -245,6 +246,9 @@ const AdminDashboard = () => {
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="md:col-span-2 lg:col-span-4">
+              <TestReminderButton />
+            </div>
             <Button 
               onClick={() => navigateToTab('staff')}
               className="h-auto py-4 flex flex-col items-center space-y-2"
@@ -280,7 +284,7 @@ const AdminDashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white">
       <div className="flex">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:block w-64 fixed h-screen bg-gray-900/50 backdrop-blur-xl border-r border-gray-800">
@@ -314,7 +318,7 @@ const AdminDashboard = () => {
               </div>
               <div className="flex items-center space-x-4">
                 <div className="hidden md:flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {user?.name?.charAt(0) || 'A'}
                   </div>
                   <span className="text-sm font-medium">{user?.name}</span>

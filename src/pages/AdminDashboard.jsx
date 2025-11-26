@@ -26,6 +26,7 @@ import StaffManagement from '@/components/admin/StaffManagement';
 import TaskManagement from '@/components/admin/TaskManagement';
 import PerformanceReports from '@/components/admin/PerformanceReports';
 import DesignationsManagement from '@/components/admin/DesignationsManagement';
+import TestReminderButton from '@/components/admin/TestReminderButton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const AdminDashboard = () => {
@@ -57,10 +58,10 @@ const AdminDashboard = () => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'staff', label: 'Staff', icon: Users },
+    { id: 'staff', label: 'Staff Management', icon: Users },
     { id: 'designations', label: 'Designations', icon: Briefcase },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'tasks', label: 'Task Management', icon: CheckSquare },
+    { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   ];
 
   const dashboardStats = [
@@ -102,8 +103,8 @@ const AdminDashboard = () => {
                   : 'hover:bg-white/10 text-gray-300 hover:text-white'
               }`}
             >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium whitespace-nowrap">{item.label}</span>
             </motion.button>
           ))}
         </nav>
@@ -241,6 +242,7 @@ const AdminDashboard = () => {
                         <h3 className="text-xl font-semibold text-white">Quick Actions</h3>
                       </div>
                       <div className="space-y-4">
+                        <TestReminderButton />
                         <Button className="w-full justify-start bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" onClick={() => navigateToTab('tasks')}>
                           <Plus className="w-4 h-4 mr-2" />
                           Create New Task

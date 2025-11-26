@@ -216,7 +216,7 @@ const TaskManagement = () => {
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+          className="bg-teal-600 hover:bg-teal-700 shadow-lg"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Task

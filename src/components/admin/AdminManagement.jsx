@@ -65,7 +65,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               {initialData ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             </div>
             <span>{initialData ? 'Edit Admin' : 'Add New Admin'}</span>
@@ -161,7 +161,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
             </Button>
             <Button 
               type="submit" 
-              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+              className="bg-indigo-600 hover:bg-indigo-700"
               disabled={loading}
             >
               {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Admin')}
@@ -326,7 +326,7 @@ const AdminManagement = () => {
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 w-full sm:w-auto"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Admin
@@ -359,7 +359,7 @@ const AdminManagement = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
                           <Shield className="w-5 h-5 text-white" />
                         </div>
                         <div>

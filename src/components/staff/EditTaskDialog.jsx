@@ -116,7 +116,7 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Edit className="w-4 h-4 text-white" />
             </div>
             <span>Edit Task</span>
@@ -207,7 +207,7 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               <Edit className="w-4 h-4 mr-2" />
               Update Task

@@ -117,28 +117,28 @@ const StaffDashboard = () => {
       title: 'Total Tasks', 
       value: statistics?.total || 0, 
       icon: Target, 
-      color: 'from-blue-500 to-cyan-500',
+      color: 'blue-600',
       description: 'Assigned to you'
     },
     { 
       title: 'Pending', 
       value: statistics?.pending || 0, 
       icon: AlertCircle, 
-      color: 'from-yellow-500 to-orange-500',
+      color: 'slate-600',
       description: 'Awaiting start'
     },
     { 
       title: 'In Progress', 
       value: statistics?.inProgress || 0, 
       icon: TrendingUp, 
-      color: 'from-purple-500 to-pink-500',
+      color: 'indigo-600',
       description: 'Currently working'
     },
     { 
       title: 'Completed', 
       value: statistics?.completed || 0, 
       icon: CheckSquare, 
-      color: 'from-green-500 to-emerald-500',
+      color: 'teal-600',
       description: 'Successfully done'
     },
   ];
@@ -176,12 +176,12 @@ const StaffDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur-xl border-b border-gray-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <CheckSquare className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -191,7 +191,7 @@ const StaffDashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3 px-4 py-2 bg-gray-800/50 rounded-lg">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {user?.name?.charAt(0) || 'S'}
               </div>
               <div>
@@ -241,7 +241,7 @@ const StaffDashboard = () => {
               <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${stat.color} flex items-center justify-center`}>
+                    <div className={`w-12 h-12 rounded-lg bg-${stat.color} shadow-lg flex items-center justify-center`}>
                       <stat.icon className="w-6 h-6 text-white" />
                     </div>
                   </div>
@@ -262,7 +262,7 @@ const StaffDashboard = () => {
               <h3 className="text-xl font-semibold">My Tasks</h3>
               <Button
                 onClick={() => setIsAddTaskOpen(true)}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Personal Task

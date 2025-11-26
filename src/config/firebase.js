@@ -28,4 +28,9 @@ export const auth = getAuth(app);
 // Used for storing users, tasks, designations, and other data
 export const db = getFirestore(app);
 
+// Secondary Firebase app for creating users without affecting admin session
+// This allows admins to create staff accounts without being logged out
+const secondaryApp = initializeApp(firebaseConfig, 'Secondary');
+export const secondaryAuth = getAuth(secondaryApp);
+
 export default app;

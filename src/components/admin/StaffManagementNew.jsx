@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import QuickDeletionGuide from './QuickDeletionGuide';
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,8 @@ const StaffManagement = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
+  const [deletedUserEmail, setDeletedUserEmail] = useState(null); // Track deleted user email for Firebase cleanup guide
+  const [showCleanupGuide, setShowCleanupGuide] = useState(false); // Show cleanup guide after deletion
   
   // Form state
   const [formData, setFormData] = useState({
@@ -105,19 +108,32 @@ const StaffManagement = () => {
       });
       
       toast({
-        title: "Staff Added",
-        description: `${formData.name} has been added successfully.`,
+        title: "✅ Staff Added Successfully!",
+        description: `${formData.name} has been added and can now login.`,
       });
       
       setIsAddDialogOpen(false);
       resetForm();
-      loadStaff();
+      
+      // Wait a bit for Firestore to propagate, then reload
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadStaff();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add staff member.",
-        variant: "destructive",
-      });
+      // Simple error message for duplicate email
+      if (error.message && error.message.includes('Email already registered')) {
+        toast({
+          title: "⚠️ Email Already Exists",
+          description: "This email is already registered. Check the System tab or use a different email.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to add staff member.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -145,7 +161,10 @@ const StaffManagement = () => {
       
       setIsEditDialogOpen(false);
       resetForm();
-      loadStaff();
+      
+      // Wait for Firestore to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadStaff();
     } catch (error) {
       toast({
         title: "Error",
@@ -161,14 +180,22 @@ const StaffManagement = () => {
     try {
       await deleteUser(staffToDelete.id);
       
+      // Set the deleted user's email and show cleanup guide
+      setDeletedUserEmail(staffToDelete.email);
+      setShowCleanupGuide(true);
+      
       toast({
-        title: "Staff Deleted",
-        description: `${staffToDelete.name} has been removed.`,
+        title: "✅ Staff Deleted from Portal",
+        description: `${staffToDelete.name} removed. Firebase Auth cleanup required.`,
+        duration: 5000,
       });
       
       setDeleteDialogOpen(false);
       setStaffToDelete(null);
-      loadStaff();
+      
+      // Wait for Firestore to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadStaff();
     } catch (error) {
       toast({
         title: "Error",
@@ -193,7 +220,10 @@ const StaffManagement = () => {
           description: `${staffMember.name} has been activated.`,
         });
       }
-      loadStaff();
+      
+      // Wait for Firestore to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadStaff();
     } catch (error) {
       toast({
         title: "Error",
@@ -263,7 +293,7 @@ const StaffManagement = () => {
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Staff
@@ -308,7 +338,7 @@ const StaffManagement = () => {
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
                             {member.name.charAt(0)}
                           </div>
                           <div>
@@ -383,14 +413,18 @@ const StaffManagement = () => {
       </Card>
 
       {/* Add Staff Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800">
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        setIsAddDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Staff Member</DialogTitle>
             <DialogDescription>
               Create a new staff account. They will be able to log in with these credentials.
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4">
             <div>
               <Label htmlFor="name">Name *</Label>
@@ -540,6 +574,31 @@ const StaffManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Firebase Auth Cleanup Guide Dialog */}
+      <Dialog open={showCleanupGuide} onOpenChange={setShowCleanupGuide}>
+        <DialogContent className="bg-gray-900 border-gray-800 max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>⚠️ Firebase Auth Cleanup Required</DialogTitle>
+            <DialogDescription>
+              The user has been deleted from the portal, but you need to manually delete them from Firebase Authentication.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <QuickDeletionGuide email={deletedUserEmail} />
+          
+          <DialogFooter>
+            <Button 
+              onClick={() => {
+                setShowCleanupGuide(false);
+                setDeletedUserEmail(null);
+              }}
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
