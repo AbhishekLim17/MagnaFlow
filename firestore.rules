@@ -10,43 +10,141 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
 
-    // Users collection - Simplified rules for development
+    // Users collection - Role-based access control
     match /users/{userId} {
-      // Allow authenticated users to read and write their own documents
-      allow read, write: if isAuthenticated() && isOwner(userId);
+      // Users can read their own profile
+      // ALSO allow unauthenticated read for cron trigger (to get user emails for reminders)
+      allow read: if (isAuthenticated() && isOwner(userId)) || !isAuthenticated();
       
-      // Allow admins to read and write any user document
-      // (This will be checked at the application level)
-      allow read, write: if isAuthenticated();
+      // Only admins can read all users
+      // ALSO allow unauthenticated read for cron trigger (to get user emails for reminders)
+      allow list: if isAdmin() || !isAuthenticated();
       
-      // Allow user creation by authenticated users
-      allow create: if isAuthenticated();
+      // Users can update their own profile (limited fields only)
+      allow update: if isAuthenticated() && isOwner(userId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'email']);
+      
+      // Only admins can create new users
+      allow create: if isAdmin();
+      
+      // Only admins can delete users
+      allow delete: if isAdmin();
+      
+      // Only admins can change role or status
+      allow write: if isAdmin();
     }
 
-    // Tasks collection
+    // Tasks collection - Role-based access
     match /tasks/{taskId} {
-      allow read, write, create: if isAuthenticated();
+      // Staff can read tasks assigned to them
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || resource.data.assignedTo == request.auth.uid);
+      
+      // Admins can read all tasks
+      // ALSO allow unauthenticated read for cron trigger (read-only, no write access)
+      allow list: if isAdmin() || !isAuthenticated();
+      
+      // Only admins can create tasks
+      allow create: if isAdmin();
+      
+      // Only admins can update tasks
+      allow update: if isAdmin();
+      
+      // Only admins can delete tasks
+      allow delete: if isAdmin();
     }
 
-    // Companies collection
+    // Companies collection - Admin only
     match /companies/{companyId} {
-      allow read, write, create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write, create, delete: if isAdmin();
     }
 
-    // Departments collection
+    // Departments collection - Admin only
     match /departments/{departmentId} {
-      allow read, write, create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write, create, delete: if isAdmin();
     }
 
-    // Designations collection  
+    // Designations collection - Admin only
     match /designations/{designationId} {
-      allow read, write, create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write, create, delete: if isAdmin();
     }
 
-    // Performance Reports collection
+    // Performance Reports collection - Role-based access
     match /performanceReports/{reportId} {
-      allow read, write, create: if isAuthenticated();
+      // Staff can read their own reports
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Only admins can write reports
+      allow write, create, delete: if isAdmin();
+    }
+
+    // Reminder Logs collection - Cron trigger needs read/write access
+    match /reminder_logs/{logId} {
+      // Public read/write for cron trigger (token-protected at application level)
+      // Cron needs READ to check if already sent today
+      // Cron needs WRITE to save execution logs
+      allow read, write, create: if true;
+      
+      // Admins can also read/list logs
+      allow list: if isAdmin();
+    }
+
+    // System Monitoring collection - For production safety monitoring
+    match /system_monitoring/{docId} {
+      // Public read/write for cron trigger (token-protected at application level)
+      // Used for email quota tracking and health checks
+      allow read, write, create, update: if true;
+      
+      // Admins can also access
+      allow list: if isAdmin();
+    }
+
+    // Subtasks collection - Role-based access
+    match /subtasks/{subtaskId} {
+      // Staff can read subtasks for tasks assigned to them
+      // Admin can read all subtasks
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || 
+                      get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid);
+      
+      // Staff can create subtasks for their assigned tasks
+      // Admin can create any subtasks
+      allow create: if isAuthenticated() && 
+                       (isAdmin() || 
+                        get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.assignedTo == request.auth.uid);
+      
+      // Staff can update subtasks for their assigned tasks
+      // Admin can update any subtasks
+      allow update: if isAuthenticated() && 
+                       (isAdmin() || 
+                        get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid);
+      
+      // Staff can delete subtasks for their assigned tasks
+      // Admin can delete any subtasks
+      allow delete: if isAuthenticated() && 
+                       (isAdmin() || 
+                        get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid);
+    }
+
+    // Email Logs collection - Admin only
+    match /email_logs/{logId} {
+      allow write, create: if isAuthenticated();
+      allow read: if isAdmin();
     }
   }
 }

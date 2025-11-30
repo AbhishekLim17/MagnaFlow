@@ -9,6 +9,8 @@ import {
 } from "firebase/auth";
 import { auth } from "@/config/firebase";
 import { getUserById } from "@/services/userService";
+import { withLoginRateLimit } from "@/utils/rateLimiter";
+import { isValidEmail } from "@/utils/validation";
 
 const AuthContext = createContext();
 
@@ -66,55 +68,59 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Login with email and password
+   * Login with email and password (with rate limiting and validation)
    * @param {string} email - User email
    * @param {string} password - User password
    * @returns {Promise<Object>} Result object with success status
    */
   const login = async (email, password) => {
     try {
-      console.log("🔐 Attempting login for:", email);
-      
-      // Sign in with Firebase Authentication
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("✅ Firebase Auth successful, UID:", userCredential.user.uid);
-      
-      // Fetch user data from Firestore
-      const userData = await getUserById(userCredential.user.uid);
-      
-      if (!userData) {
-        throw new Error("User data not found in database");
+      // Input validation
+      if (!email || !password) {
+        throw new Error("Email and password are required");
       }
       
-      // Check if user is active
-      if (userData.status === 'inactive') {
-        await signOut(auth);
-        throw new Error("Your account has been deactivated. Please contact administrator.");
+      if (!isValidEmail(email)) {
+        throw new Error("Invalid email address format");
       }
       
-      console.log("✅ Login successful:", userData.email);
-      
-      return { 
-        success: true, 
-        user: userData 
-      };
+      // Use rate limiter wrapper
+      return await withLoginRateLimit(email, async () => {
+        // Sign in with Firebase Authentication
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        // Fetch user data from Firestore
+        const userData = await getUserById(userCredential.user.uid);
+        
+        if (!userData) {
+          await signOut(auth);
+          throw new Error("User data not found in database");
+        }
+        
+        // Check if user is active
+        if (userData.status === 'inactive') {
+          await signOut(auth);
+          throw new Error("Your account has been deactivated. Please contact administrator.");
+        }
+        
+        return { 
+          success: true, 
+          user: userData 
+        };
+      });
       
     } catch (error) {
-      console.error("❌ Login error:", error);
-      
       // Handle specific Firebase auth errors
       let errorMessage = "Login failed. Please try again.";
       
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = "No user found with this email address.";
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = "Incorrect password.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = "Invalid email or password";
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email address.";
+        errorMessage = "Invalid email address format";
       } else if (error.code === 'auth/user-disabled') {
-        errorMessage = "This account has been disabled.";
+        errorMessage = "This account has been disabled";
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = "Too many failed login attempts. Please try again later.";
+        errorMessage = "Too many failed login attempts. Please try again later";
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -131,11 +137,8 @@ export const AuthProvider = ({ children }) => {
    */
   const logout = async () => {
     try {
-      console.log("🚪 Logging out user");
       await signOut(auth);
-      console.log("✅ Logout successful");
     } catch (error) {
-      console.error("❌ Logout error:", error);
       throw error;
     }
   };

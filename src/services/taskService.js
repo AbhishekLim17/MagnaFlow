@@ -16,6 +16,8 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { sendCriticalTaskAlert } from './emailService';
+import { deleteAllSubtasksForTask } from './subtaskService';
 
 // Collection reference
 const TASKS_COLLECTION = 'tasks';
@@ -154,6 +156,9 @@ export const updateTask = async (taskId, updates) => {
   try {
     const taskRef = doc(db, TASKS_COLLECTION, taskId);
     
+    // Get the current task data to check priority changes
+    const currentTask = await getTaskById(taskId);
+    
     const updatedData = {
       ...updates,
       updatedAt: Timestamp.now(),
@@ -173,6 +178,31 @@ export const updateTask = async (taskId, updates) => {
     
     // Return updated task
     const updatedTask = await getTaskById(taskId);
+    
+    // Send critical task alert if priority changed to critical
+    if (updates.priority === 'critical' && currentTask.priority !== 'critical') {
+      try {
+        // Get assigned user details from Firestore users collection
+        const userDoc = await getDoc(doc(db, 'users', updatedTask.assignedTo));
+        const userData = userDoc.data();
+        
+        if (userData && userData.email) {
+          await sendCriticalTaskAlert({
+            toEmail: userData.email,
+            toName: userData.name || userData.email,
+            taskTitle: updatedTask.title,
+            taskDescription: updatedTask.description,
+            dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
+            assignedBy: currentTask.createdBy || 'Admin'
+          });
+          console.log('Critical task alert sent to:', userData.email);
+        }
+      } catch (emailError) {
+        console.error('Error sending critical task alert:', emailError);
+        // Don't throw error - task update should succeed even if email fails
+      }
+    }
+    
     return updatedTask;
   } catch (error) {
     console.error('Error updating task:', error);
@@ -187,6 +217,10 @@ export const updateTask = async (taskId, updates) => {
  */
 export const deleteTask = async (taskId) => {
   try {
+    // First, delete all associated subtasks
+    await deleteAllSubtasksForTask(taskId);
+    
+    // Then delete the task itself
     await deleteDoc(doc(db, TASKS_COLLECTION, taskId));
     console.log('Task deleted:', taskId);
   } catch (error) {

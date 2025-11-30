@@ -1,8 +1,10 @@
 // Task Details Dialog - View full task details and update status
 // Staff member can see complete task information, change status, edit or delete
 
-import React from 'react';
-import { Calendar, User, AlertCircle, CheckCircle, Edit, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, User, AlertCircle, CheckCircle, Edit, Trash2, ListChecks, Plus } from 'lucide-react';
+import SubtaskList from '../SubtaskList';
+import AddSubtaskDialog from '../AddSubtaskDialog';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,9 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
-const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, onDelete }) => {
+const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, onDelete, currentUser }) => {
+  const [showAddSubtask, setShowAddSubtask] = useState(false);
+  
   if (!task) return null;
 
   const formatDate = (timestamp) => {
@@ -145,6 +149,28 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
             </p>
           </div>
 
+          {/* Subtasks Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ListChecks className="w-5 h-5 text-blue-400" />
+                <Label className="text-lg">Subtasks</Label>
+              </div>
+              <Button
+                onClick={() => setShowAddSubtask(true)}
+                variant="outline"
+                size="sm"
+                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Subtask
+              </Button>
+            </div>
+            <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+              <SubtaskList taskId={task.id} currentUser={currentUser} />
+            </div>
+          </div>
+
           {/* Close Button */}
           <div className="flex justify-between items-center pt-4 border-t border-gray-800">
             <div className="flex space-x-2">
@@ -202,6 +228,16 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
           </div>
         </div>
       </DialogContent>
+      
+      {/* Add Subtask Dialog */}
+      {currentUser && (
+        <AddSubtaskDialog
+          open={showAddSubtask}
+          onClose={() => setShowAddSubtask(false)}
+          taskId={task.id}
+          currentUser={currentUser}
+        />
+      )}
     </Dialog>
   );
 };

@@ -11,6 +11,8 @@ import {
   initializeDefaultDesignations,
 } from '@/services/designationService';
 import { getAllUsers } from '@/services/userService';
+import { onSnapshot, collection } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 
 const DesignationsContext = createContext();
 
@@ -40,9 +42,6 @@ export const DesignationsProvider = ({ children }) => {
   // Set up real-time listener for designations
   const setupDesignationsListener = () => {
     try {
-      const { onSnapshot, collection } = require('firebase/firestore');
-      const { db } = require('@/config/firebase');
-      
       const designationsRef = collection(db, 'designations');
       
       const unsubscribe = onSnapshot(

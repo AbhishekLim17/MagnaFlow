@@ -12,7 +12,8 @@ import {
   Clock,
   AlertCircle,
   CheckCircle,
-  PlayCircle
+  PlayCircle,
+  ListChecks
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,14 +22,17 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import AddTaskDialog from './AddTaskDialog';
 import EditTaskDialog from './EditTaskDialog';
+import TaskSubtasksDialog from './TaskSubtasksDialog';
 
 const TaskManagement = () => {
+  // Feature 1: Subtasks management
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [subtasksTask, setSubtasksTask] = useState(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -330,6 +334,15 @@ const TaskManagement = () => {
                 <Button
                   size="sm"
                   variant="outline"
+                  onClick={() => setSubtasksTask(task)}
+                  className="flex-1 border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
+                >
+                  <ListChecks className="w-4 h-4 mr-1" />
+                  Subtasks
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => setEditingTask(task)}
                   className="flex-1 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
                 >
@@ -381,6 +394,12 @@ const TaskManagement = () => {
           onEditTask={handleEditTask}
         />
       )}
+
+      <TaskSubtasksDialog
+        open={!!subtasksTask}
+        onOpenChange={() => setSubtasksTask(null)}
+        task={subtasksTask}
+      />
     </motion.div>
   );
 };

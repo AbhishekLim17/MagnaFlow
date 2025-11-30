@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Task Priority Checker</title>
+</head>
+<body>
+  <h1>Checking Task Data...</h1>
+  <pre id="output"></pre>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDRmS1pWrNe9e9oMKX3M6MBJHYxGI3Wis",
+      authDomain: "magnaflow-07sep25.firebaseapp.com",
+      projectId: "magnaflow-07sep25",
+      storageBucket: "magnaflow-07sep25.firebasestorage.app",
+      messagingSenderId: "1005959815088",
+      appId: "1:1005959815088:web:f70e1e7f64b4efee6a44b4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const output = document.getElementById('output');
+
+    async function checkTasks() {
+      try {
+        output.textContent = 'Loading tasks...\n\n';
+        
+        const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+        
+        output.textContent += `Total tasks: ${tasksSnapshot.size}\n\n`;
+        
+        tasksSnapshot.forEach(doc => {
+          const task = doc.data();
+          output.textContent += `Task ID: ${doc.id}\n`;
+          output.textContent += `Title: ${task.title}\n`;
+          output.textContent += `Priority: "${task.priority}" (type: ${typeof task.priority})\n`;
+          output.textContent += `Status: "${task.status}"\n`;
+          output.textContent += `Assigned To: ${task.assignedTo}\n`;
+          output.textContent += `---\n\n`;
+        });
+
+        // Check for critical tasks (case-sensitive)
+        const criticalExact = [];
+        const criticalInsensitive = [];
+        
+        tasksSnapshot.forEach(doc => {
+          const task = doc.data();
+          if (task.priority === 'critical' && task.status?.toLowerCase() !== 'completed') {
+            criticalExact.push(task);
+          }
+          if (task.priority?.toLowerCase() === 'critical' && task.status?.toLowerCase() !== 'completed') {
+            criticalInsensitive.push(task);
+          }
+        });
+
+        output.textContent += `\n=== ANALYSIS ===\n`;
+        output.textContent += `Critical tasks (exact match "critical"): ${criticalExact.length}\n`;
+        output.textContent += `Critical tasks (case-insensitive): ${criticalInsensitive.length}\n\n`;
+
+        if (criticalInsensitive.length > criticalExact.length) {
+          output.textContent += `⚠️ PROBLEM FOUND: Tasks have "Critical" with capital C, but query searches for lowercase "critical"\n`;
+        }
+
+      } catch (error) {
+        output.textContent += `Error: ${error.message}\n`;
+        console.error(error);
+      }
+    }
+
+    checkTasks();
+  </script>
+</body>
+</html>

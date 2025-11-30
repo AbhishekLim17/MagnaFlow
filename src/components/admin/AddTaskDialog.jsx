@@ -131,6 +131,20 @@ const AddTaskDialog = ({ open, onOpenChange, onAddTask }) => {
 
   const activeStaff = staff;
 
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        dueDate: '',
+        status: 'pending',
+        assignedTo: ''
+      });
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-effect border-white/20 text-white max-w-md">

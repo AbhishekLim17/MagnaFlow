@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MagnaFlow Reminder Trigger</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 { color: #333; margin-bottom: 30px; }
+    .status {
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border-left: 5px solid;
+    }
+    .loading { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .success { background: #d4edda; border-color: #28a745; color: #155724; }
+    .error { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    .info { background: #d1ecf1; border-color: #17a2b8; color: #0c5460; }
+    pre {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .metric {
+      display: inline-block;
+      margin: 10px 20px 10px 0;
+      padding: 15px 25px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    .metric-value { font-size: 24px; color: #667eea; }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 15px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔔 MagnaFlow Daily Reminder System</h1>
+    <div id="status" class="status loading">
+      <div class="spinner"></div>
+      <strong>Initializing reminder system...</strong>
+    </div>
+    <div id="results"></div>
+    <div id="logs">
+      <h3>📋 Execution Logs:</h3>
+      <pre id="logOutput">Starting up...\n</pre>
+    </div>
+  </div>
+
+  <!-- Standalone Firebase + EmailJS Implementation -->
+  <script type="module">
+    // ========================================
+    // STANDALONE REMINDER TRIGGER
+    // No authentication required - works with cron-job.org
+    // ========================================
+
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCRyUccKpfACAxlqZrFQDxtXbvmrIhDuJA",
+      authDomain: "magnaflow-07sep25.firebaseapp.com",
+      projectId: "magnaflow-07sep25",
+      storageBucket: "magnaflow-07sep25.firebasestorage.app",
+      messagingSenderId: "130194515342",
+      appId: "1:130194515342:web:4d2595334ace93aa0270df",
+      measurementId: "G-QQ838JFSWP"
+    };
+
+    // EmailJS Configuration
+    const EMAILJS = {
+      SERVICE_ID: 'service_itwo1ee',
+      TEMPLATE_ID: 'template_mwmmgmi',
+      PUBLIC_KEY: 'sLvBE12fOqa4zsra-',
+      PRIVATE_KEY: '69niIwGWTQOzw0jwCVj3L'
+    };
+
+    const ADMIN_EMAILS = 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in';
+
+    // ========================================
+    // PRODUCTION SAFETY CONFIGURATION
+    // ========================================
+    const FEATURE_FLAGS = {
+      HYBRID_URGENCY_ENABLED: true,  // Set to false to rollback to Critical-only
+      EMAIL_QUOTA_WARNING: true,     // Warn when approaching EmailJS limit
+      HEALTH_CHECK_MODE: false       // Set true for health check endpoint
+    };
+
+    const LIMITS = {
+      EMAIL_QUOTA_MONTHLY: 200,      // EmailJS free tier limit
+      EMAIL_QUOTA_WARNING: 150,      // Warn at 75%
+      EMAIL_QUOTA_CRITICAL: 195,     // Stop at 97.5%
+      MAX_EXECUTION_TIME: 60000      // 60 seconds max
+    };
+
+    // Logging helper with level support
+    function log(message, level = 'INFO') {
+      const timestamp = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const logOutput = document.getElementById('logOutput');
+      const prefix = level === 'ERROR' ? '❌' : level === 'WARN' ? '⚠️' : level === 'SUCCESS' ? '✅' : 'ℹ️';
+      logOutput.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+      logOutput.scrollTop = logOutput.scrollHeight;
+      console.log(`[${timestamp}] [${level}] ${message}`);
+    }
+
+    function updateStatus(message, type = 'loading', showSpinner = false) {
+      const statusEl = document.getElementById('status');
+      const spinnerHTML = showSpinner ? '<div class="spinner"></div>' : '';
+      statusEl.innerHTML = `${spinnerHTML}<strong>${message}</strong>`;
+      statusEl.className = `status ${type}`;
+    }
+
+    // ========================================
+    // EMAIL QUOTA MONITORING
+    // ========================================
+    async function checkEmailQuota(db) {
+      if (!FEATURE_FLAGS.EMAIL_QUOTA_WARNING) return { safe: true, count: 0 };
+
+      try {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        
+        const quotaRef = doc(db, 'system_monitoring', 'email_quota');
+        const quotaSnap = await getDoc(quotaRef);
+        
+        let monthlyCount = 0;
+        if (quotaSnap.exists()) {
+          const data = quotaSnap.data();
+          if (data.month === currentMonth) {
+            monthlyCount = data.count || 0;
+          }
+        }
+
+        log(`📧 Email quota: ${monthlyCount}/${LIMITS.EMAIL_QUOTA_MONTHLY} (${Math.round(monthlyCount/LIMITS.EMAIL_QUOTA_MONTHLY*100)}%)`);
+
+        if (monthlyCount >= LIMITS.EMAIL_QUOTA_CRITICAL) {
+          log(`🚨 CRITICAL: Email quota exceeded (${monthlyCount}/${LIMITS.EMAIL_QUOTA_MONTHLY})`, 'ERROR');
+          return { safe: false, count: monthlyCount, reason: 'QUOTA_EXCEEDED' };
+        }
+
+        if (monthlyCount >= LIMITS.EMAIL_QUOTA_WARNING) {
+          log(`⚠️ WARNING: Approaching email quota limit (${monthlyCount}/${LIMITS.EMAIL_QUOTA_MONTHLY})`, 'WARN');
+        }
+
+        return { safe: true, count: monthlyCount };
+      } catch (error) {
+        log(`⚠️ Could not check email quota: ${error.message}`, 'WARN');
+        return { safe: true, count: 0 }; // Fail open to not block reminders
+      }
+    }
+
+    async function updateEmailQuota(db, emailsSent) {
+      if (!FEATURE_FLAGS.EMAIL_QUOTA_WARNING) return;
+
+      try {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        
+        const quotaRef = doc(db, 'system_monitoring', 'email_quota');
+        const quotaSnap = await getDoc(quotaRef);
+        
+        let newCount = emailsSent;
+        if (quotaSnap.exists()) {
+          const data = quotaSnap.data();
+          if (data.month === currentMonth) {
+            newCount = (data.count || 0) + emailsSent;
+          }
+        }
+
+        await setDoc(quotaRef, {
+          month: currentMonth,
+          count: newCount,
+          lastUpdated: new Date().toISOString(),
+          lastEmails: emailsSent
+        });
+
+        log(`✅ Updated email quota: ${newCount}/${LIMITS.EMAIL_QUOTA_MONTHLY}`, 'SUCCESS');
+      } catch (error) {
+        log(`⚠️ Could not update email quota: ${error.message}`, 'WARN');
+      }
+    }
+
+    // ========================================
+    // HEALTH CHECK ENDPOINT
+    // ========================================
+    async function performHealthCheck(db) {
+      const health = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        checks: {},
+        featureFlags: FEATURE_FLAGS
+      };
+
+      try {
+        // Check Firebase connection
+        const testQuery = query(collection(db, 'tasks'), where('status', '==', 'In Progress'));
+        await getDocs(testQuery);
+        health.checks.firebase = { status: 'ok', message: 'Connected' };
+      } catch (error) {
+        health.checks.firebase = { status: 'error', message: error.message };
+        health.status = 'unhealthy';
+      }
+
+      try {
+        // Check last execution
+        const today = new Date().toISOString().split('T')[0];
+        const logRef = doc(db, 'reminder_logs', today);
+        const logSnap = await getDoc(logRef);
+        
+        if (logSnap.exists()) {
+          const data = logSnap.data();
+          health.checks.lastExecution = {
+            status: 'ok',
+            timestamp: data.timestamp,
+            emailsSent: data.remindersSent
+          };
+        } else {
+          health.checks.lastExecution = { status: 'warning', message: 'No execution today yet' };
+        }
+      } catch (error) {
+        health.checks.lastExecution = { status: 'error', message: error.message };
+      }
+
+      // Check email quota
+      const quotaCheck = await checkEmailQuota(db);
+      health.checks.emailQuota = {
+        status: quotaCheck.safe ? 'ok' : 'critical',
+        count: quotaCheck.count,
+        limit: LIMITS.EMAIL_QUOTA_MONTHLY
+      };
+
+      return health;
+    }
+
+    // Calculate days pending
+    function calculateDaysPending(createdAt) {
+      if (!createdAt) return 'Unknown';
+      const created = createdAt.toDate();
+      const now = new Date();
+      const diffDays = Math.ceil((now - created) / (1000 * 60 * 60 * 24));
+      return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+    }
+
+    // Calculate days until deadline (NEW - Hybrid Approach)
+    function getDaysUntilDeadline(dueDate) {
+      if (!dueDate) return null;
+      const due = new Date(dueDate);
+      const now = new Date();
+      const diffTime = due - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    }
+
+    // Determine task urgency (NEW - Hybrid Approach)
+    function getTaskUrgency(task) {
+      const priority = (task.priority || '').toLowerCase();
+      const status = (task.status || '').toLowerCase();
+      const daysUntil = getDaysUntilDeadline(task.dueDate);
+
+      // Skip completed tasks
+      if (status === 'completed') return null;
+
+      // Critical priority: Always send (EXISTING BEHAVIOR - UNCHANGED)
+      if (priority === 'critical') {
+        return {
+          category: 'critical',
+          urgencyLevel: '🔴 CRITICAL',
+          color: '#ef4444',
+          icon: '🔴',
+          reason: 'Critical Priority',
+          sortOrder: 1
+        };
+      }
+
+      // ========================================
+      // FEATURE FLAG: Hybrid Urgency Logic
+      // Set HYBRID_URGENCY_ENABLED = false to rollback to Critical-only
+      // ========================================
+      if (!FEATURE_FLAGS.HYBRID_URGENCY_ENABLED) {
+        // ROLLBACK MODE: Only Critical priority gets reminders
+        return null;
+      }
+
+      // Medium priority with deadline checks (NEW - Hybrid Addition)
+      if (priority === 'medium') {
+        if (daysUntil !== null) {
+          // Overdue
+          if (daysUntil < 0) {
+            return {
+              category: 'overdue_medium',
+              urgencyLevel: '⚠️ OVERDUE',
+              color: '#dc2626',
+              icon: '⚠️',
+              reason: `Overdue by ${Math.abs(daysUntil)} day(s)`,
+              sortOrder: 2
+            };
+          }
+          // Due within 2 days
+          if (daysUntil <= 2) {
+            return {
+              category: 'approaching_medium',
+              urgencyLevel: '⏰ URGENT',
+              color: '#f59e0b',
+              icon: '⏰',
+              reason: `Due in ${daysUntil} day(s)`,
+              sortOrder: 3
+            };
+          }
+        }
+      }
+
+      // High priority overdue (NEW - Hybrid Addition)
+      if (priority === 'high' && daysUntil !== null && daysUntil < 0) {
+        return {
+          category: 'overdue_high',
+          urgencyLevel: '⚠️ OVERDUE',
+          color: '#dc2626',
+          icon: '⚠️',
+          reason: `Overdue by ${Math.abs(daysUntil)} day(s)`,
+          sortOrder: 2
+        };
+      }
+
+      // Low priority with progressive escalation (NEW - Addresses gap)
+      if (priority === 'low' && daysUntil !== null && daysUntil < 0) {
+        const daysOverdue = Math.abs(daysUntil);
+        
+        // Tier 1: 7-13 days overdue - Weekly reminder (Monday only)
+        if (daysOverdue >= 7 && daysOverdue <= 13) {
+          return {
+            category: 'low_overdue_weekly',
+            urgencyLevel: '📌 Low Priority - Overdue',
+            color: '#6b7280',
+            icon: '📌',
+            reason: `Overdue by ${daysOverdue} day(s)`,
+            sortOrder: 5,
+            weeklyOnly: true  // Flag to indicate Monday-only sending
+          };
+        }
+        
+        // Tier 2: 14-29 days overdue - Weekly reminder (Monday only)
+        if (daysOverdue >= 14 && daysOverdue <= 29) {
+          return {
+            category: 'low_aging_weekly',
+            urgencyLevel: '⚠️ Low Priority - Aging',
+            color: '#f97316',
+            icon: '⚠️',
+            reason: `Overdue by ${daysOverdue} day(s)`,
+            sortOrder: 4,
+            weeklyOnly: true  // Flag to indicate Monday-only sending
+          };
+        }
+        
+        // Tier 3: 30+ days overdue - Daily reminder
+        if (daysOverdue >= 30) {
+          return {
+            category: 'low_critical_age',
+            urgencyLevel: '🚨 ATTENTION REQUIRED',
+            color: '#dc2626',
+            icon: '🚨',
+            reason: `Critically overdue by ${daysOverdue} day(s)`,
+            sortOrder: 2
+          };
+        }
+      }
+
+      return null; // No reminder needed
+    }
+
+    // Group tasks by user
+    function groupTasksByUser(tasks) {
+      const userTasks = {};
+      tasks.forEach(task => {
+        if (!task.assignedTo) return;
+        if (!userTasks[task.assignedTo]) {
+          userTasks[task.assignedTo] = [];
+        }
+        userTasks[task.assignedTo].push(task);
+      });
+      return userTasks;
+    }
+
+    // Send email via EmailJS API (UPDATED - Hybrid Approach)
+    async function sendEmail(toEmail, toName, taskCount, tasksText, emailTitle = 'Daily Reminder', emailIcon = '🔔', emailColor = '#ff9800') {
+      try {
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service_id: EMAILJS.SERVICE_ID,
+            template_id: EMAILJS.TEMPLATE_ID,
+            user_id: EMAILJS.PUBLIC_KEY,
+            accessToken: EMAILJS.PRIVATE_KEY,
+            template_params: {
+              to_email: toEmail,
+              to_name: toName,
+              cc_email: ADMIN_EMAILS,
+              notification_type: emailTitle,
+              notification_icon: emailIcon,
+              notification_color: emailColor,
+              title: `${emailTitle}: You have ${taskCount} Task(s) Requiring Attention`,
+              message: `You have ${taskCount} task(s) that need immediate attention:`,
+              detail_1_label: 'Task Details',
+              detail_1_value: tasksText,
+              button_text: 'View Tasks',
+              button_link: 'https://magnaflow-07sep25.web.app',
+              footer_text: 'This is an automated reminder. Please address these tasks as soon as possible.'
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`EmailJS API error: ${errorText}`);
+        }
+
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+
+    // Main reminder function
+    async function checkAndSendReminders() {
+      const executionStart = Date.now();
+      
+      try {
+        log('🚀 Starting daily reminder check...', 'INFO');
+        log(`🎯 Feature Flags: Hybrid=${FEATURE_FLAGS.HYBRID_URGENCY_ENABLED}, Quota=${FEATURE_FLAGS.EMAIL_QUOTA_WARNING}`, 'INFO');
+        log('🔒 Security: Token-protected execution', 'INFO');
+        updateStatus('Initializing Firebase...', 'loading', true);
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        log('✅ Firebase initialized successfully', 'SUCCESS');
+
+        // Check URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const bypassCheck = urlParams.get('bypass') === 'true';
+        const healthCheck = urlParams.get('health') === 'true' || FEATURE_FLAGS.HEALTH_CHECK_MODE;
+        
+        // ========================================
+        // HEALTH CHECK ENDPOINT
+        // Add ?health=true to URL for health status
+        // ========================================
+        if (healthCheck) {
+          log('🏥 Performing health check...', 'INFO');
+          updateStatus('Running health check...', 'loading', true);
+          
+          const healthStatus = await performHealthCheck(db);
+          
+          updateStatus(healthStatus.status === 'healthy' ? 'System Healthy ✅' : 'System Issues Detected ⚠️', 
+                       healthStatus.status === 'healthy' ? 'success' : 'error');
+          
+          document.getElementById('results').innerHTML = `
+            <div class="status ${healthStatus.status === 'healthy' ? 'success' : 'error'}">
+              <h3>🏥 Health Check Results</h3>
+              <pre>${JSON.stringify(healthStatus, null, 2)}</pre>
+            </div>
+          `;
+          return;
+        }
+
+        // ========================================
+        // EMAIL QUOTA CHECK
+        // ========================================
+        const quotaCheck = await checkEmailQuota(db);
+        if (!quotaCheck.safe) {
+          log(`🚨 EMAIL QUOTA EXCEEDED: ${quotaCheck.count}/${LIMITS.EMAIL_QUOTA_MONTHLY}`, 'ERROR');
+          updateStatus('Email quota exceeded - reminders paused', 'error');
+          
+          document.getElementById('results').innerHTML = `
+            <div class="status error">
+              <h3>🚨 Email Quota Exceeded</h3>
+              <p>Monthly limit reached: ${quotaCheck.count}/${LIMITS.EMAIL_QUOTA_MONTHLY} emails sent</p>
+              <p>Reminders will resume next month. Please upgrade EmailJS plan if more emails needed.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Check if already sent today (unless bypass parameter is set)
+        const today = new Date().toISOString().split('T')[0];
+        log(`📅 Checking for date: ${today}`);
+        
+        // Initialize reminderLogRef for later use
+        const reminderLogRef = doc(db, 'reminder_logs', today);
+        
+        if (!bypassCheck) {
+          updateStatus('Checking if reminders already sent today...', 'loading', true);
+          const reminderLogSnap = await getDoc(reminderLogRef);
+
+          if (reminderLogSnap.exists()) {
+            const data = reminderLogSnap.data();
+            log('⏭️ Reminders already sent today!');
+            updateStatus('Reminders already sent today', 'info');
+            
+            document.getElementById('results').innerHTML = `
+              <div class="status info">
+                <h3>✅ Already Processed Today</h3>
+                <p>Last execution: ${data.timestamp?.toDate().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                <div class="metric">
+                  <div>Total Tasks</div>
+                  <div class="metric-value">${data.totalTasks || 0}</div>
+                </div>
+                <div class="metric">
+                  <div>Emails Sent</div>
+                  <div class="metric-value">${data.remindersSent || 0}</div>
+                </div>
+                <p><small>Add <code>&bypass=true</code> to URL to override</small></p>
+              </div>
+            `;
+            return;
+          }
+        } else {
+          log('⚠️ BYPASS MODE: Skipping daily limit check');
+        }
+
+        // Query all tasks (UPDATED - Hybrid Approach: Critical + Deadline-based)
+        log('🔍 Querying Firestore for all tasks...');
+        updateStatus('Fetching tasks from database...', 'loading', true);
+        
+        const tasksQuery = collection(db, 'tasks');
+        const tasksSnapshot = await getDocs(tasksQuery);
+        
+        // NEW: Use urgency detection instead of just critical filter
+        const tasksNeedingReminders = [];
+        
+        // Check if today is Monday (for weekly Low priority reminders)
+        const isMonday = new Date().getDay() === 1;
+        
+        tasksSnapshot.forEach(taskDoc => {
+          const task = { id: taskDoc.id, ...taskDoc.data() };
+          const urgency = getTaskUrgency(task);
+          
+          // If task has urgency (Critical, Overdue, or Approaching deadline)
+          if (urgency) {
+            // Filter weekly-only tasks to Monday only
+            if (urgency.weeklyOnly && !isMonday) {
+              // Skip weekly Low priority tasks if not Monday
+              return;
+            }
+            
+            tasksNeedingReminders.push({
+              ...task,
+              urgency: urgency,
+              daysUntil: getDaysUntilDeadline(task.dueDate)
+            });
+          }
+        });
+
+        // Sort by urgency (Critical first, then Overdue, then Approaching)
+        tasksNeedingReminders.sort((a, b) => a.urgency.sortOrder - b.urgency.sortOrder);
+
+        log(`📊 Found ${tasksNeedingReminders.length} tasks needing reminders`);
+        
+        // Count by category for logging
+        const criticalCount = tasksNeedingReminders.filter(t => t.urgency.category === 'critical').length;
+        const overdueCount = tasksNeedingReminders.filter(t => t.urgency.category.includes('overdue')).length;
+        const approachingCount = tasksNeedingReminders.filter(t => t.urgency.category.includes('approaching')).length;
+        const lowOverdueWeeklyCount = tasksNeedingReminders.filter(t => t.urgency.category === 'low_overdue_weekly').length;
+        const lowAgingWeeklyCount = tasksNeedingReminders.filter(t => t.urgency.category === 'low_aging_weekly').length;
+        const lowCriticalAgeCount = tasksNeedingReminders.filter(t => t.urgency.category === 'low_critical_age').length;
+        
+        log(`   🔴 Critical: ${criticalCount} | ⚠️ Overdue: ${overdueCount} | ⏰ Approaching: ${approachingCount}`);
+        if (lowOverdueWeeklyCount > 0 || lowAgingWeeklyCount > 0 || lowCriticalAgeCount > 0) {
+          log(`   📌 Low (7-13d): ${lowOverdueWeeklyCount} | ⚠️ Low (14-29d): ${lowAgingWeeklyCount} | 🚨 Low (30+d): ${lowCriticalAgeCount}`);
+        }
+
+        if (tasksNeedingReminders.length === 0) {
+          log('✅ No tasks need reminders. All tasks are on track!');
+          await setDoc(reminderLogRef, {
+            date: today,
+            timestamp: new Date(),
+            totalTasks: 0,
+            remindersSent: 0,
+            results: []
+          });
+          
+          updateStatus('No tasks need reminders', 'success');
+          document.getElementById('results').innerHTML = `
+            <div class="status success">
+              <h3>✅ All Clear!</h3>
+              <p>No urgent tasks found. All tasks are on track!</p>
+              <div class="metric">
+                <div>Tasks Checked</div>
+                <div class="metric-value">${tasksSnapshot.size}</div>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // Group by user
+        const tasksByUser = groupTasksByUser(tasksNeedingReminders);
+        const userIds = Object.keys(tasksByUser);
+        log(`👥 Grouped into ${userIds.length} users`);
+
+        updateStatus(`Sending emails to ${userIds.length} users...`, 'loading', true);
+
+        let emailsSent = 0;
+        const results = [];
+
+        // Send emails
+        for (const userId of userIds) {
+          try {
+            const userTasks = tasksByUser[userId];
+            log(`\n📤 Processing user: ${userId} (${userTasks.length} tasks)`);
+
+            // Get user email from first task (since all tasks have assignedTo)
+            const firstTask = userTasks[0];
+            let userEmail = userId; // Fallback to userId if no email found
+            let userName = 'User';
+            
+            // Try to get user details (may fail if permissions not set)
+            try {
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                const user = userDoc.data();
+                userEmail = user.email || userId;
+                userName = user.name || user.email || 'User';
+              }
+            } catch (userError) {
+              log(`⚠️ Could not fetch user details for ${userId}, using task info`);
+              // If we can't get user, try to use email from task if available
+              if (firstTask.assignedToEmail) {
+                userEmail = firstTask.assignedToEmail;
+              }
+            }
+
+            if (!userEmail || userEmail === userId) {
+              log(`⚠️ No valid email found for user ${userId}`);
+              continue;
+            }
+
+            log(`📧 Sending to: ${userEmail} (${userName})`);
+
+            // Format task list with urgency indicators (NEW - Hybrid Approach)
+            let tasksText = '';
+            userTasks.forEach((task, index) => {
+              const urgencyBadge = task.urgency ? task.urgency.urgencyLevel : '📋 Normal';
+              const urgencyReason = task.urgency ? task.urgency.reason : '';
+              
+              tasksText += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+              tasksText += `📋 Task ${index + 1}: ${task.title}\n`;
+              tasksText += `${urgencyBadge} - ${urgencyReason}\n`;
+              tasksText += `📝 Description: ${task.description || 'No description'}\n`;
+              tasksText += `⚠️ Status: ${task.status || 'Pending'}\n`;
+              tasksText += `🎯 Priority: ${task.priority || 'Not set'}\n`;
+              tasksText += `📅 Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not specified'}\n`;
+              tasksText += `⏰ Days Pending: ${calculateDaysPending(task.createdAt)}\n`;
+            });
+
+            // Determine overall email urgency level (UPDATED - With Low Priority Tiers)
+            const hasCritical = userTasks.some(t => t.urgency?.category === 'critical');
+            const hasOverdue = userTasks.some(t => t.urgency?.category.includes('overdue'));
+            const hasApproaching = userTasks.some(t => t.urgency?.category.includes('approaching'));
+            const hasLowCriticalAge = userTasks.some(t => t.urgency?.category === 'low_critical_age');
+            const hasLowAging = userTasks.some(t => t.urgency?.category === 'low_aging_weekly');
+            const hasLowOverdue = userTasks.some(t => t.urgency?.category === 'low_overdue_weekly');
+            
+            let emailTitle, emailIcon, emailColor;
+            if (hasCritical || hasOverdue) {
+              emailTitle = 'CRITICAL ALERT';
+              emailIcon = hasOverdue ? '⚠️' : '🔴';
+              emailColor = '#dc2626';
+            } else if (hasLowCriticalAge) {
+              emailTitle = 'ATTENTION REQUIRED';
+              emailIcon = '🚨';
+              emailColor = '#dc2626';
+            } else if (hasApproaching) {
+              emailTitle = 'URGENT REMINDER';
+              emailIcon = '⏰';
+              emailColor = '#f59e0b';
+            } else if (hasLowAging) {
+              emailTitle = 'Aging Tasks Review';
+              emailIcon = '⚠️';
+              emailColor = '#f97316';
+            } else if (hasLowOverdue) {
+              emailTitle = 'Weekly Task Review';
+              emailIcon = '📌';
+              emailColor = '#6b7280';
+            } else {
+              emailTitle = 'Daily Reminder';
+              emailIcon = '🔔';
+              emailColor = '#3b82f6';
+            }
+
+            // Send email
+            const emailResult = await sendEmail(
+              userEmail,
+              userName,
+              userTasks.length,
+              tasksText,
+              emailTitle,
+              emailIcon,
+              emailColor
+            );
+
+            if (emailResult.success) {
+              emailsSent++;
+              log(`✅ Email sent successfully to ${userEmail}`);
+              results.push({
+                userId,
+                userEmail: userEmail,
+                taskCount: userTasks.length,
+                taskTitles: userTasks.map(t => t.title),
+                success: true
+              });
+            } else {
+              log(`❌ Failed to send to ${userEmail}: ${emailResult.error}`);
+              results.push({
+                userId,
+                userEmail: userEmail,
+                taskCount: userTasks.length,
+                success: false,
+                error: emailResult.error
+              });
+            }
+
+            // Rate limiting
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+          } catch (error) {
+            log(`❌ Error processing user ${userId}: ${error.message}`);
+            results.push({ userId, success: false, error: error.message });
+          }
+        }
+
+        // Save to Firestore (UPDATED - Hybrid Stats + Low Priority)
+        await setDoc(reminderLogRef, {
+          date: today,
+          timestamp: new Date(),
+          totalTasks: tasksNeedingReminders.length,
+          criticalCount: criticalCount,
+          overdueCount: overdueCount,
+          approachingCount: approachingCount,
+          lowOverdueWeeklyCount: lowOverdueWeeklyCount,
+          lowAgingWeeklyCount: lowAgingWeeklyCount,
+          lowCriticalAgeCount: lowCriticalAgeCount,
+          remindersSent: emailsSent,
+          results: results,
+          featureFlags: FEATURE_FLAGS // Track which features were enabled
+        });
+
+        // Update email quota counter
+        await updateEmailQuota(db, emailsSent);
+
+        log(`\n🎯 COMPLETE: Sent ${emailsSent}/${userIds.length} emails`, 'SUCCESS');
+        updateStatus(`Successfully sent ${emailsSent} reminder emails!`, 'success');
+
+        document.getElementById('results').innerHTML = `
+          <div class="status success">
+            <h3>✅ Reminders Sent Successfully!</h3>
+            <div class="metric">
+              <div>🔴 Critical Tasks</div>
+              <div class="metric-value">${criticalCount}</div>
+            </div>
+            <div class="metric">
+              <div>⚠️ Overdue Tasks</div>
+              <div class="metric-value">${overdueCount}</div>
+            </div>
+            <div class="metric">
+              <div>⏰ Approaching Deadline</div>
+              <div class="metric-value">${approachingCount}</div>
+            </div>
+            ${(lowOverdueWeeklyCount > 0 || lowAgingWeeklyCount > 0 || lowCriticalAgeCount > 0) ? `
+            <div class="metric">
+              <div>📌 Low Priority (7-13d)</div>
+              <div class="metric-value">${lowOverdueWeeklyCount}</div>
+            </div>
+            <div class="metric">
+              <div>⚠️ Low Priority (14-29d)</div>
+              <div class="metric-value">${lowAgingWeeklyCount}</div>
+            </div>
+            <div class="metric">
+              <div>🚨 Low Priority (30+d)</div>
+              <div class="metric-value">${lowCriticalAgeCount}</div>
+            </div>
+            ` : ''}
+            <div class="metric">
+              <div>👥 Users Notified</div>
+              <div class="metric-value">${userIds.length}</div>
+            </div>
+            <div class="metric">
+              <div>📧 Emails Sent</div>
+              <div class="metric-value">${emailsSent}</div>
+            </div>
+            <p style="margin-top: 20px;"><small>⏰ Timestamp: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</small></p>
+          </div>
+        `;
+
+        // Log execution metrics
+        const executionTime = Date.now() - executionStart;
+        log(`⏱️ Execution completed in ${executionTime}ms`, 'SUCCESS');
+        
+        if (executionTime > LIMITS.MAX_EXECUTION_TIME) {
+          log(`⚠️ WARNING: Execution time exceeded limit (${executionTime}ms > ${LIMITS.MAX_EXECUTION_TIME}ms)`, 'WARN');
+        }
+
+      } catch (error) {
+        const executionTime = Date.now() - executionStart;
+        log(`❌ FATAL ERROR after ${executionTime}ms: ${error.message}`, 'ERROR');
+        log(error.stack, 'ERROR');
+        updateStatus(`Error: ${error.message}`, 'error');
+        
+        document.getElementById('results').innerHTML = `
+          <div class="status error">
+            <h3>❌ Error Occurred</h3>
+            <p><strong>Message:</strong> ${error.message}</p>
+            <p><strong>Execution Time:</strong> ${executionTime}ms</p>
+            <p><small>${error.stack}</small></p>
+          </div>
+        `;
+      }
+    }
+
+    // Security: Secret token validation
+    const SECURITY_TOKEN = 'MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA';
+    
+    function validateSecurityToken() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const providedToken = urlParams.get('token');
+      
+      if (!providedToken) {
+        log('❌ SECURITY: No token provided in URL');
+        updateStatus('❌ Unauthorized: Missing security token', 'error');
+        document.getElementById('results').innerHTML = `
+          <div class="status error">
+            <h3>🔒 Access Denied</h3>
+            <p>This endpoint requires a valid security token.</p>
+            <p><small>Missing <code>?token=...</code> parameter</small></p>
+          </div>
+        `;
+        return false;
+      }
+      
+      if (providedToken !== SECURITY_TOKEN) {
+        log('❌ SECURITY: Invalid token provided');
+        updateStatus('❌ Unauthorized: Invalid security token', 'error');
+        document.getElementById('results').innerHTML = `
+          <div class="status error">
+            <h3>🔒 Access Denied</h3>
+            <p>Invalid security token provided.</p>
+            <p><small>Token mismatch</small></p>
+          </div>
+        `;
+        return false;
+      }
+      
+      log('✅ SECURITY: Valid token verified');
+      return true;
+    }
+
+    // Auto-execute on page load
+    window.addEventListener('load', () => {
+      log('🌐 Page loaded from cron-job.org trigger');
+      log('🔐 Validating security token...');
+      
+      // Validate token before proceeding
+      if (!validateSecurityToken()) {
+        log('🚫 Execution blocked due to security validation failure');
+        return;
+      }
+      
+      log('✅ Security check passed. Proceeding with reminder check.');
+      checkAndSendReminders();
+    });
+  </script>
+</body>
+</html>

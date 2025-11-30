@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Calendar, User } from 'lucide-react';
+import { Edit, Calendar, User, ListChecks, Plus } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import SubtaskList from '../SubtaskList';
+import AddSubtaskDialog from '../AddSubtaskDialog';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +24,7 @@ import {
 } from '@/components/ui/select';
 
 const EditTaskDialog = ({ open, onOpenChange, task, onEditTask }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,6 +34,12 @@ const EditTaskDialog = ({ open, onOpenChange, task, onEditTask }) => {
     assignedTo: ''
   });
   const [staff, setStaff] = useState([]);
+  const [showAddSubtask, setShowAddSubtask] = useState(false);
+  
+  // Debug logging
+  console.log('EditTaskDialog - task:', task);
+  console.log('EditTaskDialog - user:', user);
+  console.log('EditTaskDialog - showAddSubtask:', showAddSubtask);
 
   useEffect(() => {
     if (task) {
@@ -89,7 +99,7 @@ const EditTaskDialog = ({ open, onOpenChange, task, onEditTask }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="glass-effect border-white/20 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -173,18 +183,59 @@ const EditTaskDialog = ({ open, onOpenChange, task, onEditTask }) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-gray-200">Status</Label>
-            <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-              <SelectTrigger className="glass-effect border-white/20 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="glass-effect border-white/20">
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Subtasks Section */}
+          {task && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ListChecks className="w-5 h-5 text-blue-400" />
+                  <Label className="text-lg text-gray-200">Subtasks</Label>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setShowAddSubtask(true)}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Subtask
+                </Button>
+              </div>
+              <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                <SubtaskList taskId={task.id} currentUser={user} />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-gray-200">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                <SelectTrigger className="glass-effect border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="glass-effect border-white/20">
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dueDate" className="text-gray-200">Deadline</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => handleInputChange('dueDate', e.target.value)}
+                  className="pl-10 glass-effect border-white/20 text-white"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="flex space-x-2">
@@ -206,6 +257,16 @@ const EditTaskDialog = ({ open, onOpenChange, task, onEditTask }) => {
           </DialogFooter>
         </form>
       </DialogContent>
+      
+      {/* Add Subtask Dialog */}
+      {task && user && (
+        <AddSubtaskDialog
+          open={showAddSubtask}
+          onClose={() => setShowAddSubtask(false)}
+          taskId={task.id}
+          currentUser={user}
+        />
+      )}
     </Dialog>
   );
 };

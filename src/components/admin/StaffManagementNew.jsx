@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import QuickDeletionGuide from './QuickDeletionGuide';
 import {
   Dialog,
   DialogContent,
@@ -585,7 +584,16 @@ const StaffManagement = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <QuickDeletionGuide email={deletedUserEmail} />
+          <div className="space-y-4">
+            <p className="text-sm text-gray-300">
+              Please follow these steps to complete the deletion:
+            </p>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
+              <li>Go to Firebase Console</li>
+              <li>Navigate to Authentication</li>
+              <li>Find and delete user: <code className="text-orange-400">{deletedUserEmail}</code></li>
+            </ol>
+          </div>
           
           <DialogFooter>
             <Button 

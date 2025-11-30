@@ -504,11 +504,15 @@ const PerformanceReports = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                label={({ name, percent, cx, cy, midAngle, innerRadius, outerRadius, index }) => {
+                  // Don't show label if percentage is too small to avoid overlap
+                  if (percent < 0.03) return null;
+                  
                   const RADIAN = Math.PI / 180;
-                  const radius = outerRadius + 25;
+                  const radius = outerRadius + 30;
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  
                   return (
                     <text 
                       x={x} 

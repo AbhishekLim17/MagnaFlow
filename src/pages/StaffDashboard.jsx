@@ -1,108 +1,76 @@
-// Enhanced Staff Dashboard with CRUD operations and progress tracking
-// Staff can view, add, edit, delete their own tasks and see progress rate
+// Staff Dashboard - Staff member interface for viewing and managing assigned tasks
+// Staff can view only their tasks, update status, and create personal tasks
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   CheckSquare, 
-  Plus, 
-  Clock, 
-  Calendar, 
-  User, 
-  LogOut,
+  LogOut, 
+  Plus,
   Search,
-  CheckCircle,
-  AlertCircle,
-  PlayCircle,
-  Edit,
-  Trash2,
+  Filter,
+  Clock,
   TrendingUp,
   Target,
+  AlertCircle,
   KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
-import { sendTaskCompletedEmail, sendTaskStatusChangedEmail } from '@/services/emailService';
 import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
+import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
 
 const StaffDashboard = () => {
   const { user, logout } = useAuth();
-  const { tasks: allTasks, updateTask, deleteTask, loading } = useTasks();
+  const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
   const { toast } = useToast();
-  const [filteredTasks, setFilteredTasks] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
-  // Filter tasks for current user
-  const myTasks = allTasks.filter(task => task.assignedTo === user?.id);
-
   useEffect(() => {
-    let currentTasks = [...myTasks];
-
-    if (searchTerm) {
-      currentTasks = currentTasks.filter(task =>
-        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (user) {
+      refreshTasks();
     }
+  }, [user]);
 
-    if (filterStatus !== 'all') {
-      currentTasks = currentTasks.filter(task => task.status === filterStatus);
-    }
-
-    setFilteredTasks(currentTasks);
-  }, [allTasks, searchTerm, filterStatus, user?.id]);
-
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast({
       title: "Logged out successfully",
       description: "See you next time!",
     });
   };
 
-  const handleCompleteTask = async (taskId) => {
+  const handleStatusChange = async (taskId, newStatus) => {
     try {
-      const task = myTasks.find(t => t.id === taskId);
-      
-      await updateTask(taskId, {
-        status: 'completed',
-        completedAt: new Date().toISOString()
-      });
-      
+      await updateTaskStatus(taskId, newStatus);
       toast({
-        title: "Task completed!",
-        description: "Great job! The task has been marked as completed.",
+        title: "Status Updated",
+        description: "Task status has been updated successfully.",
       });
-
-      // Send completion email to admin/task creator
-      if (task && task.assignedByEmail) {
-        try {
-          await sendTaskCompletedEmail({
-            toEmail: task.assignedByEmail,
-            toName: task.assignedBy || 'Admin',
-            taskTitle: task.title,
-            completedBy: user?.name || 'Staff',
-            completionDate: new Date().toLocaleDateString(),
-          });
-        } catch (emailError) {
-          console.error('Failed to send completion email:', emailError);
-        }
-      }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to complete task. Please try again.",
+        description: "Failed to update task status.",
         variant: "destructive",
       });
     }
@@ -120,9 +88,10 @@ const StaffDashboard = () => {
     try {
       await deleteTask(taskId);
       toast({
-        title: "Task deleted",
+        title: "Task Deleted",
         description: "The task has been removed successfully.",
       });
+      setSelectedTask(null);
     } catch (error) {
       toast({
         title: "Error",
@@ -132,266 +101,289 @@ const StaffDashboard = () => {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'in-progress': return <PlayCircle className="w-4 h-4 text-blue-400" />;
-      default: return <AlertCircle className="w-4 h-4 text-yellow-400" />;
-    }
+  // Filter tasks based on search and filters
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         task.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  // Dashboard statistics
+  const dashboardStats = [
+    { 
+      title: 'Total Tasks', 
+      value: statistics?.total || 0, 
+      icon: Target, 
+      color: 'blue-600',
+      description: 'Assigned to you'
+    },
+    { 
+      title: 'Pending', 
+      value: statistics?.pending || 0, 
+      icon: AlertCircle, 
+      color: 'slate-600',
+      description: 'Awaiting start'
+    },
+    { 
+      title: 'In Progress', 
+      value: statistics?.inProgress || 0, 
+      icon: TrendingUp, 
+      color: 'indigo-600',
+      description: 'Currently working'
+    },
+    { 
+      title: 'Completed', 
+      value: statistics?.completed || 0, 
+      icon: CheckSquare, 
+      color: 'teal-600',
+      description: 'Successfully done'
+    },
+  ];
+
+  // Priority badge styles
+  const getPriorityBadge = (priority) => {
+    const styles = {
+      low: 'bg-green-500/20 text-green-400 border-green-500/30',
+      medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      critical: 'bg-red-500/20 text-red-400 border-red-500/30',
+    };
+    return styles[priority] || styles.medium;
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-500/20 text-green-300 border-green-500/30';
-      case 'in-progress': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-      default: return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-    }
+  // Status badge styles
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      'in-progress': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      completed: 'bg-green-500/20 text-green-400 border-green-500/30',
+    };
+    return styles[status] || styles.pending;
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'critical': return 'bg-red-600/20 text-red-300 border-red-600/30';
-      case 'high': return 'bg-red-500/20 text-red-300 border-red-500/30';
-      case 'medium': return 'bg-orange-500/20 text-orange-300 border-orange-500/30';
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
-    }
+  // Format date
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'No deadline';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
-
-  // Calculate statistics
-  const completedTasks = myTasks.filter(task => task.status === 'completed');
-  const inProgressTasks = myTasks.filter(task => task.status === 'in-progress');
-  const pendingTasks = myTasks.filter(task => task.status === 'pending');
-  const progressRate = myTasks.length > 0 
-    ? Math.round((completedTasks.length / myTasks.length) * 100) 
-    : 0;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4 sm:p-8">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4"
-      >
-        <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Welcome, {user?.name}! 👋
-          </h1>
-          <p className="text-gray-300 text-sm sm:text-base">Manage your tasks and track your progress</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="hidden sm:flex glass-effect p-3 rounded-lg items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {user?.name?.charAt(0)}
+      <header className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur-xl border-b border-gray-800 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <CheckSquare className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-white font-medium">{user?.name}</p>
-              <p className="text-xs text-gray-400 capitalize">{user?.designation || user?.role}</p>
+              <h1 className="text-2xl font-bold gradient-text">MagnaFlow</h1>
+              <p className="text-sm text-gray-400">Staff Dashboard</p>
             </div>
           </div>
-          <Button
-            onClick={() => setShowChangePassword(true)}
-            variant="outline"
-            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
-          >
-            <KeyRound className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Change Password</span>
-          </Button>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="border-red-500/30 text-red-400 hover:bg-red-500/20"
-          >
-            <LogOut className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-6 mb-8">
-        {[
-          { title: 'Total Tasks', value: myTasks.length, icon: CheckSquare, color: 'from-blue-500 to-cyan-500' },
-          { title: 'In Progress', value: inProgressTasks.length, icon: PlayCircle, color: 'from-orange-500 to-red-500' },
-          { title: 'Completed', value: completedTasks.length, icon: CheckCircle, color: 'from-green-500 to-emerald-500' },
-          { title: 'Pending', value: pendingTasks.length, icon: AlertCircle, color: 'from-purple-500 to-pink-500' },
-          { 
-            title: 'Progress Rate', 
-            value: `${progressRate}%`, 
-            icon: TrendingUp, 
-            color: progressRate >= 75 ? 'from-green-500 to-emerald-500' : progressRate >= 50 ? 'from-yellow-500 to-orange-500' : 'from-red-500 to-pink-500'
-          },
-        ].map((stat, index) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="glass-effect p-4 sm:p-6 card-hover">
-              <div className="flex flex-col sm:flex-row items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-xs sm:text-sm mb-1">{stat.title}</p>
-                  <p className="text-xl sm:text-2xl font-bold text-white">{stat.value}</p>
-                </div>
-                <div className={`w-10 h-10 mt-2 sm:mt-0 bg-gradient-to-r ${stat.color} rounded-lg flex items-center justify-center`}>
-                  <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3 px-4 py-2 bg-gray-800/50 rounded-lg">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                {user?.name?.charAt(0) || 'S'}
               </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Controls */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="flex flex-col gap-4 mb-8"
-      >
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="Search tasks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {['all', 'pending', 'in-progress', 'completed'].map(status => (
+              <div>
+                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-xs text-gray-400">{user?.designation || 'Staff'}</p>
+              </div>
+            </div>
             <Button
-              key={status}
-              variant={filterStatus === status ? 'default' : 'outline'}
-              onClick={() => setFilterStatus(status)}
-              className="border-white/20 capitalize text-xs sm:text-sm px-3 py-1 h-auto"
+              variant="outline"
+              size="sm"
+              className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+              onClick={() => setShowChangePassword(true)}
             >
-              {status.replace('-', ' ')}
+              <KeyRound className="w-4 h-4 mr-2" />
+              Change Password
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="p-6 space-y-6">
+        {/* Welcome Section */}
+        <div>
+          <h2 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h2>
+          <p className="text-gray-400">Manage your tasks and track your progress</p>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {dashboardStats.map((stat, index) => (
+            <motion.div
+              key={stat.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-lg bg-${stat.color} shadow-lg flex items-center justify-center`}>
+                      <stat.icon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <h3 className="text-3xl font-bold text-white mb-1">{stat.value}</h3>
+                  <p className="text-sm text-gray-400">{stat.title}</p>
+                  <p className="text-xs text-gray-500 mt-2">{stat.description}</p>
+                </div>
+              </Card>
+            </motion.div>
           ))}
         </div>
-        <Button
-          onClick={() => setShowAddTask(true)}
-          className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 w-full"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Task
-        </Button>
-      </motion.div>
 
-      {/* Tasks Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
-        {filteredTasks.map((task, index) => (
-          <motion.div
-            key={task.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="glass-effect p-6 card-hover h-full flex flex-col">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  {getStatusIcon(task.status)}
-                  <Badge className={`${getStatusColor(task.status)} border`}>
-                    {task.status.replace('-', ' ')}
-                  </Badge>
-                </div>
-                <Badge className={`${getPriorityColor(task.priority)} border`}>
-                  {task.priority}
-                </Badge>
+        {/* Task Management Section */}
+        <Card className="glass-effect border-gray-800">
+          <div className="p-6 space-y-4">
+            {/* Header with Add Task Button */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">My Tasks</h3>
+              <Button
+                onClick={() => setIsAddTaskOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Personal Task
+              </Button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-gray-800/50 border-gray-700"
+                />
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-gray-800/50 border-gray-700">
+                  <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-gray-800/50 border-gray-700">
+                  <SelectValue placeholder="Filter by Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <h3 className="text-lg font-semibold text-white mb-2">{task.title}</h3>
-              <p className="text-gray-300 text-sm mb-4 line-clamp-2 flex-grow">{task.description}</p>
-
-              <div className="space-y-2 mb-4">
-                {task.assignedBy && (
-                  <div className="flex items-center text-xs text-gray-400">
-                    <User className="w-3 h-3 mr-1" />
-                    Assigned by: {task.assignedBy}
-                  </div>
-                )}
-                {task.deadline && (
-                  <div className="flex items-center text-xs text-gray-400">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    Due: {new Date(task.deadline).toLocaleDateString()}
-                  </div>
-                )}
-                {task.completedAt && (
-                  <div className="flex items-center text-xs text-green-400">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Completed: {new Date(task.completedAt).toLocaleDateString()}
-                  </div>
-                )}
+            {/* Tasks List */}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="mt-4 text-gray-400">Loading tasks...</p>
               </div>
-
-              <div className="flex gap-2 mt-auto">
-                {task.status !== 'completed' && (
-                  <>
-                    <Button
-                      onClick={() => handleEditTask(task)}
-                      variant="outline"
-                      className="flex-1 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+            ) : filteredTasks.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">No tasks found</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' 
+                    ? 'Try adjusting your filters' 
+                    : 'Create your first task to get started'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredTasks.map((task, index) => (
+                  <motion.div
+                    key={task.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Card 
+                      className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300 cursor-pointer"
+                      onClick={() => setSelectedTask(task)}
                     >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      onClick={() => handleCompleteTask(task.id)}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Complete
-                    </Button>
-                  </>
-                )}
-                <Button
-                  onClick={() => handleDeleteTask(task.id, task.title)}
-                  variant="outline"
-                  className="border-red-500/30 text-red-400 hover:bg-red-500/20"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                      <div className="p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
+                            <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+                          </div>
+                          <div className="ml-4 space-x-2">
+                            <Badge className={`${getPriorityBadge(task.priority)} border`}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
+                          <div className="flex items-center space-x-4 text-sm text-gray-400">
+                            <div className="flex items-center space-x-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{formatDate(task.deadline)}</span>
+                            </div>
+                          </div>
+                          
+                          <Select
+                            value={task.status}
+                            onValueChange={(value) => handleStatusChange(task.id, value)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <SelectTrigger className={`w-[140px] ${getStatusBadge(task.status)} border`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="in-progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
               </div>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
+            )}
+          </div>
+        </Card>
+      </main>
 
-      {filteredTasks.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-12"
-        >
-          <CheckSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-300 mb-2">No tasks found</h3>
-          <p className="text-gray-400">
-            {searchTerm || filterStatus !== 'all' 
-              ? 'Try adjusting your search or filter criteria'
-              : 'Create your first task to get started'
-            }
-          </p>
-        </motion.div>
-      )}
-
+      {/* Dialogs */}
       <AddTaskDialog
-        open={showAddTask}
-        onOpenChange={setShowAddTask}
+        open={isAddTaskOpen}
+        onOpenChange={setIsAddTaskOpen}
       />
 
       {editingTask && (
@@ -399,6 +391,18 @@ const StaffDashboard = () => {
           open={!!editingTask}
           onOpenChange={(open) => !open && setEditingTask(null)}
           task={editingTask}
+        />
+      )}
+
+      {selectedTask && (
+        <TaskDetailsDialog
+          task={selectedTask}
+          open={!!selectedTask}
+          onOpenChange={(open) => !open && setSelectedTask(null)}
+          onStatusChange={handleStatusChange}
+          onEdit={handleEditTask}
+          onDelete={handleDeleteTask}
+          currentUser={user}
         />
       )}
 

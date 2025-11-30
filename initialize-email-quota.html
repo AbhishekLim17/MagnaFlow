@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Initialize Email Quota</title>
+</head>
+<body>
+  <h1>Initialize Email Quota Counter</h1>
+  <p>Setting current EmailJS usage: 10 emails used (190 remaining)</p>
+  <div id="status">Initializing...</div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCRyUccKpfACAxlqZrFQDxtXbvmrIhDuJA",
+      authDomain: "magnaflow-07sep25.firebaseapp.com",
+      projectId: "magnaflow-07sep25",
+      storageBucket: "magnaflow-07sep25.firebasestorage.app",
+      messagingSenderId: "130194515342",
+      appId: "1:130194515342:web:4d2595334ace93aa0270df"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function initializeQuota() {
+      try {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        
+        const quotaRef = doc(db, 'system_monitoring', 'email_quota');
+        
+        await setDoc(quotaRef, {
+          month: currentMonth,
+          count: 10,  // 10 emails already used (190 remaining)
+          lastUpdated: new Date().toISOString(),
+          lastEmails: 0,
+          note: "Initialized with actual EmailJS usage as of Nov 30, 2025"
+        });
+
+        document.getElementById('status').innerHTML = `
+          <h2 style="color: green;">✅ Success!</h2>
+          <p><strong>Email quota initialized:</strong></p>
+          <ul>
+            <li>Month: ${currentMonth} (November 2025)</li>
+            <li>Emails Used: 10</li>
+            <li>Emails Remaining: 190</li>
+            <li>Total Limit: 200</li>
+            <li>Warning Threshold: 150 (75%)</li>
+            <li>Critical Threshold: 195 (97.5%)</li>
+          </ul>
+          <p>You can close this page now.</p>
+          <p><a href="cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true">Check Health Status</a></p>
+        `;
+
+        console.log('Email quota initialized successfully:', {
+          month: currentMonth,
+          used: 10,
+          remaining: 190,
+          limit: 200
+        });
+
+      } catch (error) {
+        document.getElementById('status').innerHTML = `
+          <h2 style="color: red;">❌ Error</h2>
+          <p>${error.message}</p>
+        `;
+        console.error('Error initializing quota:', error);
+      }
+    }
+
+    initializeQuota();
+  </script>
+</body>
+</html>

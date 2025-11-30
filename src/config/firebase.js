@@ -5,16 +5,16 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase project configuration
+// Firebase project configuration - Using environment variables
 // These credentials connect your app to your Firebase project
 const firebaseConfig = {
-  apiKey: "AIzaSyCRyUccKpfACAxlqZrFQDxtXbvmrIhDuJA",
-  authDomain: "magnaflow-07sep25.firebaseapp.com",
-  projectId: "magnaflow-07sep25",
-  storageBucket: "magnaflow-07sep25.firebasestorage.app",
-  messagingSenderId: "130194515342",
-  appId: "1:130194515342:web:4d2595334ace93aa0270df",
-  measurementId: "G-QQ838JFSWP"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase app instance
