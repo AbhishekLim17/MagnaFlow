@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Comment Services</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #333;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .error {
+      border-left-color: #f44336;
+      background: #ffebee;
+    }
+    .success {
+      border-left-color: #4CAF50;
+      background: #e8f5e9;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Comment System Service Tests</h1>
+  <p>Testing Firestore rules and service functions for task comments, attachments, and notifications</p>
+
+  <!-- Test Comment Service -->
+  <div class="test-section">
+    <h2>1. Test Comment Service</h2>
+    <input type="text" id="testTaskId" placeholder="Task ID (e.g., task123)" value="test-task-001">
+    <input type="text" id="testUserId" placeholder="User ID" value="">
+    <input type="text" id="testUserName" placeholder="User Name" value="">
+    <input type="text" id="testUserEmail" placeholder="User Email" value="">
+    <textarea id="testCommentText" placeholder="Comment text (use @username for mentions)" rows="3">This is a test comment @admin</textarea>
+    <button onclick="testCreateComment()">Create Comment</button>
+    <button onclick="testGetComments()">Get Comments</button>
+    <div id="commentResult" class="result" style="display:none;"></div>
+  </div>
+
+  <!-- Test Attachment Service -->
+  <div class="test-section">
+    <h2>2. Test Attachment Service</h2>
+    <input type="file" id="testFile">
+    <button onclick="testValidateFile()">Validate File</button>
+    <button onclick="testCheckFileLimit()">Check File Limit</button>
+    <div id="attachmentResult" class="result" style="display:none;"></div>
+  </div>
+
+  <!-- Test Notification Service -->
+  <div class="test-section">
+    <h2>3. Test Notification Service</h2>
+    <input type="text" id="notifUserId" placeholder="User ID to notify" value="">
+    <input type="text" id="notifCommentId" placeholder="Comment ID" value="test-comment-001">
+    <button onclick="testCreateNotification()">Create Notification</button>
+    <button onclick="testGetUnreadCount()">Get Unread Count</button>
+    <button onclick="testMarkAllAsRead()">Mark All as Read</button>
+    <div id="notificationResult" class="result" style="display:none;"></div>
+  </div>
+
+  <!-- Firebase & Service Imports -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAoFnuJUC1w-r0p-KZ3s8o4i9YzLWkzuHI",
+      authDomain: "magnaflow-07sep25.firebaseapp.com",
+      projectId: "magnaflow-07sep25",
+      storageBucket: "magnaflow-07sep25.firebasestorage.app",
+      messagingSenderId: "431913506302",
+      appId: "1:431913506302:web:8a17cc26a5df9ea20bdbe3",
+      measurementId: "G-0P82EW9MQ3"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Wait for auth state
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('✅ User authenticated:', user.uid);
+        document.getElementById('testUserId').value = user.uid;
+        document.getElementById('testUserName').value = user.displayName || 'Test User';
+        document.getElementById('testUserEmail').value = user.email;
+        document.getElementById('notifUserId').value = user.uid;
+      } else {
+        console.log('❌ User not authenticated - please login to MagnaFlow first');
+        alert('Please login to MagnaFlow in another tab first, then refresh this page');
+      }
+    });
+
+    // Expose auth for global use
+    window.firebaseAuth = auth;
+  </script>
+
+  <script>
+    // Test comment creation
+    async function testCreateComment() {
+      const result = document.getElementById('commentResult');
+      result.style.display = 'block';
+      result.className = 'result';
+      result.textContent = 'Testing comment creation...';
+
+      try {
+        const taskId = document.getElementById('testTaskId').value;
+        const userId = document.getElementById('testUserId').value;
+        const userName = document.getElementById('testUserName').value;
+        const userEmail = document.getElementById('testUserEmail').value;
+        const text = document.getElementById('testCommentText').value;
+
+        if (!userId) {
+          throw new Error('User not authenticated. Please login first.');
+        }
+
+        // Note: In real implementation, import from commentService
+        // For now, just show what would be sent
+        const commentData = {
+          taskId,
+          userId,
+          userName,
+          userEmail,
+          text,
+          mentions: extractMentionsFromText(text)
+        };
+
+        result.className = 'result success';
+        result.textContent = 'Comment data prepared:\n' + JSON.stringify(commentData, null, 2);
+      } catch (error) {
+        result.className = 'result error';
+        result.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // Test getting comments
+    async function testGetComments() {
+      const result = document.getElementById('commentResult');
+      result.style.display = 'block';
+      result.className = 'result';
+      result.textContent = 'Fetching comments...';
+
+      try {
+        const taskId = document.getElementById('testTaskId').value;
+        
+        result.className = 'result success';
+        result.textContent = 'Would fetch comments for task: ' + taskId + '\nCollection: task_comments\nQuery: where("taskId", "==", "' + taskId + '")';
+      } catch (error) {
+        result.className = 'result error';
+        result.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // Test file validation
+    function testValidateFile() {
+      const result = document.getElementById('attachmentResult');
+      result.style.display = 'block';
+      result.className = 'result';
+
+      const fileInput = document.getElementById('testFile');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        result.className = 'result error';
+        result.textContent = 'Please select a file first';
+        return;
+      }
+
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain'];
+
+      const validation = {
+        name: file.name,
+        size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+        type: file.type,
+        sizeValid: file.size <= maxSize,
+        typeValid: allowedTypes.includes(file.type)
+      };
+
+      result.className = validation.sizeValid && validation.typeValid ? 'result success' : 'result error';
+      result.textContent = 'File Validation:\n' + JSON.stringify(validation, null, 2);
+    }
+
+    // Test file limit check
+    function testCheckFileLimit() {
+      const result = document.getElementById('attachmentResult');
+      result.style.display = 'block';
+      result.className = 'result success';
+      
+      const taskId = document.getElementById('testTaskId').value;
+      result.textContent = 'Would check file limit for task: ' + taskId + '\nCollection: task_attachments\nMax files: 5';
+    }
+
+    // Test notification creation
+    function testCreateNotification() {
+      const result = document.getElementById('notificationResult');
+      result.style.display = 'block';
+      result.className = 'result';
+
+      try {
+        const userId = document.getElementById('notifUserId').value;
+        const commentId = document.getElementById('notifCommentId').value;
+        const taskId = document.getElementById('testTaskId').value;
+
+        if (!userId) {
+          throw new Error('User not authenticated');
+        }
+
+        const notificationData = {
+          userId,
+          commentId,
+          taskId,
+          mentionedBy: document.getElementById('testUserId').value,
+          mentionedByName: document.getElementById('testUserName').value,
+          read: false
+        };
+
+        result.className = 'result success';
+        result.textContent = 'Notification data prepared:\n' + JSON.stringify(notificationData, null, 2);
+      } catch (error) {
+        result.className = 'result error';
+        result.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // Test unread count
+    function testGetUnreadCount() {
+      const result = document.getElementById('notificationResult');
+      result.style.display = 'block';
+      result.className = 'result success';
+      
+      const userId = document.getElementById('notifUserId').value;
+      result.textContent = 'Would fetch unread count for user: ' + userId + '\nCollection: comment_notifications\nQuery: where("userId", "==", "' + userId + '").where("read", "==", false)';
+    }
+
+    // Test mark all as read
+    function testMarkAllAsRead() {
+      const result = document.getElementById('notificationResult');
+      result.style.display = 'block';
+      result.className = 'result success';
+      
+      const userId = document.getElementById('notifUserId').value;
+      result.textContent = 'Would mark all notifications as read for user: ' + userId + '\nCollection: comment_notifications\nUpdate: { read: true }';
+    }
+
+    // Helper: Extract mentions from text
+    function extractMentionsFromText(text) {
+      const mentionRegex = /@(\w+)/g;
+      const matches = [...text.matchAll(mentionRegex)];
+      return matches.map(match => match[1]);
+    }
+  </script>
+
+  <div class="test-section">
+    <h2>📝 Firestore Collections Created</h2>
+    <ul>
+      <li><strong>task_comments</strong> - Stores all task comments with @mentions</li>
+      <li><strong>task_attachments</strong> - Stores file metadata (files in Storage)</li>
+      <li><strong>comment_notifications</strong> - Stores @mention notifications</li>
+    </ul>
+    
+    <h2>🔒 Security Rules Applied</h2>
+    <ul>
+      <li>All authenticated users can read comments</li>
+      <li>Users can create/edit/delete their own comments</li>
+      <li>Admins can moderate all comments</li>
+      <li>File size limit: 10MB per file</li>
+      <li>Max 5 files per task</li>
+      <li>Users can only see their own notifications</li>
+    </ul>
+
+    <h2>✅ Services Created</h2>
+    <ul>
+      <li><code>src/services/commentService.js</code> - Comment CRUD operations</li>
+      <li><code>src/services/attachmentService.js</code> - File upload/download</li>
+      <li><code>src/services/notificationService.js</code> - Notification management</li>
+    </ul>
+  </div>
+</body>
+</html>

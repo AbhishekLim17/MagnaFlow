@@ -554,8 +554,17 @@
         log('🔍 Querying Firestore for all tasks...');
         updateStatus('Fetching tasks from database...', 'loading', true);
         
-        const tasksQuery = collection(db, 'tasks');
-        const tasksSnapshot = await getDocs(tasksQuery);
+        let tasksSnapshot;
+        try {
+          const tasksQuery = collection(db, 'tasks');
+          tasksSnapshot = await getDocs(tasksQuery);
+          log(`✅ Successfully fetched ${tasksSnapshot.size} tasks from Firestore`);
+        } catch (firestoreError) {
+          log(`❌ FIRESTORE ERROR: ${firestoreError.message}`, 'ERROR');
+          log(`Error code: ${firestoreError.code}`, 'ERROR');
+          log(`Error stack: ${firestoreError.stack}`, 'ERROR');
+          throw new Error(`Failed to fetch tasks: ${firestoreError.message}`);
+        }
         
         // NEW: Use urgency detection instead of just critical filter
         const tasksNeedingReminders = [];
@@ -653,9 +662,13 @@
                 const user = userDoc.data();
                 userEmail = user.email || userId;
                 userName = user.name || user.email || 'User';
+                log(`✅ Found user: ${userName} (${userEmail})`);
+              } else {
+                log(`⚠️ User document not found for ${userId}`);
               }
             } catch (userError) {
-              log(`⚠️ Could not fetch user details for ${userId}, using task info`);
+              log(`❌ FIRESTORE ERROR fetching user ${userId}: ${userError.message}`, 'ERROR');
+              log(`Error code: ${userError.code}`, 'ERROR');
               // If we can't get user, try to use email from task if available
               if (firstTask.assignedToEmail) {
                 userEmail = firstTask.assignedToEmail;

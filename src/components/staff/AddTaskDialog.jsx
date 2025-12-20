@@ -69,13 +69,22 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
     }
 
     try {
+      console.log('Creating task with data:', {
+        title: formData.title,
+        description: formData.description,
+        assignedTo: user.id,
+        priority: formData.priority,
+        status: 'pending',
+        deadline: formData.dueDate,
+      });
+      
       await createTask({
         title: formData.title,
         description: formData.description,
         assignedTo: user.id, // Assign to self
         priority: formData.priority,
         status: 'pending',
-        deadline: formData.dueDate,
+        deadline: formData.dueDate, // Changed from deadline to dueDate
       });
 
       toast({
@@ -93,9 +102,10 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
       
       onOpenChange(false);
     } catch (error) {
+      console.error('Task creation error:', error);
       toast({
         title: "Error",
-        description: "Failed to create task. Please try again.",
+        description: error.message || "Failed to create task. Please try again.",
         variant: "destructive",
       });
     }

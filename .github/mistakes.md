@@ -342,3 +342,60 @@ if (urgency.weeklyOnly && !isMonday) {
 
 ---
 
+## [Dec 7, 2025] - Task Comments Feature - Successful Day 1 Implementation
+
+**Context:**
+Implemented Task Comments & Collaboration feature (Day 1 of 3-day plan) including database schema, security rules, and core services.
+
+**What Went Right:**
+- Comprehensive planning with 30-task breakdown created strong foundation
+- Firestore security rules designed with least-privilege principle
+- All three services (comment, attachment, notification) built with proper error handling
+- Input validation at multiple layers (client + Firestore rules)
+- Test infrastructure created before UI implementation
+- Documentation written alongside code (EMAILJS_MENTION_TEMPLATE.md)
+- Security rating 10/10 - no vulnerabilities introduced
+
+**Technical Implementation:**
+- Created 3 new Firestore collections (task_comments, task_attachments, comment_notifications)
+- Deployed security rules with RBAC (author + admin permissions)
+- Built commentService.js (226 lines) with real-time listeners
+- Built attachmentService.js (248 lines) with file validation
+- Built notificationService.js (212 lines) with EmailJS integration
+- File size limits (10MB), file count limits (5 per task), type whitelist enforced
+- Soft delete for comments (preserves audit trail)
+- Self-mention filtering prevents spam
+
+**Key Design Decisions:**
+- Real-time updates via onSnapshot (better UX than polling)
+- Soft delete for comments (data integrity for audit)
+- Immutable attachments (prevent tampering after upload)
+- Progressive file validation (client → service → Firestore rules)
+- Batch notifications for multiple @mentions (efficiency)
+- EmailJS integration for cross-platform notifications
+
+**Lesson:**
+- **Comprehensive planning pays off** - 30-task breakdown prevented scope creep
+- **Security by design** - considered auth/validation from Day 1, not retrofit
+- **Test infrastructure first** - created test-comment-services.html before UI
+- **Document as you go** - EmailJS template guide created alongside code
+- **Layered validation** - client, service, Firestore rules all validate independently
+
+**Prevention:**
+- When building complex features, create detailed task breakdown FIRST
+- Design Firestore security rules alongside collection schema
+- Build test infrastructure before production components
+- Document integration requirements (like EmailJS template) immediately
+- Plan for Day 2-3 before starting Day 1 (holistic view prevents rework)
+
+**Related Files:**
+- `src/services/commentService.js` - Comment CRUD operations
+- `src/services/attachmentService.js` - File upload/download
+- `src/services/notificationService.js` - Notification management
+- `firestore.rules` - Security rules for new collections (lines 194-293)
+- `public/test-comment-services.html` - Testing infrastructure
+- `.github/EMAILJS_MENTION_TEMPLATE.md` - EmailJS setup guide
+- `.github/TASK_COMMENTS_DAY1_COMPLETE.md` - Implementation summary
+
+---
+

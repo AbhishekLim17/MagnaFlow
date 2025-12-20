@@ -2,13 +2,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
     
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
     
     function isAdmin() {
@@ -20,107 +23,152 @@ service cloud.firestore {
       return isAuthenticated() && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
+    
+    // Allow read-only access for cron trigger (token-protected at app level)
+    function isCronTrigger() {
+      return !isAuthenticated();
+    }
+    
+    // Validate user data structure
+    function isValidUserData() {
+      return request.resource.data.keys().hasAll(['name', 'email', 'role']) &&
+             request.resource.data.role in ['admin', 'staff'] &&
+             request.resource.data.email is string &&
+             request.resource.data.name is string;
+    }
+    
+    // Validate task data structure
+    function isValidTaskData() {
+      return request.resource.data.keys().hasAll(['title', 'status', 'priority']) &&
+             request.resource.data.status in ['pending', 'in-progress', 'completed', 'cancelled'] &&
+             request.resource.data.priority in ['low', 'medium', 'high', 'critical'];
+    }
 
-    // Users collection - Role-based access control
+    // ==========================================
+    // USERS COLLECTION
+    // ==========================================
     match /users/{userId} {
-      // Users can read their own profile
-      // ALSO allow unauthenticated read for cron trigger (to get user emails for reminders)
-      allow read: if (isAuthenticated() && isOwner(userId)) || !isAuthenticated();
+      // Users can read their own profile, cron can read for email reminders
+      allow get: if isOwner(userId) || isCronTrigger();
       
-      // Only admins can read all users
-      // ALSO allow unauthenticated read for cron trigger (to get user emails for reminders)
-      allow list: if isAdmin() || !isAuthenticated();
+      // Only admins can list all users, cron can list for email reminders
+      allow list: if isAdmin() || isCronTrigger();
       
       // Users can update their own profile (limited fields only)
-      allow update: if isAuthenticated() && isOwner(userId) && 
-                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'email']);
+      // Cannot change role, status, or email
+      allow update: if isOwner(userId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'email', 'uid']);
       
-      // Only admins can create new users
-      allow create: if isAdmin();
+      // Only admins can create new users with validation
+      allow create: if isAdmin() && isValidUserData();
       
       // Only admins can delete users
       allow delete: if isAdmin();
-      
-      // Only admins can change role or status
-      allow write: if isAdmin();
     }
 
-    // Tasks collection - Role-based access
+    // ==========================================
+    // TASKS COLLECTION
+    // ==========================================
     match /tasks/{taskId} {
-      // Staff can read tasks assigned to them
-      allow read: if isAuthenticated() && 
-                     (isAdmin() || resource.data.assignedTo == request.auth.uid);
+      // Staff can read tasks assigned to them, cron can read for reminders
+      allow get: if (isAuthenticated() && 
+                    (isAdmin() || resource.data.assignedTo == request.auth.uid)) ||
+                    isCronTrigger();
       
-      // Admins can read all tasks
-      // ALSO allow unauthenticated read for cron trigger (read-only, no write access)
-      allow list: if isAdmin() || !isAuthenticated();
+      // Admins can list all tasks, cron can list for reminders
+      allow list: if isAdmin() || isCronTrigger();
       
-      // Only admins can create tasks
-      allow create: if isAdmin();
+      // Admins can create any task, staff can create tasks assigned to themselves
+      allow create: if (isAdmin() || (isStaff() && request.resource.data.assignedTo == request.auth.uid)) && isValidTaskData();
       
-      // Only admins can update tasks
-      allow update: if isAdmin();
+      // Admins can update any task, staff can update their own tasks (status, description, etc.)
+      allow update: if (isAdmin() || (isStaff() && resource.data.assignedTo == request.auth.uid)) && isValidTaskData();
       
       // Only admins can delete tasks
       allow delete: if isAdmin();
     }
 
-    // Companies collection - Admin only
+    // ==========================================
+    // COMPANIES COLLECTION
+    // ==========================================
     match /companies/{companyId} {
-      allow read: if isAuthenticated();
-      allow write, create, delete: if isAdmin();
+      allow get, list: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Departments collection - Admin only
+    // ==========================================
+    // DEPARTMENTS COLLECTION
+    // ==========================================
     match /departments/{departmentId} {
-      allow read: if isAuthenticated();
-      allow write, create, delete: if isAdmin();
+      allow get, list: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Designations collection - Admin only
+    // ==========================================
+    // DESIGNATIONS COLLECTION
+    // ==========================================
     match /designations/{designationId} {
-      allow read: if isAuthenticated();
-      allow write, create, delete: if isAdmin();
+      allow get, list: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Performance Reports collection - Role-based access
+    // ==========================================
+    // PERFORMANCE REPORTS COLLECTION
+    // ==========================================
     match /performanceReports/{reportId} {
       // Staff can read their own reports
-      allow read: if isAuthenticated() && 
-                     (isAdmin() || resource.data.userId == request.auth.uid);
+      allow get: if isAuthenticated() && 
+                    (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Only admins can list all reports
+      allow list: if isAdmin();
       
       // Only admins can write reports
-      allow write, create, delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Reminder Logs collection - Cron trigger needs read/write access
+    // ==========================================
+    // REMINDER LOGS COLLECTION
+    // NOTE: These rules are intentionally permissive for cron trigger
+    // The cron endpoint itself is token-protected at application level
+    // ==========================================
     match /reminder_logs/{logId} {
-      // Public read/write for cron trigger (token-protected at application level)
+      // Allow read/write for cron trigger (protected by token at app level)
       // Cron needs READ to check if already sent today
       // Cron needs WRITE to save execution logs
-      allow read, write, create: if true;
+      allow get, list: if true;
+      allow create: if true;
       
-      // Admins can also read/list logs
-      allow list: if isAdmin();
+      // Prevent updates and deletes for data integrity
+      allow update, delete: if false;
     }
 
-    // System Monitoring collection - For production safety monitoring
+    // ==========================================
+    // SYSTEM MONITORING COLLECTION
+    // NOTE: These rules are intentionally permissive for cron trigger
+    // The cron endpoint itself is token-protected at application level
+    // ==========================================
     match /system_monitoring/{docId} {
-      // Public read/write for cron trigger (token-protected at application level)
-      // Used for email quota tracking and health checks
-      allow read, write, create, update: if true;
+      // Allow read/write for cron trigger email quota tracking
+      allow get, list: if true;
+      allow create, update: if true;
       
-      // Admins can also access
-      allow list: if isAdmin();
+      // Prevent deletes for data integrity
+      allow delete: if false;
     }
 
-    // Subtasks collection - Role-based access
+    // ==========================================
+    // SUBTASKS COLLECTION
+    // ==========================================
     match /subtasks/{subtaskId} {
       // Staff can read subtasks for tasks assigned to them
       // Admin can read all subtasks
-      allow read: if isAuthenticated() && 
-                     (isAdmin() || 
-                      get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid);
+      allow get: if isAuthenticated() && 
+                    (isAdmin() || 
+                     get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid);
+      
+      // Admins can list all subtasks, staff can list subtasks for their tasks
+      allow list: if isAuthenticated();
       
       // Staff can create subtasks for their assigned tasks
       // Admin can create any subtasks
@@ -141,10 +189,80 @@ service cloud.firestore {
                         get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid);
     }
 
-    // Email Logs collection - Admin only
+    // ==========================================
+    // EMAIL LOGS COLLECTION
+    // ==========================================
     match /email_logs/{logId} {
-      allow write, create: if isAuthenticated();
-      allow read: if isAdmin();
+      // Any authenticated user can create email logs
+      allow create: if isAuthenticated();
+      
+      // Only admins can read email logs
+      allow get, list: if isAdmin();
+      
+      // Prevent updates and deletes for audit trail integrity
+      allow update, delete: if false;
+    }
+
+    // ==========================================
+    // TASK COMMENTS COLLECTION
+    // ==========================================
+    match /task_comments/{commentId} {
+      // Validate comment data structure
+      function isValidComment() {
+        return request.resource.data.keys().hasAll(['taskId', 'userId', 'userName', 'userEmail', 'text']) &&
+               request.resource.data.text is string &&
+               request.resource.data.text.size() > 0 &&
+               request.resource.data.text.size() <= 5000 &&
+               request.resource.data.userId == request.auth.uid;
+      }
+
+      // Check if user is comment author
+      function isCommentAuthor() {
+        return resource.data.userId == request.auth.uid;
+      }
+
+      // All authenticated users can read comments
+      allow get, list: if isAuthenticated();
+      
+      // Authenticated users can create comments with valid data
+      allow create: if isAuthenticated() && isValidComment();
+      
+      // Author or admin can update comments (text and mentions only)
+      allow update: if isAuthenticated() && 
+                       (isCommentAuthor() || isAdmin()) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'mentions', 'updatedAt', 'edited']);
+      
+      // Author or admin can soft delete comments
+      allow delete: if isAuthenticated() && (isCommentAuthor() || isAdmin());
+    }
+
+    // ==========================================
+    // COMMENT NOTIFICATIONS COLLECTION
+    // ==========================================
+    match /comment_notifications/{notificationId} {
+      // Validate notification data
+      function isValidNotification() {
+        return request.resource.data.keys().hasAll(['userId', 'commentId', 'taskId', 'mentionedBy', 'mentionedByName', 'read']);
+      }
+
+      // Check if user owns the notification
+      function isNotificationOwner() {
+        return resource.data.userId == request.auth.uid;
+      }
+
+      // Users can only read their own notifications
+      allow get, list: if isAuthenticated() && isNotificationOwner();
+      
+      // System can create notifications (any authenticated user can trigger)
+      allow create: if isAuthenticated() && isValidNotification();
+      
+      // Users can only update their own notifications (mark as read)
+      allow update: if isAuthenticated() && 
+                       isNotificationOwner() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      
+      // Users can delete their own notifications, admins can delete any
+      allow delete: if isAuthenticated() && (isNotificationOwner() || isAdmin());
     }
   }
 }

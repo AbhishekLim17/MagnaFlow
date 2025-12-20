@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Calendar, User, AlertCircle, CheckCircle, Edit, Trash2, ListChecks, Plus } from 'lucide-react';
 import SubtaskList from '../SubtaskList';
 import AddSubtaskDialog from '../AddSubtaskDialog';
+import CommentSection from '../tasks/CommentSection';
 import {
   Dialog,
   DialogContent,
@@ -65,12 +66,10 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold gradient-text">
-            Task Details
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="glass-effect border-white/20 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogTitle className="text-2xl font-bold gradient-text mb-4">
+          Task Details
+        </DialogTitle>
 
         <div className="space-y-6">
           {/* Task Title */}
@@ -225,6 +224,11 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
             >
               Close
             </Button>
+          </div>
+
+          {/* Comments Section */}
+          <div className="mt-6 pt-6 border-t border-gray-700">
+            <CommentSection taskId={task.id} taskTitle={task.title} />
           </div>
         </div>
       </DialogContent>

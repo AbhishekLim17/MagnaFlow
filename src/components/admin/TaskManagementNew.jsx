@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Calendar, User } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,9 +38,127 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
+import { useCommentCount } from '@/hooks/useCommentCount';
+import { useSubtaskCount } from '@/hooks/useSubtaskCount';
+import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// Admin Task Card with Comment Button
+const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaffName, getPriorityBadge, getStatusBadge, formatDate }) => {
+  const commentCount = useCommentCount(task.id);
+  const subtaskCounts = useSubtaskCount(task.id);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
+        <div className="p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
+              <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+            </div>
+            <div className="ml-4 flex space-x-2">
+              <Badge className={`${getPriorityBadge(task.priority)} border`}>
+                {task.priority}
+              </Badge>
+              <Badge className={`${getStatusBadge(task.status)} border`}>
+                {task.status}
+              </Badge>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
+            <div className="flex items-center space-x-4 text-sm text-gray-400">
+              <div className="flex items-center space-x-1">
+                <User className="w-4 h-4" />
+                <span>{getStaffName(task.assignedTo)}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Calendar className="w-4 h-4" />
+                <span>{formatDate(task.deadline)}</span>
+              </div>
+              
+              <TooltipProvider>
+                {/* Subtask Badge - Clickable */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCommentClick(task);
+                      }}
+                      className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-all"
+                    >
+                      <ListChecks className="w-4 h-4" />
+                      <span className="text-xs font-medium">{subtaskCounts.completed}/{subtaskCounts.total}</span>
+                    </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Subtasks: {subtaskCounts.completed} of {subtaskCounts.total} completed</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                {/* Comment Button with Count */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => onCommentClick(task)}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-xs font-medium">{commentCount}</span>
+              </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Comments: {commentCount} {commentCount === 1 ? 'comment' : 'comments'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                onClick={() => onEdit(task)}
+              >
+                <Edit className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                onClick={() => onDelete(task)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+};
 
 const TaskManagement = () => {
   const { tasks, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
+  const { currentUser } = useAuth();
   const [staff, setStaff] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -48,6 +166,7 @@ const TaskManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [taskForComments, setTaskForComments] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
@@ -276,64 +395,18 @@ const TaskManagement = () => {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {filteredTasks.map((task, index) => (
-                <motion.div
+                <AdminTaskCard
                   key={task.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
-                    <div className="p-5">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
-                          <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
-                        </div>
-                        <div className="ml-4 flex space-x-2">
-                          <Badge className={`${getPriorityBadge(task.priority)} border`}>
-                            {task.priority}
-                          </Badge>
-                          <Badge className={`${getStatusBadge(task.status)} border`}>
-                            {task.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
-                        <div className="flex items-center space-x-4 text-sm text-gray-400">
-                          <div className="flex items-center space-x-1">
-                            <User className="w-4 h-4" />
-                            <span>{getStaffName(task.assignedTo)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatDate(task.deadline)}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
-                            onClick={() => openEditDialog(task)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                            onClick={() => openDeleteDialog(task)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
+                  task={task}
+                  index={index}
+                  onEdit={openEditDialog}
+                  onDelete={openDeleteDialog}
+                  onCommentClick={setTaskForComments}
+                  getStaffName={getStaffName}
+                  getPriorityBadge={getPriorityBadge}
+                  getStatusBadge={getStatusBadge}
+                  formatDate={formatDate}
+                />
               ))}
             </div>
           )}
@@ -565,6 +638,16 @@ const TaskManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Task Details Dialog with Comments */}
+      {taskForComments && (
+        <TaskDetailsDialog
+          task={taskForComments}
+          open={!!taskForComments}
+          onOpenChange={(open) => !open && setTaskForComments(null)}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 };

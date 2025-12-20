@@ -44,7 +44,7 @@ import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 const PerformanceReports = () => {
   const { tasks: allTasks } = useTasks();
@@ -235,62 +235,57 @@ const PerformanceReports = () => {
     doc.save(`performance-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     // Create workbook
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
     
     // Summary sheet
-    const summaryData = [
-      ['Performance Report - MagnaFlow'],
-      ['Generated: ' + new Date().toLocaleDateString()],
-      [],
-      ['Summary Statistics'],
-      ['Metric', 'Value'],
-      ['Total Tasks', tasks.length],
-      ['Completed Tasks', tasks.filter(t => t.status === 'completed').length],
-      ['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length],
-      ['Pending Tasks', tasks.filter(t => t.status === 'pending').length],
-      ['Completion Rate', `${completionRate}%`],
-      ['Active Staff', staff.length],
-    ];
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.addRow(['Performance Report - MagnaFlow']);
+    summarySheet.addRow(['Generated: ' + new Date().toLocaleDateString()]);
+    summarySheet.addRow([]);
+    summarySheet.addRow(['Summary Statistics']);
+    summarySheet.addRow(['Metric', 'Value']);
+    summarySheet.addRow(['Total Tasks', tasks.length]);
+    summarySheet.addRow(['Completed Tasks', tasks.filter(t => t.status === 'completed').length]);
+    summarySheet.addRow(['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length]);
+    summarySheet.addRow(['Pending Tasks', tasks.filter(t => t.status === 'pending').length]);
+    summarySheet.addRow(['Completion Rate', `${completionRate}%`]);
+    summarySheet.addRow(['Active Staff', staff.length]);
     
     // Staff productivity sheet
-    const staffData = [
-      ['Staff Productivity'],
-      [],
-      ['Staff Member', 'Total Tasks', 'Completed', 'In Progress', 'Pending', 'Productivity %'],
-      ...staffProductivity.map(s => [
-        s.name,
-        s.total,
-        s.completed,
-        s.inProgress,
-        s.pending,
-        s.productivity
-      ])
-    ];
-    const staffSheet = XLSX.utils.aoa_to_sheet(staffData);
-    XLSX.utils.book_append_sheet(wb, staffSheet, 'Staff Productivity');
+    const staffSheet = workbook.addWorksheet('Staff Productivity');
+    staffSheet.addRow(['Staff Productivity']);
+    staffSheet.addRow([]);
+    staffSheet.addRow(['Staff Member', 'Total Tasks', 'Completed', 'In Progress', 'Pending', 'Productivity %']);
+    staffProductivity.forEach(s => {
+      staffSheet.addRow([s.name, s.total, s.completed, s.inProgress, s.pending, s.productivity]);
+    });
     
     // Task details sheet
-    const taskData = [
-      ['All Tasks'],
-      [],
-      ['Title', 'Status', 'Priority', 'Assigned To', 'Created Date'],
-      ...tasks.map(t => [
+    const taskSheet = workbook.addWorksheet('Tasks');
+    taskSheet.addRow(['All Tasks']);
+    taskSheet.addRow([]);
+    taskSheet.addRow(['Title', 'Status', 'Priority', 'Assigned To', 'Created Date']);
+    tasks.forEach(t => {
+      taskSheet.addRow([
         t.title,
         t.status,
         t.priority,
         staff.find(s => s.id === t.assignedTo)?.name || 'Unassigned',
         t.createdAt?.toDate ? t.createdAt.toDate().toLocaleDateString() : 'N/A'
-      ])
-    ];
-    const taskSheet = XLSX.utils.aoa_to_sheet(taskData);
-    XLSX.utils.book_append_sheet(wb, taskSheet, 'Tasks');
+      ]);
+    });
     
     // Save
-    XLSX.writeFile(wb, `performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `performance-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const topPerformers = staffProductivity

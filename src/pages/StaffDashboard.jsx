@@ -13,7 +13,9 @@ import {
   TrendingUp,
   Target,
   AlertCircle,
-  KeyRound
+  KeyRound,
+  MessageSquare,
+  ListChecks
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +35,141 @@ import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
+import NotificationBell from '@/components/shared/NotificationBell';
+import { useCommentCount } from '@/hooks/useCommentCount';
+import { useSubtaskCount } from '@/hooks/useSubtaskCount';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// Task Card Component with Comment Button
+const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
+  const commentCount = useCommentCount(task.id);
+  const subtaskCounts = useSubtaskCount(task.id);
+  
+  const getPriorityBadge = (priority) => {
+    const badges = {
+      critical: 'bg-red-500/10 text-red-400 border-red-500/50',
+      high: 'bg-orange-500/10 text-orange-400 border-orange-500/50',
+      medium: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/50',
+      low: 'bg-green-500/10 text-green-400 border-green-500/50',
+    };
+    return badges[priority] || badges.medium;
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: 'bg-gray-500/10 text-gray-400 border-gray-500/50',
+      'in-progress': 'bg-blue-500/10 text-blue-400 border-blue-500/50',
+      completed: 'bg-green-500/10 text-green-400 border-green-500/50',
+    };
+    return badges[status] || badges.pending;
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'No deadline';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Card 
+        className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300 cursor-pointer"
+        onClick={() => onTaskClick(task)}
+      >
+        <div className="p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
+              <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+            </div>
+            <div className="ml-4 space-x-2">
+              <Badge className={`${getPriorityBadge(task.priority)} border`}>
+                {task.priority}
+              </Badge>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
+            <div className="flex items-center space-x-4 text-sm text-gray-400">
+              <div className="flex items-center space-x-1">
+                <Clock className="w-4 h-4" />
+                <span>{formatDate(task.deadline)}</span>
+              </div>
+              
+              <TooltipProvider>
+                {/* Subtask Badge - Clickable */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskClick(task);
+                      }}
+                      className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-all"
+                    >
+                      <ListChecks className="w-4 h-4" />
+                      <span className="text-xs font-medium">{subtaskCounts.completed}/{subtaskCounts.total}</span>
+                    </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Subtasks: {subtaskCounts.completed} of {subtaskCounts.total} completed</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                {/* Comment Button with Count */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTaskClick(task);
+                }}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-xs font-medium">{commentCount}</span>
+              </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Comments: {commentCount} {commentCount === 1 ? 'comment' : 'comments'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            
+            <Select
+              value={task.status}
+              onValueChange={(value) => onStatusChange(task.id, value)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SelectTrigger className={`w-[140px] ${getStatusBadge(task.status)} border`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+};
 
 const StaffDashboard = () => {
   const { user, logout } = useAuth();
@@ -190,6 +327,7 @@ const StaffDashboard = () => {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <NotificationBell />
             <div className="flex items-center space-x-3 px-4 py-2 bg-gray-800/50 rounded-lg">
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {user?.name?.charAt(0) || 'S'}
@@ -324,55 +462,13 @@ const StaffDashboard = () => {
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {filteredTasks.map((task, index) => (
-                  <motion.div
+                  <TaskCardWithComments 
                     key={task.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card 
-                      className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300 cursor-pointer"
-                      onClick={() => setSelectedTask(task)}
-                    >
-                      <div className="p-5">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
-                            <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
-                          </div>
-                          <div className="ml-4 space-x-2">
-                            <Badge className={`${getPriorityBadge(task.priority)} border`}>
-                              {task.priority}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
-                          <div className="flex items-center space-x-4 text-sm text-gray-400">
-                            <div className="flex items-center space-x-1">
-                              <Clock className="w-4 h-4" />
-                              <span>{formatDate(task.deadline)}</span>
-                            </div>
-                          </div>
-                          
-                          <Select
-                            value={task.status}
-                            onValueChange={(value) => handleStatusChange(task.id, value)}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <SelectTrigger className={`w-[140px] ${getStatusBadge(task.status)} border`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="in-progress">In Progress</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </Card>
-                  </motion.div>
+                    task={task}
+                    index={index}
+                    onTaskClick={setSelectedTask}
+                    onStatusChange={handleStatusChange}
+                  />
                 ))}
               </div>
             )}

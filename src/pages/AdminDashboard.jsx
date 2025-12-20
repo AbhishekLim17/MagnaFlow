@@ -31,6 +31,7 @@ import TaskManagement from '@/components/admin/TaskManagementNew';
 import PerformanceReports from '@/components/admin/PerformanceReports';
 import DesignationsManagement from '@/components/admin/DesignationsManagement';
 import AdminManagement from '@/components/admin/AdminManagement';
+import NotificationBell from '@/components/shared/NotificationBell';
 import { getAllUsers } from '@/services/userService';
 
 const AdminDashboard = () => {
@@ -313,6 +314,7 @@ const AdminDashboard = () => {
                 </h1>
               </div>
               <div className="flex items-center space-x-4">
+                <NotificationBell />
                 <div className="hidden md:flex items-center space-x-2">
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {user?.name?.charAt(0) || 'A'}

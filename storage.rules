@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for Task Attachments
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: Check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Task attachments folder
+    match /task-attachments/{taskId}/{fileName} {
+      // Allow authenticated users to read any attachment
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to upload files (max 10MB)
+      allow create: if isAuthenticated() && 
+                       request.resource.size <= 10 * 1024 * 1024; // 10MB limit
+      
+      // Only uploader or admin can delete attachments
+      allow delete: if isAuthenticated() && 
+                       (resource.metadata.uploadedBy == request.auth.uid || isAdmin());
+      
+      // No updates allowed (immutable once uploaded)
+      allow update: if false;
+    }
+    
+    // Default: deny all access to other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
