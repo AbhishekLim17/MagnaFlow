@@ -122,6 +122,11 @@ export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = nul
             });
           }
           // If completedCount === 0, leave status as is (pending)
+          
+          // Emit custom event to trigger UI refresh
+          window.dispatchEvent(new CustomEvent('taskStatusUpdated', { 
+            detail: { taskId, completedCount, totalCount } 
+          }));
         }
       } catch (statusError) {
         console.error('Error updating task status:', statusError);

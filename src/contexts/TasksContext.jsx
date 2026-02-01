@@ -43,6 +43,20 @@ export const TasksProvider = ({ children }) => {
     }
   }, [isAuthenticated, user]);
 
+  // Listen for task status updates (from subtask completion)
+  useEffect(() => {
+    const handleTaskStatusUpdate = () => {
+      console.log('🔄 Task status updated, reloading tasks...');
+      loadTasks();
+    };
+    
+    window.addEventListener('taskStatusUpdated', handleTaskStatusUpdate);
+    
+    return () => {
+      window.removeEventListener('taskStatusUpdated', handleTaskStatusUpdate);
+    };
+  }, [isAuthenticated, user]);
+
   /**
    * Load tasks based on user role
    * Admin: Load all tasks

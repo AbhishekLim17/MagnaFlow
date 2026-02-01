@@ -31,9 +31,23 @@ const SubtaskList = ({ taskId, currentUser }) => {
 
   const handleToggleComplete = async (subtaskId, currentStatus) => {
     try {
+      // Optimistic update - update UI immediately
+      setSubtasks(prevSubtasks => 
+        prevSubtasks.map(s => 
+          s.id === subtaskId ? { ...s, completed: !currentStatus } : s
+        )
+      );
+      
+      // Then update database
       await toggleSubtaskCompletion(subtaskId, !currentStatus, taskId);
     } catch (error) {
       console.error('Error toggling subtask:', error);
+      // Revert optimistic update on error
+      setSubtasks(prevSubtasks => 
+        prevSubtasks.map(s => 
+          s.id === subtaskId ? { ...s, completed: currentStatus } : s
+        )
+      );
       alert('Failed to update subtask');
     }
   };
