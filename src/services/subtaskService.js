@@ -72,10 +72,12 @@ export const updateSubtask = async (subtaskId, updates) => {
 
 /**
  * Toggle subtask completion status
- * Auto-completes parent task when all subtasks are done
+ * Auto-updates parent task status based on subtask progress:
+ * - Some subtasks done → "in-progress"
+ * - All subtasks done → "completed"
  * @param {string} subtaskId - Subtask ID
  * @param {boolean} completed - New completion status
- * @param {string} taskId - Parent task ID (optional, for auto-completion)
+ * @param {string} taskId - Parent task ID (required for auto-update)
  * @returns {Promise<void>}
  */
 export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = null) => {
@@ -83,19 +85,29 @@ export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = nul
     // Update the subtask first
     await updateSubtask(subtaskId, { completed });
     
-    // Auto-complete parent task if all subtasks are now completed
-    if (completed && taskId) {
+    // Auto-update parent task status based on subtask completion
+    if (taskId) {
       // Get fresh subtasks data after update
       const subtasks = await getSubtasks(taskId);
-      const allCompleted = subtasks.every(s => s.completed);
+      const completedCount = subtasks.filter(s => s.completed).length;
+      const totalCount = subtasks.length;
       
-      if (allCompleted && subtasks.length > 0) {
-        // Import updateTask dynamically to avoid circular dependency
+      if (totalCount > 0) {
         const { updateTask } = await import('./taskService');
-        await updateTask(taskId, { 
-          status: 'completed',
-          completedAt: serverTimestamp()
-        });
+        
+        if (completedCount === totalCount) {
+          // All subtasks completed → mark task as completed
+          await updateTask(taskId, { 
+            status: 'completed',
+            completedAt: serverTimestamp()
+          });
+        } else if (completedCount > 0) {
+          // Some subtasks completed → mark task as in-progress
+          await updateTask(taskId, { 
+            status: 'in-progress'
+          });
+        }
+        // If completedCount === 0, leave status as is (pending)
       }
     }
   } catch (error) {
