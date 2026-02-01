@@ -36,6 +36,8 @@ import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
 import NotificationBell from '@/components/shared/NotificationBell';
+import { useCommentCountStatic } from '@/hooks/useCommentCountStatic';
+import { useSubtaskCountStatic } from '@/hooks/useSubtaskCountStatic';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import {
@@ -47,8 +49,8 @@ import {
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
-  const commentCount = useCommentCount(task.id);
-  const subtaskCounts = useSubtaskCount(task.id);
+  const commentCount = useCommentCountStatic(task.id);
+  const subtaskCounts = useSubtaskCountStatic(task.id);
   
   const getPriorityBadge = (priority) => {
     const badges = {
@@ -172,7 +174,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
 };
 
 const StaffDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, currentUser, logout } = useAuth();
   const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -498,7 +500,7 @@ const StaffDashboard = () => {
           onStatusChange={handleStatusChange}
           onEdit={handleEditTask}
           onDelete={handleDeleteTask}
-          currentUser={user}
+          currentUser={currentUser}
         />
       )}
 

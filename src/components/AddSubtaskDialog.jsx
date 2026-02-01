@@ -11,8 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { addSubtask } from '../services/subtaskService';
+import { useAuth } from '@/contexts/AuthContext';
 
-const AddSubtaskDialog = ({ open, onClose, taskId, currentUser }) => {
+const AddSubtaskDialog = ({ open, onClose, taskId }) => {
+  const { currentUser } = useAuth();
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,12 +36,27 @@ const AddSubtaskDialog = ({ open, onClose, taskId, currentUser }) => {
     setError('');
 
     try {
+      console.log('Adding subtask with:', {
+        taskId: taskId,
+        title: title.trim(),
+        currentUser: currentUser,
+        userId: currentUser?.uid
+      });
+      
+      if (!currentUser || !currentUser.uid) {
+        throw new Error('User not authenticated. Please refresh and try again.');
+      }
+      
+      if (!taskId) {
+        throw new Error('Task ID is missing. Please close and reopen this dialog.');
+      }
+      
       await addSubtask(taskId, title.trim(), currentUser.uid);
       setTitle('');
       onClose();
     } catch (error) {
       console.error('Error adding subtask:', error);
-      setError('Failed to add subtask. Please try again.');
+      setError(error.message || 'Failed to add subtask. Please try again.');
     } finally {
       setLoading(false);
     }

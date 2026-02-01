@@ -10,6 +10,107 @@ _Add new entries below this line. Never delete old entries._
 
 ---
 
+## [Feb 1, 2026] - Sentry Error Monitoring Implementation
+
+**Problem:**
+- Production errors happening but no visibility
+- Had to rely on users reporting issues
+- No way to track error frequency or patterns
+- Missing user context when debugging
+- Performance bottlenecks not identified
+
+**Root Cause:**
+No error monitoring system in place. Treating MagnaFlow as a development project rather than a production system requiring observability.
+
+**Solution:**
+Implemented Sentry error monitoring with comprehensive features:
+1. Installed `@sentry/react` package
+2. Created `src/config/sentry.js` with initialization logic
+3. Integrated ErrorBoundary in App.jsx with custom UI
+4. Added user context tracking (email, role, user ID)
+5. Implemented performance monitoring for Firebase queries
+6. Configured session replay (10% sample, 100% on errors)
+7. Added breadcrumb tracking for user actions
+8. Set up environment variables for DSN configuration
+
+**Lesson:**
+1. **Implement monitoring from day 1** - errors are inevitable, visibility is essential
+2. **Production-only tracking** - avoid noise in development
+3. **User context is critical** - knowing who hit an error speeds up debugging
+4. **Performance monitoring included** - identify slow queries early
+5. **Session replay invaluable** - see exactly what user did before error
+6. **Free tier sufficient** for small/medium apps (5K errors/month)
+7. **DSN is not secret** - safe to include in client code
+
+**Related Files:**
+- `src/config/sentry.js` (configuration and utilities)
+- `src/main.jsx` (initialization)
+- `src/App.jsx` (ErrorBoundary integration)
+- `.env.production` (DSN configuration)
+- `SENTRY_SETUP.md` (complete setup guide)
+
+---
+
+## [Jan 4, 2026] - Dashboard Counts Not Updating in Real-Time
+
+**Problem:**
+- After fixing the "0/0" bug, subtask counts showed initially (e.g., "0/1")
+- But when user added more subtasks, the dashboard badge didn't update to "0/2"
+- Had to refresh entire page to see new counts
+- Task details modal showed correct counts, but dashboard cards were stale
+
+**Root Cause:**
+Dashboard was using `useSubtaskCountStatic` and `useCommentCountStatic` which only fetch counts once on component mount. When subtasks or comments were added via the task details modal, the dashboard cards had no way to know about the changes because they weren't listening for real-time updates.
+
+**Solution:**
+- Replaced `useSubtaskCountStatic` with `useSubtaskCount` (real-time)
+- Replaced `useCommentCountStatic` with `useCommentCount` (real-time)
+- These hooks use `onSnapshot()` to listen for Firestore changes instantly
+- Dashboard badges now update automatically without page refresh
+
+**Lesson:**
+1. **Use real-time hooks for UI elements that display live data** - dashboards need instant updates
+2. **Static hooks are only for** initial page loads or non-critical data
+3. **Test the full user flow** - adding data from one component should update counts in another
+4. **Real-time listeners are essential** when multiple components show the same data
+5. **Document which hooks are static vs real-time** in code comments
+
+**Related Files:**
+- `src/components/admin/TaskManagementNew.jsx` (switched to real-time hooks)
+- `src/hooks/useSubtaskCount.js` (real-time with onSnapshot)
+- `src/hooks/useCommentCount.js` (real-time with onSnapshot)
+
+---
+
+## [Jan 4, 2026] - Subtask Count Display Showing 0/0
+
+**Problem:**
+- Dashboard task cards showed "0/0" for subtasks even when subtasks existed
+- Task details modal correctly showed subtask count (e.g., "0/1 completed")
+- Issue was invisible to users until they opened task details
+
+**Root Cause:**
+Firestore query in `useSubtaskCount.js` and `useSubtaskCountStatic.js` was filtering for `where('deleted', '==', false)`, but subtasks don't have a `deleted` field. Subtasks use hard deletion (`deleteDoc`) rather than soft deletion with a flag. This caused the query to return 0 results every time.
+
+**Solution:**
+- Removed `where('deleted', '==', false)` clause from both hooks
+- Added explanatory comments: "Subtasks use hard deletion (deleteDoc), not soft deletion"
+- Verified subtaskService.js only uses `deleteDoc()` for deletion
+
+**Lesson:**
+1. **Verify data schema before writing queries** - don't assume fields exist
+2. **Check actual service implementation** - see how data is created/deleted
+3. **Distinguish between hard and soft deletion patterns** in data model
+4. **Test with actual data** - the bug was only visible when subtasks existed
+5. **Add comments explaining deletion strategy** to prevent future mistakes
+
+**Related Files:**
+- `src/hooks/useSubtaskCount.js` (real-time)
+- `src/hooks/useSubtaskCountStatic.js` (one-time fetch)
+- `src/services/subtaskService.js` (uses deleteDoc)
+
+---
+
 ## [Nov 30, 2025] - Production Readiness Assessment - Operational Maturity Gaps
 
 **Problem:**

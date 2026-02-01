@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createComment, extractMentions, getUserIdsByUsernames } from '../../services/commentService';
 import { createNotificationsForMentions, sendEmailNotification } from '../../services/notificationService';
-import { Send } from 'lucide-react';
+import { getAllUsers } from '../../services/userService';
+import { Send, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 /**
@@ -12,9 +13,24 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [showUsers, setShowUsers] = useState(false);
 
   const maxLength = 5000;
   const remainingChars = maxLength - text.length;
+
+  // Load users once for mention suggestions
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const allUsers = await getAllUsers();
+        setUsers(allUsers.filter(u => u.id !== userId)); // Exclude current user
+      } catch (err) {
+        console.error('Error loading users:', err);
+      }
+    };
+    loadUsers();
+  }, [userId]);
 
   // Handle comment submission
   const handleSubmit = async (e) => {
@@ -92,7 +108,7 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Write a comment... Use @username to mention someone"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
           rows="3"
           maxLength={maxLength}
           disabled={loading}
@@ -117,19 +133,55 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
 
       {/* Submit button */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          💡 Tip: Use <span className="font-mono bg-gray-100 px-1 rounded">@username</span> to mention someone
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-gray-400">
+            💡 Tip: Use <span className="font-mono bg-gray-800 text-blue-400 px-1 rounded">@username</span> to mention
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowUsers(!showUsers)}
+            className="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1"
+          >
+            <Users className="w-3 h-3" />
+            {showUsers ? 'Hide' : 'Show'} users
+          </button>
         </div>
         
         <button
           type="submit"
           disabled={loading || !text.trim()}
-          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
         >
           <Send className="w-4 h-4" />
           {loading ? 'Posting...' : 'Post Comment'}
         </button>
       </div>
+
+      {/* Available users list */}
+      {showUsers && users.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mt-2 p-3 bg-gray-800 border border-gray-700 rounded-lg"
+        >
+          <div className="text-xs text-gray-400 mb-2 font-semibold">Available to mention:</div>
+          <div className="flex flex-wrap gap-2">
+            {users.map(user => (
+              <span
+                key={user.id}
+                onClick={() => {
+                  const atSymbol = text.endsWith('@') ? '' : '@';
+                  setText(text + atSymbol + user.name);
+                }}
+                className="text-xs px-2 py-1 bg-gray-700 text-blue-400 rounded cursor-pointer hover:bg-gray-600 transition-colors"
+              >
+                @{user.name}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </form>
   );
 };

@@ -175,7 +175,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows="3"
               maxLength={5000}
               disabled={loading}
@@ -185,7 +185,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               <button
                 onClick={handleEditSubmit}
                 disabled={loading || !editText.trim()}
-                className="flex items-center gap-1 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm"
               >
                 <Check className="w-4 h-4" />
                 Save

@@ -146,9 +146,12 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     currentUser: user ? {
-      ...user,
-      uid: user.id, // Map id to uid for compatibility
-      displayName: user.name, // Map name to displayName for compatibility
+      uid: user.id || user.uid, // Use id or fallback to uid
+      id: user.id || user.uid,
+      displayName: user.name,
+      name: user.name,
+      email: user.email,
+      role: user.role,
     } : null,
     isAuthenticated,
     loading,

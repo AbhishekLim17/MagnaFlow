@@ -3,6 +3,34 @@
 
 import emailjs from '@emailjs/browser';
 import { EMAIL_CONFIG } from '@/config/emailConfig';
+import { db } from '@/config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+/**
+ * Log email to Firestore for quota tracking
+ * @param {Object} emailDetails - Email logging details
+ */
+const logEmailToFirestore = async (emailDetails) => {
+  try {
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    await addDoc(collection(db, 'email_logs'), {
+      sentAt: serverTimestamp(),
+      type: emailDetails.type || 'generic',
+      recipient: emailDetails.recipient,
+      taskId: emailDetails.taskId || null,
+      status: emailDetails.status,
+      monthYear: monthYear,
+      source: emailDetails.source || 'manual',
+      error: emailDetails.error || null,
+      notificationType: emailDetails.notificationType || null,
+    });
+  } catch (error) {
+    console.error('Failed to log email to Firestore:', error);
+    // Don't throw - logging failure shouldn't break email sending
+  }
+};
 
 /**
  * Initialize EmailJS with public key
@@ -26,8 +54,9 @@ const isEmailConfigured = () => {
 /**
  * Send universal notification email
  * @param {Object} emailData - Email data object
+ * @param {Object} logDetails - Additional details for logging (type, taskId, source)
  */
-const sendEmail = async (emailData) => {
+const sendEmail = async (emailData, logDetails = {}) => {
   if (!isEmailConfigured()) {
     console.warn('⚠️ EmailJS not configured. Skipping email notification.');
     return { success: false, error: 'EmailJS not configured' };
@@ -49,10 +78,33 @@ const sendEmail = async (emailData) => {
     );
     console.log('✅ Email sent successfully:', response);
     console.log('📬 Status:', response.status, 'Text:', response.text);
+    
+    // Log successful email send
+    await logEmailToFirestore({
+      type: logDetails.type || 'generic',
+      recipient: emailData.to_email,
+      taskId: logDetails.taskId || null,
+      status: 'success',
+      source: logDetails.source || 'manual',
+      notificationType: emailData.notification_type || null,
+    });
+    
     return { success: true, response };
   } catch (error) {
     console.error('❌ Email sending failed:', error);
     console.error('❌ Error details:', error.text || error.message);
+    
+    // Log failed email attempt
+    await logEmailToFirestore({
+      type: logDetails.type || 'generic',
+      recipient: emailData.to_email,
+      taskId: logDetails.taskId || null,
+      status: 'failed',
+      source: logDetails.source || 'manual',
+      error: error.message || 'Unknown error',
+      notificationType: emailData.notification_type || null,
+    });
+    
     return { success: false, error: error.message };
   }
 };
@@ -99,7 +151,11 @@ export const sendTaskAssignedEmail = async (params) => {
     footer_text: 'Please log in to MagnaFlow to view complete task details and start working.'
   };
 
-  return await sendEmail(emailData);
+  return await sendEmail(emailData, {
+    type: 'task_assigned',
+    taskId: params.taskId,
+    source: params.source || 'manual',
+  });
 };
 
 /**
@@ -133,7 +189,11 @@ export const sendTaskCompletedEmail = async (params) => {
     footer_text: 'Check the admin panel for more details and analytics.'
   };
 
-  return await sendEmail(emailData);
+  return await sendEmail(emailData, {
+    type: 'task_completed',
+    taskId: params.taskId,
+    source: params.source || 'manual',
+  });
 };
 
 /**
@@ -167,7 +227,11 @@ export const sendTaskStatusChangedEmail = async (params) => {
     footer_text: 'Log in to your admin panel to see the complete task progress.'
   };
 
-  return await sendEmail(emailData);
+  return await sendEmail(emailData, {
+    type: 'task_status_changed',
+    taskId: params.taskId,
+    source: params.source || 'manual',
+  });
 };
 
 /**
@@ -202,7 +266,11 @@ export const sendCriticalTaskAlert = async (params) => {
     footer_text: '⚠️ This task requires immediate attention. Please start working on it as soon as possible.'
   };
 
-  return await sendEmail(emailData);
+  return await sendEmail(emailData, {
+    type: 'critical_task_alert',
+    taskId: params.taskId,
+    source: params.source || 'manual',
+  });
 };
 
 /**
@@ -237,7 +305,11 @@ export const sendCriticalTaskReminder = async (params) => {
     footer_text: '⚠️ This is a daily reminder for your critical task. Please complete it as soon as possible.'
   };
 
-  return await sendEmail(emailData);
+  return await sendEmail(emailData, {
+    type: 'critical_task_reminder',
+    taskId: params.taskId,
+    source: params.source || 'cron_job',
+  });
 };
 
 /**

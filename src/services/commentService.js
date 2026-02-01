@@ -89,18 +89,23 @@ export const subscribeToComments = (taskId, callback) => {
   try {
     const q = query(
       collection(db, 'task_comments'),
-      where('taskId', '==', taskId),
-      where('deleted', '==', false),
-      orderBy('createdAt', 'asc')
+      where('taskId', '==', taskId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const comments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate()
-      }));
+      const comments = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate()
+        }))
+        .filter(comment => !comment.deleted) // Filter deleted in JS
+        .sort((a, b) => { // Sort in JS instead of Firestore
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return a.createdAt - b.createdAt;
+        });
 
       console.log(`✅ Fetched ${comments.length} comments for task ${taskId}`);
       callback(comments);

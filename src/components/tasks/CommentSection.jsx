@@ -60,9 +60,9 @@ const CommentSection = ({ taskId, taskTitle }) => {
   return (
     <div className="space-y-4">
       {/* Header with comment count */}
-      <div className="flex items-center gap-2 border-b pb-3">
-        <MessageSquare className="w-5 h-5 text-gray-600" />
-        <span className="font-semibold text-gray-700">
+      <div className="flex items-center gap-2 border-b border-gray-700 pb-3">
+        <MessageSquare className="w-5 h-5 text-gray-400" />
+        <span className="font-semibold text-gray-200">
           Comments ({commentCount})
         </span>
       </div>

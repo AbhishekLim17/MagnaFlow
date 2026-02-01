@@ -75,8 +75,8 @@ service cloud.firestore {
                     (isAdmin() || resource.data.assignedTo == request.auth.uid)) ||
                     isCronTrigger();
       
-      // Admins can list all tasks, cron can list for reminders
-      allow list: if isAdmin() || isCronTrigger();
+      // Admins can list all tasks, staff can list their assigned tasks, cron can list for reminders
+      allow list: if isAuthenticated() || isCronTrigger();
       
       // Admins can create any task, staff can create tasks assigned to themselves
       allow create: if (isAdmin() || (isStaff() && request.resource.data.assignedTo == request.auth.uid)) && isValidTaskData();

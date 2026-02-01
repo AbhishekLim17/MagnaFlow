@@ -16,10 +16,10 @@ export const useSubtaskCount = (taskId) => {
       return;
     }
 
+    // Note: Subtasks use hard deletion (deleteDoc), not soft deletion with a 'deleted' field
     const q = query(
       collection(db, 'subtasks'),
-      where('taskId', '==', taskId),
-      where('deleted', '==', false)
+      where('taskId', '==', taskId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

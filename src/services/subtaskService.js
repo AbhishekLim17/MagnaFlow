@@ -152,8 +152,7 @@ export const subscribeToSubtasks = (taskId, callback) => {
 
     const q = query(
       collection(db, SUBTASKS_COLLECTION),
-      where('taskId', '==', taskId),
-      orderBy('createdAt', 'asc')
+      where('taskId', '==', taskId)
     );
 
     const unsubscribe = onSnapshot(
@@ -161,10 +160,20 @@ export const subscribeToSubtasks = (taskId, callback) => {
       (querySnapshot) => {
         const subtasks = [];
         querySnapshot.forEach((doc) => {
-          subtasks.push({
-            id: doc.id,
-            ...doc.data()
-          });
+          const data = doc.data();
+          // Filter out deleted subtasks
+          if (!data.deleted) {
+            subtasks.push({
+              id: doc.id,
+              ...data
+            });
+          }
+        });
+        // Sort by createdAt in JavaScript instead of Firestore
+        subtasks.sort((a, b) => {
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return a.createdAt.seconds - b.createdAt.seconds;
         });
         callback(subtasks);
       },

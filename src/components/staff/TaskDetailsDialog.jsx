@@ -234,14 +234,11 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
       </DialogContent>
       
       {/* Add Subtask Dialog */}
-      {currentUser && (
-        <AddSubtaskDialog
-          open={showAddSubtask}
-          onClose={() => setShowAddSubtask(false)}
-          taskId={task.id}
-          currentUser={currentUser}
-        />
-      )}
+      <AddSubtaskDialog
+        open={showAddSubtask}
+        onClose={() => setShowAddSubtask(false)}
+        taskId={task.id}
+      />
     </Dialog>
   );
 };
