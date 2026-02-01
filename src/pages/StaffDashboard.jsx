@@ -49,8 +49,8 @@ import {
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
-  const commentCount = useCommentCountStatic(task.id);
-  const subtaskCounts = useSubtaskCountStatic(task.id);
+  const commentCount = useCommentCount(task.id);
+  const subtaskCounts = useSubtaskCount(task.id);
   
   const getPriorityBadge = (priority) => {
     const badges = {
