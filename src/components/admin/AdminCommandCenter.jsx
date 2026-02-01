@@ -296,42 +296,30 @@ function EmailQuotaCard({ quota }) {
   };
 
   return (
-    <Card className={`glass-effect border-2 ${getColorClass()} p-5`}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold flex items-center">
-          <Mail className="w-4 h-4 mr-2" />
-          Email Quota
-        </h3>
-        <Badge className={getTextColor()}>{quota.status.toUpperCase()}</Badge>
+    <Card className={`glass-effect border ${getColorClass()} p-3`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Mail className="w-3.5 h-3.5" />
+          <span className="text-sm font-semibold">Email Quota</span>
+        </div>
+        <Badge className={`${getTextColor()} text-xs`}>{quota.percentage}%</Badge>
       </div>
       
-      <div className="space-y-3">
-        <div>
-          <div className="flex items-baseline justify-between mb-1">
-            <span className="text-2xl font-bold">{quota.used}</span>
-            <span className="text-sm text-gray-400">/ {quota.limit}</span>
-          </div>
-          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all ${
-                quota.status === 'critical' ? 'bg-red-500' :
-                quota.status === 'warning' ? 'bg-yellow-500' :
-                'bg-green-500'
-              }`}
-              style={{ width: `${quota.percentage}%` }}
-            />
-          </div>
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-1">
+          <span className="text-lg font-bold">{quota.used}</span>
+          <span className="text-xs text-gray-500">/ {quota.limit}</span>
+          <span className="text-xs text-gray-500 ml-auto">Daily: {quota.dailyAverage}</span>
         </div>
-
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <div className="text-gray-400">Daily Avg</div>
-            <div className="font-semibold">{quota.dailyAverage}</div>
-          </div>
-          <div>
-            <div className="text-gray-400">Projected</div>
-            <div className="font-semibold">{quota.projected}</div>
-          </div>
+        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className={`h-full transition-all ${
+              quota.status === 'critical' ? 'bg-red-500' :
+              quota.status === 'warning' ? 'bg-yellow-500' :
+              'bg-green-500'
+            }`}
+            style={{ width: `${quota.percentage}%` }}
+          />
         </div>
       </div>
     </Card>
