@@ -318,15 +318,13 @@ function PerformerCard({ staff, rank }) {
   const medals = ['🥇', '🥈', '🥉'];
   
   return (
-    <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-800/50">
-      <div className="text-2xl">{medals[rank - 1]}</div>
-      <div className="flex-1">
-        <div className="font-semibold">{staff.staffName}</div>
-        <div className="flex items-center space-x-3 text-xs text-gray-400">
-          <span>✅ {staff.completed}</span>
-          <span>⏳ {staff.inProgress}</span>
-          {staff.overdue > 0 && <span className="text-red-400">🔴 {staff.overdue}</span>}
-        </div>
+    <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-800/50">
+      <span className="text-xl">{medals[rank - 1]}</span>
+      <span className="font-semibold text-sm">{staff.staffName}</span>
+      <div className="flex items-center gap-2 text-xs text-gray-400 ml-auto">
+        <span>✅ {staff.completed}</span>
+        <span>⏳ {staff.inProgress}</span>
+        {staff.overdue > 0 && <span className="text-red-400">🔴 {staff.overdue}</span>}
       </div>
     </div>
   );
