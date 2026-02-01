@@ -87,7 +87,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
     const q = query(
       collection(db, 'tasks'),
       orderBy('updatedAt', 'desc'),
-      limit(5)
+      limit(10)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -209,7 +209,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         {/* Left Column - Activity Feed */}
         <div className="lg:col-span-1">
           {/* Recent Activity */}
-          <Card className="glass-effect border-gray-800 p-5">
+          <Card className="glass-effect border-gray-800 p-5 min-h-[500px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
                 <Activity className="w-4 h-4 mr-2 text-blue-400" />
@@ -231,7 +231,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
         {/* Right Column - Top Performers */}
         <div className="lg:col-span-1">
-          <Card className="glass-effect border-gray-800 p-5">
+          <Card className="glass-effect border-gray-800 p-5 min-h-[500px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
                 <Award className="w-4 h-4 mr-2 text-yellow-400" />
