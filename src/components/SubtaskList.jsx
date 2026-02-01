@@ -31,7 +31,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
 
   const handleToggleComplete = async (subtaskId, currentStatus) => {
     try {
-      await toggleSubtaskCompletion(subtaskId, !currentStatus);
+      await toggleSubtaskCompletion(subtaskId, !currentStatus, taskId);
     } catch (error) {
       console.error('Error toggling subtask:', error);
       alert('Failed to update subtask');

@@ -72,13 +72,30 @@ export const updateSubtask = async (subtaskId, updates) => {
 
 /**
  * Toggle subtask completion status
+ * Auto-completes parent task when all subtasks are done
  * @param {string} subtaskId - Subtask ID
  * @param {boolean} completed - New completion status
+ * @param {string} taskId - Parent task ID (optional, for auto-completion)
  * @returns {Promise<void>}
  */
-export const toggleSubtaskCompletion = async (subtaskId, completed) => {
+export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = null) => {
   try {
     await updateSubtask(subtaskId, { completed });
+    
+    // Auto-complete parent task if all subtasks are now completed
+    if (completed && taskId) {
+      const subtasks = await getSubtasks(taskId);
+      const allCompleted = subtasks.every(s => s.id === subtaskId ? true : s.completed);
+      
+      if (allCompleted && subtasks.length > 0) {
+        // Import updateTask dynamically to avoid circular dependency
+        const { updateTask } = await import('./taskService');
+        await updateTask(taskId, { 
+          status: 'completed',
+          completedAt: serverTimestamp()
+        });
+      }
+    }
   } catch (error) {
     console.error('Error toggling subtask completion:', error);
     throw error;
