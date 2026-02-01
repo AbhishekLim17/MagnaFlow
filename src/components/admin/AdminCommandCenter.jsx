@@ -22,7 +22,6 @@ import {
   Calendar,
   Award,
   Activity,
-  Bell,
   Plus,
   BarChart3
 } from 'lucide-react';
@@ -33,12 +32,27 @@ import { useTasks } from '@/contexts/TasksContext';
 import { useEmailQuota } from '@/hooks/useEmailQuota';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { getAllUsers } from '@/services/userService';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
   const { tasks } = useTasks();
   const emailQuota = useEmailQuota();
   const [recentActivity, setRecentActivity] = useState([]);
   const [staffStats, setStaffStats] = useState([]);
+  const [staff, setStaff] = useState([]);
+
+  // Load staff data
+  useEffect(() => {
+    const loadStaff = async () => {
+      try {
+        const staffList = await getAllUsers({ role: 'staff' });
+        setStaff(staffList);
+      } catch (error) {
+        console.error('Error loading staff:', error);
+      }
+    };
+    loadStaff();
+  }, []);
 
   // Calculate quick stats
   const stats = React.useMemo(() => {
@@ -90,7 +104,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
   // Calculate staff performance
   useEffect(() => {
-    if (tasks.length === 0) return;
+    if (tasks.length === 0 || staff.length === 0) return;
 
     const staffPerformance = {};
     
@@ -99,9 +113,10 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       if (!staffId) return;
 
       if (!staffPerformance[staffId]) {
+        const staffMember = staff.find(s => s.id === staffId);
         staffPerformance[staffId] = {
           staffId,
-          staffName: task.assignedToName || 'Unknown',
+          staffName: staffMember?.name || 'Unassigned',
           completed: 0,
           inProgress: 0,
           overdue: 0
@@ -128,7 +143,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       .slice(0, 3);
 
     setStaffStats(topPerformers);
-  }, [tasks]);
+  }, [tasks, staff]);
 
   return (
     <div className="space-y-6">
@@ -183,8 +198,8 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Activity Feed + Email Quota */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Email Quota + Activity Feed */}
         <div className="lg:col-span-1 space-y-6">
           {/* Email Quota Widget */}
           <EmailQuotaCard quota={emailQuota} />
@@ -210,7 +225,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           </Card>
         </div>
 
-        {/* Center Column - Top Performers */}
+        {/* Right Column - Top Performers */}
         <div className="lg:col-span-1">
           <Card className="glass-effect border-gray-800 p-5">
             <div className="flex items-center justify-between mb-4">
@@ -226,54 +241,6 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
                 staffStats.map((staff, index) => (
                   <PerformerCard key={staff.staffId} staff={staff} rank={index + 1} />
                 ))
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Right Column - Notifications */}
-        <div className="lg:col-span-1">
-          <Card className="glass-effect border-gray-800 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold flex items-center">
-                <Bell className="w-4 h-4 mr-2 text-purple-400" />
-                Notifications
-              </h3>
-              <Badge variant="outline" className="border-gray-700">
-                {stats.overdue + (emailQuota.status === 'warning' ? 1 : 0)}
-              </Badge>
-            </div>
-            <div className="space-y-3">
-              {stats.overdue > 0 && (
-                <NotificationItem
-                  priority="high"
-                  message={`${stats.overdue} task${stats.overdue > 1 ? 's' : ''} overdue`}
-                  time="Now"
-                />
-              )}
-              {emailQuota.status === 'warning' && (
-                <NotificationItem
-                  priority="medium"
-                  message={`Email quota at ${emailQuota.percentage}%`}
-                  time="Now"
-                />
-              )}
-              {emailQuota.status === 'critical' && (
-                <NotificationItem
-                  priority="high"
-                  message="Email quota critically low!"
-                  time="Now"
-                />
-              )}
-              {stats.pending > 5 && (
-                <NotificationItem
-                  priority="medium"
-                  message={`${stats.pending} tasks pending assignment`}
-                  time="Today"
-                />
-              )}
-              {stats.overdue === 0 && emailQuota.status === 'safe' && stats.pending <= 5 && (
-                <p className="text-sm text-gray-500">All caught up! 🎉</p>
               )}
             </div>
           </Card>
@@ -417,20 +384,4 @@ function PerformerCard({ staff, rank }) {
   );
 }
 
-// Notification Item
-function NotificationItem({ priority, message, time }) {
-  const priorityColors = {
-    high: 'border-red-500/30 bg-red-500/10 text-red-400',
-    medium: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
-    low: 'border-gray-700 bg-gray-800/50 text-gray-400'
-  };
 
-  return (
-    <div className={`border rounded-lg p-3 ${priorityColors[priority]}`}>
-      <div className="flex items-start justify-between">
-        <p className="text-sm flex-1">{message}</p>
-        <span className="text-xs ml-2">{time}</span>
-      </div>
-    </div>
-  );
-}
