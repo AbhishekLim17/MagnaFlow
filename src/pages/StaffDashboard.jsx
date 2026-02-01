@@ -216,6 +216,7 @@ const StaffDashboard = () => {
   };
 
   const handleEditTask = (task) => {
+    setSelectedTask(null); // Close the details dialog first
     setEditingTask(task);
   };
 
