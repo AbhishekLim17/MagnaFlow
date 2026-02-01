@@ -209,7 +209,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         {/* Left Column - Activity Feed */}
         <div className="lg:col-span-1">
           {/* Recent Activity */}
-          <Card className="glass-effect border-gray-800 p-5 h-[380px]">
+          <Card className="glass-effect border-gray-800 p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
                 <Activity className="w-4 h-4 mr-2 text-blue-400" />
@@ -217,7 +217,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
               </h3>
               <Badge variant="outline" className="border-gray-700">Live</Badge>
             </div>
-            <div className="space-y-3 overflow-y-auto max-h-[300px]">
+            <div className="space-y-3 overflow-y-auto max-h-[170px]">
               {recentActivity.length === 0 ? (
                 <p className="text-sm text-gray-500">No recent activity</p>
               ) : (
@@ -231,14 +231,14 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
         {/* Right Column - Top Performers */}
         <div className="lg:col-span-1">
-          <Card className="glass-effect border-gray-800 p-5 h-[380px]">
+          <Card className="glass-effect border-gray-800 p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
                 <Award className="w-4 h-4 mr-2 text-yellow-400" />
                 Top Performers
               </h3>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {staffStats.length === 0 ? (
                 <p className="text-sm text-gray-500">No performance data yet</p>
               ) : (
