@@ -197,13 +197,33 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         />
       </div>
 
+      {/* Email Quota - Compact Inline */}
+      <div className="flex items-center gap-3 p-3 rounded-lg glass-effect border border-gray-800">
+        <Mail className="w-4 h-4 text-gray-400" />
+        <span className="text-sm font-medium">Email Quota:</span>
+        <span className="text-sm font-bold">{emailQuota.used}/{emailQuota.limit}</span>
+        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden max-w-[120px]">
+          <div
+            className={`h-full transition-all ${
+              emailQuota.status === 'critical' ? 'bg-red-500' :
+              emailQuota.status === 'warning' ? 'bg-yellow-500' :
+              'bg-green-500'
+            }`}
+            style={{ width: `${emailQuota.percentage}%` }}
+          />
+        </div>
+        <Badge className={`text-xs ${
+          emailQuota.status === 'critical' ? 'text-red-400' :
+          emailQuota.status === 'warning' ? 'text-yellow-400' :
+          'text-green-400'
+        }`}>{emailQuota.percentage}%</Badge>
+        <span className="text-xs text-gray-500">Avg: {emailQuota.dailyAverage}/day</span>
+      </div>
+
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Email Quota + Activity Feed */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Email Quota Widget */}
-          <EmailQuotaCard quota={emailQuota} />
-
+        {/* Left Column - Activity Feed */}
+        <div className="lg:col-span-1">
           {/* Recent Activity */}
           <Card className="glass-effect border-gray-800 p-5">
             <div className="flex items-center justify-between mb-4">
@@ -278,51 +298,6 @@ function StatCard({ title, value, icon, color, trend }) {
         <div className="text-sm text-gray-400">{title}</div>
       </Card>
     </motion.div>
-  );
-}
-
-// Email Quota Card
-function EmailQuotaCard({ quota }) {
-  const getColorClass = () => {
-    if (quota.status === 'critical') return 'border-red-500/30 bg-red-500/10';
-    if (quota.status === 'warning') return 'border-yellow-500/30 bg-yellow-500/10';
-    return 'border-green-500/30 bg-green-500/10';
-  };
-
-  const getTextColor = () => {
-    if (quota.status === 'critical') return 'text-red-400';
-    if (quota.status === 'warning') return 'text-yellow-400';
-    return 'text-green-400';
-  };
-
-  return (
-    <Card className={`glass-effect border ${getColorClass()} p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Mail className="w-3.5 h-3.5" />
-          <span className="text-sm font-semibold">Email Quota</span>
-        </div>
-        <Badge className={`${getTextColor()} text-xs`}>{quota.percentage}%</Badge>
-      </div>
-      
-      <div className="space-y-2">
-        <div className="flex items-baseline gap-1">
-          <span className="text-lg font-bold">{quota.used}</span>
-          <span className="text-xs text-gray-500">/ {quota.limit}</span>
-          <span className="text-xs text-gray-500 ml-auto">Daily: {quota.dailyAverage}</span>
-        </div>
-        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-          <div
-            className={`h-full transition-all ${
-              quota.status === 'critical' ? 'bg-red-500' :
-              quota.status === 'warning' ? 'bg-yellow-500' :
-              'bg-green-500'
-            }`}
-            style={{ width: `${quota.percentage}%` }}
-          />
-        </div>
-      </div>
-    </Card>
   );
 }
 
