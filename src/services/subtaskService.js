@@ -87,27 +87,45 @@ export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = nul
     
     // Auto-update parent task status based on subtask completion
     if (taskId) {
-      // Get fresh subtasks data after update
-      const subtasks = await getSubtasks(taskId);
-      const completedCount = subtasks.filter(s => s.completed).length;
-      const totalCount = subtasks.length;
-      
-      if (totalCount > 0) {
-        const { updateTask } = await import('./taskService');
+      try {
+        // Get fresh subtasks data after update (without orderBy to avoid index requirement)
+        const q = query(
+          collection(db, SUBTASKS_COLLECTION),
+          where('taskId', '==', taskId)
+        );
         
-        if (completedCount === totalCount) {
-          // All subtasks completed → mark task as completed
-          await updateTask(taskId, { 
-            status: 'completed',
-            completedAt: serverTimestamp()
+        const querySnapshot = await getDocs(q);
+        const subtasks = [];
+        querySnapshot.forEach((doc) => {
+          subtasks.push({
+            id: doc.id,
+            ...doc.data()
           });
-        } else if (completedCount > 0) {
-          // Some subtasks completed → mark task as in-progress
-          await updateTask(taskId, { 
-            status: 'in-progress'
-          });
+        });
+        
+        const completedCount = subtasks.filter(s => s.completed).length;
+        const totalCount = subtasks.length;
+        
+        if (totalCount > 0) {
+          const { updateTask } = await import('./taskService');
+          
+          if (completedCount === totalCount) {
+            // All subtasks completed → mark task as completed
+            await updateTask(taskId, { 
+              status: 'completed',
+              completedAt: serverTimestamp()
+            });
+          } else if (completedCount > 0) {
+            // Some subtasks completed → mark task as in-progress
+            await updateTask(taskId, { 
+              status: 'in-progress'
+            });
+          }
+          // If completedCount === 0, leave status as is (pending)
         }
-        // If completedCount === 0, leave status as is (pending)
+      } catch (statusError) {
+        console.error('Error updating task status:', statusError);
+        // Don't throw - subtask was updated successfully, status update is optional
       }
     }
   } catch (error) {
