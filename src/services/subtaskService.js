@@ -80,12 +80,14 @@ export const updateSubtask = async (subtaskId, updates) => {
  */
 export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = null) => {
   try {
+    // Update the subtask first
     await updateSubtask(subtaskId, { completed });
     
     // Auto-complete parent task if all subtasks are now completed
     if (completed && taskId) {
+      // Get fresh subtasks data after update
       const subtasks = await getSubtasks(taskId);
-      const allCompleted = subtasks.every(s => s.id === subtaskId ? true : s.completed);
+      const allCompleted = subtasks.every(s => s.completed);
       
       if (allCompleted && subtasks.length > 0) {
         // Import updateTask dynamically to avoid circular dependency
