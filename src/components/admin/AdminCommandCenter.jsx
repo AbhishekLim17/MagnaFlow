@@ -168,7 +168,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
           title="Completed Today"
           value={stats.completedToday}
@@ -195,29 +195,13 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           icon={<BarChart3 className="w-5 h-5" />}
           color="purple"
         />
-      </div>
-
-      {/* Email Quota - Compact Inline */}
-      <div className="flex items-center gap-3 p-3 rounded-lg glass-effect border border-gray-800">
-        <Mail className="w-4 h-4 text-gray-400" />
-        <span className="text-sm font-medium">Email Quota:</span>
-        <span className="text-sm font-bold">{emailQuota.used}/{emailQuota.limit}</span>
-        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden max-w-[120px]">
-          <div
-            className={`h-full transition-all ${
-              emailQuota.status === 'critical' ? 'bg-red-500' :
-              emailQuota.status === 'warning' ? 'bg-yellow-500' :
-              'bg-green-500'
-            }`}
-            style={{ width: `${emailQuota.percentage}%` }}
-          />
-        </div>
-        <Badge className={`text-xs ${
-          emailQuota.status === 'critical' ? 'text-red-400' :
-          emailQuota.status === 'warning' ? 'text-yellow-400' :
-          'text-green-400'
-        }`}>{emailQuota.percentage}%</Badge>
-        <span className="text-xs text-gray-500">Avg: {emailQuota.dailyAverage}/day</span>
+        <StatCard
+          title="Email Quota"
+          value={`${emailQuota.used}/${emailQuota.limit}`}
+          icon={<Mail className="w-5 h-5" />}
+          color={emailQuota.status === 'critical' ? 'red' : emailQuota.status === 'warning' ? 'yellow' : 'green'}
+          trend={`${emailQuota.percentage}%`}
+        />
       </div>
 
       {/* Main Grid */}
@@ -276,7 +260,8 @@ function StatCard({ title, value, icon, color, trend }) {
     green: 'text-green-400 bg-green-500/10 border-green-500/30',
     blue: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
     red: 'text-red-400 bg-red-500/10 border-red-500/30',
-    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/30'
+    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
+    yellow: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30'
   };
 
   return (
