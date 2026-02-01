@@ -39,12 +39,26 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
   // Populate form when task changes
   useEffect(() => {
     if (task) {
+      let dueDateValue = '';
+      
+      // Handle different date formats safely
+      if (task.deadline) {
+        try {
+          const date = task.deadline.toDate ? task.deadline.toDate() : new Date(task.deadline);
+          if (!isNaN(date.getTime())) {
+            dueDateValue = date.toISOString().split('T')[0];
+          }
+        } catch (error) {
+          console.error('Error parsing date:', error);
+        }
+      }
+      
       setFormData({
         title: task.title || '',
         description: task.description || '',
         priority: task.priority || 'medium',
         status: task.status || 'pending',
-        dueDate: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : ''
+        dueDate: dueDateValue
       });
     }
   }, [task]);
@@ -110,6 +124,11 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
       [field]: value
     }));
   };
+
+  // Don't render if no task is provided
+  if (!task) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
