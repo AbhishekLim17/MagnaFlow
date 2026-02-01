@@ -129,6 +129,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                   />
                   <Button
                     onClick={() => handleSaveEdit(subtask.id)}
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
@@ -137,6 +138,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                   </Button>
                   <Button
                     onClick={handleCancelEdit}
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="text-gray-400 hover:text-gray-300 hover:bg-gray-500/10"
@@ -167,6 +169,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                   </span>
                   <Button
                     onClick={() => handleStartEdit(subtask)}
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
@@ -175,6 +178,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                   </Button>
                   <Button
                     onClick={() => handleDelete(subtask.id)}
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
