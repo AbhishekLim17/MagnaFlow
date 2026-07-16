@@ -1,4 +1,4 @@
-﻿// Admin Dashboard - Main admin interface with navigation and routing
+// Admin Dashboard - Main admin interface with navigation and routing
 // Displays overview, staff management, task management, reports, and designations
 
 import React, { useState, useEffect } from 'react';
@@ -66,12 +66,21 @@ const AdminDashboard = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    toast({
-      title: "Logged out successfully",
-      description: "See you next time!",
-    });
-    navigate('/login');
+    try {
+      await logout();
+      toast({
+        title: "Logged out successfully",
+        description: "See you next time!",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast({
+        title: "Logout failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const navigateToTab = (tab) => {

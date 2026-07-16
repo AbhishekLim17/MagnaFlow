@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, User, Mail, Phone, Calendar, Briefcase, Lock } from 'lucide-react';
+import { Plus, User, Mail, Phone, Calendar, Briefcase, Lock, UserPlus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,

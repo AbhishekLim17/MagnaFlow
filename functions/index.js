@@ -17,7 +17,8 @@ admin.initializeApp();
 // firebase functions:config:set emailjs.public_key="sLvBE12fOqa4zsra-"
 // firebase functions:config:set emailjs.private_key="YOUR_PRIVATE_KEY"
 
-const ADMIN_EMAILS = 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in';
+// CC emails configured via: firebase functions:config:set app.cc_emails="..."
+const ADMIN_EMAILS = functions.config().app?.cc_emails || '';
 
 /**
  * Send email via EmailJS
@@ -240,3 +241,112 @@ exports.testDailyCriticalTaskReminders = functions
       });
     }
   });
+
+// ─── 0.5 · Delete user from Auth + Firestore atomically ────────────────────
+exports.deleteUserAccount = functions.https.onCall(async (data, ctx) => {
+  if (!ctx.auth || !['master-admin', 'org-admin', 'admin'].includes(ctx.auth.token.role))
+    throw new functions.https.HttpsError('permission-denied', 'Not authorized');
+  await admin.auth().deleteUser(data.uid);
+  await admin.firestore().doc(`users/${data.uid}`).delete();
+  await admin.firestore().collection('audit_logs').add({
+    actorId: ctx.auth.uid, action: 'delete_user', targetUserId: data.uid,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { success: true };
+});
+
+// ─── 0.4 · Server-side login rate limiter ──────────────────────────────────
+exports.checkLoginRateLimit = functions.https.onCall(async (data, _ctx) => {
+  const emailHash = Buffer.from((data.email || '').toLowerCase()).toString('base64');
+  const docRef = admin.firestore().collection('login_attempts').doc(emailHash);
+  const now = admin.firestore.Timestamp.now();
+  const MAX = 5, WINDOW = 15 * 60 * 1000, BLOCK = 30 * 60 * 1000;
+
+  const snap = await docRef.get();
+  if (snap.exists) {
+    const d = snap.data();
+    if (d.blockedUntil && d.blockedUntil.toMillis() > now.toMillis())
+      return { allowed: false, blockedUntil: d.blockedUntil.toMillis() };
+    if (now.toMillis() - (d.windowStart?.toMillis() ?? 0) > WINDOW) {
+      await docRef.set({ count: 1, windowStart: now, blockedUntil: null });
+      return { allowed: true, remainingAttempts: MAX - 1 };
+    }
+    if (d.count >= MAX) {
+      const blockedUntil = admin.firestore.Timestamp.fromMillis(now.toMillis() + BLOCK);
+      await docRef.update({ blockedUntil });
+      return { allowed: false, blockedUntil: blockedUntil.toMillis() };
+    }
+    await docRef.update({ count: admin.firestore.FieldValue.increment(1) });
+    return { allowed: true, remainingAttempts: MAX - d.count - 1 };
+  }
+  await docRef.set({ count: 1, windowStart: now, blockedUntil: null });
+  return { allowed: true, remainingAttempts: MAX - 1 };
+});
+
+exports.clearLoginAttempts = functions.https.onCall(async (data, _ctx) => {
+  const emailHash = Buffer.from((data.email || '').toLowerCase()).toString('base64');
+  await admin.firestore().collection('login_attempts').doc(emailHash).delete();
+  return { success: true };
+});
+
+// ─── Section 4 · Org provisioning / management ─────────────────────────────
+exports.provisionOrg = functions.https.onCall(async (data, ctx) => {
+  if (ctx.auth?.token?.role !== 'master-admin')
+    throw new functions.https.HttpsError('permission-denied', 'master-admin only');
+  const orgRef = await admin.firestore().collection('organizations').add({
+    name: data.name, plan: data.plan ?? 'trial', status: 'trial',
+    seatLimit: data.seatLimit ?? 10, storageQuotaMB: data.storageQuotaMB ?? 1000,
+    billingEmail: data.billingEmail ?? '', ccEmails: data.ccEmails ?? [],
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdByMasterAdminId: ctx.auth.uid,
+  });
+  await admin.firestore().collection('audit_logs').add({
+    actorId: ctx.auth.uid, action: 'provision_org', targetOrgId: orgRef.id,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { orgId: orgRef.id };
+});
+
+exports.suspendOrg = functions.https.onCall(async (data, ctx) => {
+  if (ctx.auth?.token?.role !== 'master-admin')
+    throw new functions.https.HttpsError('permission-denied', 'master-admin only');
+  await admin.firestore().doc(`organizations/${data.orgId}`).update({ status: 'suspended' });
+  await admin.firestore().collection('audit_logs').add({
+    actorId: ctx.auth.uid, action: 'suspend_org', targetOrgId: data.orgId,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { success: true };
+});
+
+exports.impersonateUser = functions.https.onCall(async (data, ctx) => {
+  if (ctx.auth?.token?.role !== 'master-admin')
+    throw new functions.https.HttpsError('permission-denied', 'master-admin only');
+  const token = await admin.auth().createCustomToken(data.targetUid, { impersonatedBy: ctx.auth.uid });
+  await admin.firestore().collection('audit_logs').add({
+    actorId: ctx.auth.uid, action: 'impersonate', targetUserId: data.targetUid,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { token };
+});
+
+exports.checkSeatLimit = functions.firestore.document('users/{uid}').onCreate(async (snap) => {
+  const { orgId } = snap.data();
+  if (!orgId) return;
+  const org = (await admin.firestore().doc(`organizations/${orgId}`).get()).data();
+  if (!org) return;
+  const count = (await admin.firestore().collection('users').where('orgId', '==', orgId).get()).size;
+  if (count > org.seatLimit)
+    await snap.ref.update({ status: 'inactive', suspendReason: 'seat_limit' });
+});
+
+exports.computeUsageStats = functions.pubsub.schedule('every 24 hours').onRun(async () => {
+  const orgs = await admin.firestore().collection('organizations').get();
+  for (const org of orgs.docs) {
+    const tasks = await admin.firestore().collection(`organizations/${org.id}/tasks`).get();
+    const users = await admin.firestore().collection('users').where('orgId', '==', org.id).get();
+    await admin.firestore().doc(`org_usage_stats/${org.id}`).set({
+      activeUserCount: users.size, taskCount: tasks.size,
+      lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+});

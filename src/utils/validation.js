@@ -117,7 +117,7 @@ export const validateFutureDate = (dateString) => {
   today.setHours(0, 0, 0, 0);
   
   if (inputDate < today) {
-    return { valid: false, error: 'Date must be in the future' };
+    return { valid: false, error: 'Date cannot be in the past' };
   }
   
   return { valid: true, error: null };
@@ -142,8 +142,8 @@ export const validateName = (name) => {
   }
   
   // Only allow letters, spaces, and basic punctuation
-  if (!/^[a-zA-Z\s'-]+$/.test(name)) {
-    return { valid: false, error: 'Name can only contain letters, spaces, hyphens, and apostrophes' };
+  if (!/^[\p{L}\s'.-]+$/u.test(name)) {
+    return { valid: false, error: 'Name can only contain letters, spaces, hyphens, periods, and apostrophes' };
   }
   
   return { valid: true, error: null };

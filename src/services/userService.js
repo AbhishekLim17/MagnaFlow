@@ -113,19 +113,13 @@ export const getAllStaff = async () => {
 /**
  * Create a new user (Authentication + Firestore)
  * Admin function to add new staff members
- * @param {Object} userData - User data (name, email, password, role, designation, status)
- * @returns {Promise<Object>} Created user data
- */
-/**
- * Create a new user (Authentication + Firestore)
- * Admin function to add new staff members
  * Uses secondary Firebase auth instance to prevent admin logout
  * @param {Object} userData - User data (name, email, password, role, designation, status)
  * @returns {Promise<Object>} Created user data
  */
 export const createUser = async (userData) => {
+  const { email, password, name, role, designation, status } = userData;
   try {
-    const { email, password, name, role, designation, status } = userData;
     
     // Verify admin is logged in
     const currentAdmin = auth.currentUser;

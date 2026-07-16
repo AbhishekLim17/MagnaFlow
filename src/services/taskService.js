@@ -65,8 +65,10 @@ export const getAllTasks = async (filters = {}) => {
     
     // Only use orderBy when there are no filters to avoid composite index requirement
     // When filters are present, sort in memory instead
+    let hasOrderBy = false;
     if (constraints.length === 0) {
       constraints.push(orderBy('createdAt', 'desc'));
+      hasOrderBy = true;
     }
     
     const q = query(collection(db, TASKS_COLLECTION), ...constraints);
@@ -77,8 +79,8 @@ export const getAllTasks = async (filters = {}) => {
       tasks.push({ id: doc.id, ...doc.data() });
     });
     
-    // If we have filters, sort in memory by createdAt (newest first)
-    if (constraints.length > 0 && !constraints.some(c => c.type === 'orderBy')) {
+    // If we have filters and no orderBy, sort in memory by createdAt (newest first)
+    if (!hasOrderBy) {
       tasks.sort((a, b) => {
         const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
         const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
@@ -182,20 +184,22 @@ export const updateTask = async (taskId, updates) => {
     // Send critical task alert if priority changed to critical
     if (updates.priority === 'critical' && currentTask.priority !== 'critical') {
       try {
-        // Get assigned user details from Firestore users collection
-        const userDoc = await getDoc(doc(db, 'users', updatedTask.assignedTo));
-        const userData = userDoc.data();
-        
-        if (userData && userData.email) {
-          await sendCriticalTaskAlert({
-            toEmail: userData.email,
-            toName: userData.name || userData.email,
-            taskTitle: updatedTask.title,
-            taskDescription: updatedTask.description,
-            dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
-            assignedBy: currentTask.createdBy || 'Admin'
-          });
-          console.log('Critical task alert sent to:', userData.email);
+        // Guard: only fetch if task has an assigned user
+        if (updatedTask.assignedTo) {
+          const userDoc = await getDoc(doc(db, 'users', updatedTask.assignedTo));
+          const userData = userDoc.exists() ? userDoc.data() : null;
+          
+          if (userData && userData.email) {
+            await sendCriticalTaskAlert({
+              toEmail: userData.email,
+              toName: userData.name || userData.email,
+              taskTitle: updatedTask.title,
+              taskDescription: updatedTask.description,
+              dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
+              assignedBy: currentTask.createdBy || 'Admin'
+            });
+            console.log('Critical task alert sent to:', userData.email);
+          }
         }
       } catch (emailError) {
         console.error('Error sending critical task alert:', emailError);
@@ -259,6 +263,7 @@ export const getTaskStatistics = async (userId = null) => {
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in-progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
+      cancelled: tasks.filter(t => t.status === 'cancelled').length,
       byPriority: {
         low: tasks.filter(t => t.priority === 'low').length,
         medium: tasks.filter(t => t.priority === 'medium').length,

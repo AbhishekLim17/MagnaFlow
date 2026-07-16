@@ -6,12 +6,14 @@ import {
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot,
   serverTimestamp,
   getDocs,
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { sendTaskAssignedEmail } from './emailService';
 
 /**
  * Notification Service
@@ -176,22 +178,21 @@ export const subscribeToUnreadNotifications = (userId, callback) => {
 };
 
 // Get all notifications for a user (paginated)
-export const getNotifications = async (userId, limit = 20) => {
+export const getNotifications = async (userId, limitCount = 20) => {
   try {
     const q = query(
       collection(db, 'comment_notifications'),
       where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
     );
 
     const snapshot = await getDocs(q);
-    const notifications = snapshot.docs
-      .slice(0, limit)
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate()
-      }));
+    const notifications = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate()
+    }));
 
     console.log(`✅ Fetched ${notifications.length} notifications for user ${userId}`);
     return notifications;
@@ -201,43 +202,22 @@ export const getNotifications = async (userId, limit = 20) => {
   }
 };
 
-// Send email notification via EmailJS
+// Send email notification for @mention — routes through emailService.js
 export const sendEmailNotification = async (toEmail, toName, mentionedByName, taskTitle, commentText, taskId) => {
   try {
-    const emailData = {
-      service_id: 'service_itwo1ee',
-      template_id: 'template_mention', // You'll need to create this template
-      user_id: 'hQcLVOWsSrnSqnRWY', // Your EmailJS user ID
-      template_params: {
-        to_email: toEmail,
-        to_name: toName,
-        mentioned_by: mentionedByName,
-        task_title: taskTitle,
-        comment_text: commentText,
-        task_link: `https://magnaflow-07sep25.web.app/tasks/${taskId}`,
-        timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-      }
-    };
-
-    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(emailData)
+    return await sendTaskAssignedEmail({
+      toEmail,
+      toName,
+      taskTitle: `You were mentioned in: ${taskTitle}`,
+      taskDescription: commentText,
+      taskPriority: 'Medium',
+      dueDate: '',
+      assignedBy: mentionedByName,
+      taskId,
+      source: 'mention',
     });
-
-    if (response.ok) {
-      console.log('✅ Email notification sent successfully');
-      return { success: true };
-    } else {
-      const error = await response.text();
-      console.error('❌ EmailJS error:', error);
-      throw new Error(`EmailJS error: ${error}`);
-    }
   } catch (error) {
-    console.error('❌ Error sending email notification:', error);
-    // Don't throw error - email failure shouldn't break notification creation
+    console.error('❌ Error sending mention email notification:', error);
     return { success: false, error: error.message };
   }
 };

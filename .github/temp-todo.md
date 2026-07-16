@@ -1,52 +1,35 @@
 ﻿# Task Implementation Checklist
-Generated: 2026-02-01 - Admin Command Center + Email Logging
+Generated: Phase 5 - Ensemble Approach (COMPLETED - FAILED)
 
 ## Status Legend
 [completed] - Fully done
-[updated] - Code changes applied
-[tested] - Tests passed
+[failed] - Attempted but failed
 
 ## Tasks
+[completed] Task 1: Create ensemble extractor service (app/services/ensemble_extractor.py)
+[completed] Task 2: Implement parallel execution of all extractors
+[completed] Task 3: Implement weighted voting/averaging logic
+[completed] Task 4: Implement outlier rejection
+[completed] Task 5: Create test script for ensemble (scripts/test_ensemble.py)
+[completed] Task 6: Create comparison script (scripts/compare_ensemble.py)
+[failed] Task 7: Test ensemble on 18 labeled invoices (partial: 1/5 = 20%)
+[failed] Task 8: Ensemble did NOT beat Simple ML (16.7%)
+[completed] Task 9: Document lessons learned in mistakes.md
 
-### Admin Command Center Implementation
-[completed] Create useEmailQuota.js hook
-[completed] Create AdminCommandCenter.jsx component with all widgets
-[completed] Integrate Command Center into AdminDashboard.jsx
-[completed] Add QuickStats widget (completed/in-progress/overdue/total)
-[completed] Add ActivityFeed real-time component
-[completed] Add NotificationsCenter component
-[completed] Add TopPerformers leaderboard
-[completed] Add EmailQuotaWidget component
-[completed] Add QuickActions bar
-[completed] Add real-time listeners for live updates
-[completed] Build and verify compilation
+## Results - Ensemble FAILED
+- ❌ **Ensemble accuracy: ~20% (partial test 1/5 correct)**
+- ✅ **Simple ML still best: 16.7% (3/18 correct)**
+- 📊 Ensemble averaged errors from 4 poor methods (garbage in = garbage out)
+- 🐛 Technical issues: CV extractor broken, Tesseract file locking, slow processing
+- 💡 **Lesson: Ensemble needs base models at 40%+ accuracy to help**
 
-### Email Logging System
-[completed] Add logEmailToFirestore() function
-[completed] Modify sendEmail() to accept logDetails parameter
-[completed] Update sendTaskAssignedEmail() with logging
-[completed] Update sendTaskCompletedEmail() with logging
-[completed] Update sendTaskStatusChangedEmail() with logging
-[completed] Update sendCriticalTaskAlert() with logging
-[completed] Update sendCriticalTaskReminder() with logging
-[completed] Fix import path from @/firebase/config to @/config/firebase
-[completed] Build successful (3278 modules, 17.09s)
+## Final Decision
+✅ **KEEP Simple ML as Priority 0** (best available with 18 labeled invoices)
+❌ **DO NOT integrate ensemble** (adds complexity, no accuracy benefit)
 
-### Documentation
-[completed] Create EMAIL_LOGGING_SYSTEM.md
-[completed] Create ADMIN_COMMAND_CENTER.md
-[completed] Update temp-todo.md with completion status
-
-## Progress Notes
-
-✅ **ALL TASKS COMPLETED SUCCESSFULLY**
-
-**Implementation Summary:**
-- Email logging system fully functional
-- All email functions log to Firestore `email_logs` collection
-- Email Quota Widget displays real-time usage (0-200 limit)
-- Admin Command Center fully integrated with 7 major widgets
-- Build successful with no errors
+## Path Forward
+**Option A:** Collect 50-100 more labeled invoices → Train LayoutLMv3 properly → 85-90% accuracy (7 hours)
+**Option B:** Deploy with Simple ML (16.7%) → Focus on other SaaS features (0 hours)
 
 **What was implemented:**
 
@@ -96,3 +79,12 @@ Generated: 2026-02-01 - Admin Command Center + Email Logging
 
 **Status:** 🎉 100% COMPLETE - READY FOR PRODUCTION
 
+
+
+### Real-Time UI Updates Fix
+[completed] Add optimistic UI updates to SubtaskList
+[completed] Emit custom event 'taskStatusUpdated' after status changes
+[completed] Add event listener in TasksContext to reload tasks
+[completed] Build and deploy with real-time updates
+
+**Progress:** Task status now updates instantly without page refresh. Commit: fdbff97

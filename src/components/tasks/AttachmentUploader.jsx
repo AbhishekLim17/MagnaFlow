@@ -107,7 +107,7 @@ const AttachmentUploader = ({ taskId, userId, existingAttachments = [], onUpload
 
   // Handle file delete
   const handleDelete = async (attachment) => {
-    if (!confirm(`Delete ${attachment.fileName}?`)) {
+    if (!window.confirm(`Delete ${attachment.fileName}?`)) {
       return;
     }
 

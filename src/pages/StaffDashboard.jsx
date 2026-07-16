@@ -192,11 +192,20 @@ const StaffDashboard = () => {
   }, [user]);
 
   const handleLogout = async () => {
-    await logout();
-    toast({
-      title: "Logged out successfully",
-      description: "See you next time!",
-    });
+    try {
+      await logout();
+      toast({
+        title: "Logged out successfully",
+        description: "See you next time!",
+      });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast({
+        title: "Logout failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
@@ -244,7 +253,7 @@ const StaffDashboard = () => {
   // Filter tasks based on search and filters
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchQuery.toLowerCase());
+                         (task.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
     

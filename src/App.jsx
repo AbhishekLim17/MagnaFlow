@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DesignationsProvider } from "@/contexts/DesignationsContext";
 import { TasksProvider } from "@/contexts/TasksContext";
+import { getHomeRoute } from "@/config/roleRoutes";
 import LoginPage from "@/pages/LoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import StaffDashboard from "@/pages/StaffDashboard";
@@ -22,9 +23,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return (
-      <Navigate to={user.role === "admin" ? "/admin" : "/staff"} replace />
-    );
+    return <Navigate to={getHomeRoute(user.role)} replace />;
   }
 
   return children;
@@ -39,10 +38,7 @@ function AppRoutes() {
         path="/login"
         element={
           isAuthenticated ? (
-            <Navigate
-              to={user.role === "admin" ? "/admin" : "/staff"}
-              replace
-            />
+            <Navigate to={getHomeRoute(user.role)} replace />
           ) : (
             <LoginPage />
           )
@@ -68,13 +64,7 @@ function AppRoutes() {
         path="/"
         element={
           <Navigate
-            to={
-              isAuthenticated
-                ? user.role === "admin"
-                  ? "/admin"
-                  : "/staff"
-                : "/login"
-            }
+            to={isAuthenticated ? getHomeRoute(user.role) : "/login"}
             replace
           />
         }

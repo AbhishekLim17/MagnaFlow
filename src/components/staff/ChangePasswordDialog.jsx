@@ -2,7 +2,7 @@
 // Secure password change with current password verification
 
 import React, { useState } from 'react';
-import { KeyRound, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Lock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,

@@ -12,6 +12,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { recomputeTaskStatus } from './taskStatusUtils';
 
 const SUBTASKS_COLLECTION = 'subtasks';
 
@@ -107,21 +108,7 @@ export const toggleSubtaskCompletion = async (subtaskId, completed, taskId = nul
         const totalCount = subtasks.length;
         
         if (totalCount > 0) {
-          const { updateTask } = await import('./taskService');
-          
-          if (completedCount === totalCount) {
-            // All subtasks completed → mark task as completed
-            await updateTask(taskId, { 
-              status: 'completed',
-              completedAt: serverTimestamp()
-            });
-          } else if (completedCount > 0) {
-            // Some subtasks completed → mark task as in-progress
-            await updateTask(taskId, { 
-              status: 'in-progress'
-            });
-          }
-          // If completedCount === 0, leave status as is (pending)
+          await recomputeTaskStatus(taskId, completedCount, totalCount);
           
           // Emit custom event to trigger UI refresh
           window.dispatchEvent(new CustomEvent('taskStatusUpdated', { 

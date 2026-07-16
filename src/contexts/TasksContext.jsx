@@ -1,7 +1,7 @@
 // TasksContext - Firebase Integration for Task Management
 // Manages tasks across the application with real-time updates
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
 import {
@@ -41,45 +41,34 @@ export const TasksProvider = ({ children }) => {
       setStatistics(null);
       setLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, loadTasks]);
 
   // Listen for task status updates (from subtask completion)
   useEffect(() => {
-    const handleTaskStatusUpdate = () => {
+    const handler = () => {
       console.log('🔄 Task status updated, reloading tasks...');
       loadTasks();
     };
-    
-    window.addEventListener('taskStatusUpdated', handleTaskStatusUpdate);
-    
-    return () => {
-      window.removeEventListener('taskStatusUpdated', handleTaskStatusUpdate);
-    };
-  }, [isAuthenticated, user]);
+    window.addEventListener('taskStatusUpdated', handler);
+    return () => window.removeEventListener('taskStatusUpdated', handler);
+  }, [loadTasks]);
 
-  /**
-   * Load tasks based on user role
-   * Admin: Load all tasks
-   * Staff: Load only assigned tasks
-   */
-  const loadTasks = async () => {
+  // Load tasks based on user role
+  const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
       console.log("📥 Loading tasks for user:", user?.email);
 
       let tasksData;
       if (user.role === 'admin') {
-        // Admin sees all tasks
         tasksData = await getAllTasks();
       } else {
-        // Staff sees only their assigned tasks
         tasksData = await getTasksForUser(user.id);
       }
 
       setTasks(tasksData);
       console.log("✅ Tasks loaded:", tasksData.length);
 
-      // Load statistics
       const stats = await getTaskStatistics(
         user.role === 'admin' ? null : user.id
       );
@@ -94,7 +83,7 @@ export const TasksProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   /**
    * Create a new task
@@ -282,7 +271,7 @@ export const TasksProvider = ({ children }) => {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(t => 
         t.title.toLowerCase().includes(searchLower) ||
-        t.description.toLowerCase().includes(searchLower)
+        (t.description || '').toLowerCase().includes(searchLower)
       );
     }
 

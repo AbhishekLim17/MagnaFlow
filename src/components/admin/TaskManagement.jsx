@@ -83,7 +83,7 @@ const TaskManagement = () => {
     if (searchTerm) {
       filtered = filtered.filter(task =>
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (task.description || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { LogIn, User, Lock, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,36 +12,28 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const toastedRef = useRef(false);
+
+  // Gate success toast on actual auth state change (onAuthStateChanged resolves async)
+  useEffect(() => {
+    if (isAuthenticated && user && !toastedRef.current) {
+      toastedRef.current = true;
+      toast({
+        title: "Welcome back!",
+        description: `Logged in as ${user.role}`,
+      });
+    }
+  }, [isAuthenticated, user, toast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    console.log("🚀 LOGIN FORM SUBMITTED");
-    console.log("📧 Form email state:", `"${email}"`);
-    console.log("🔑 Form password state:", `"${password}"`);
-    console.log("📏 Form email length:", email?.length);
-    console.log("📏 Form password length:", password?.length);
-    console.log("🌐 User Agent:", navigator.userAgent);
-    console.log(
-      "🌐 Browser localStorage support:",
-      typeof Storage !== "undefined"
-    );
-
+    toastedRef.current = false;
     try {
       const result = await login(email, password);
-      console.log("🎯 Login result:", result);
-
-      if (result.success) {
-        console.log("✅ Login successful, showing success toast");
-        toast({
-          title: "Welcome back!",
-          description: `Logged in as ${result.user.role}`,
-        });
-      } else {
-        console.log("❌ Login failed, showing error toast");
+      if (!result.success) {
         toast({
           title: "Login failed",
           description: result.error,
@@ -49,7 +41,6 @@ const LoginPage = () => {
         });
       }
     } catch (error) {
-      console.error("💥 Exception during login:", error);
       toast({
         title: "Login failed",
         description: "An unexpected error occurred",

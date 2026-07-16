@@ -36,6 +36,10 @@ const logEmailToFirestore = async (emailDetails) => {
  * Initialize EmailJS with public key
  */
 export const initializeEmailJS = () => {
+  if (!EMAIL_CONFIG.PUBLIC_KEY) {
+    console.warn('⚠️ EmailJS not configured — VITE_EMAILJS_PUBLIC_KEY env var missing');
+    return;
+  }
   try {
     emailjs.init(EMAIL_CONFIG.PUBLIC_KEY);
     console.log('✅ EmailJS initialized successfully');
@@ -127,7 +131,7 @@ export const sendTaskAssignedEmail = async (params) => {
   const emailData = {
     to_email: params.toEmail,
     to_name: params.toName,
-    cc_email: 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in',
+    cc_email: import.meta.env.VITE_CC_EMAILS || '',
     notification_type: 'Task Assignment',
     notification_icon: '📋',
     notification_color: getPriorityColor(params.taskPriority),
@@ -242,7 +246,7 @@ export const sendCriticalTaskAlert = async (params) => {
   const emailData = {
     to_email: params.toEmail,
     to_name: params.toName,
-    cc_email: 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in',
+    cc_email: import.meta.env.VITE_CC_EMAILS || '',
     notification_type: 'URGENT: Critical Task',
     notification_icon: '🚨',
     notification_color: '#ef4444',
@@ -281,7 +285,7 @@ export const sendCriticalTaskReminder = async (params) => {
   const emailData = {
     to_email: params.toEmail,
     to_name: params.toName,
-    cc_email: 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in',
+    cc_email: import.meta.env.VITE_CC_EMAILS || '',
     notification_type: 'REMINDER: Critical Task',
     notification_icon: '⏰',
     notification_color: '#ef4444',

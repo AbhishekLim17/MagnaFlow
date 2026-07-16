@@ -500,3 +500,41 @@ Implemented Task Comments & Collaboration feature (Day 1 of 3-day plan) includin
 
 ---
 
+
+---
+
+## [Feb 1, 2026] - Real-Time UI Not Updating After Database Changes
+
+**Problem:**
+- Task status updates correctly in Firestore database
+- UI shows old status until page refresh
+- Subtask checkboxes work but parent task badge doesn't update
+- User had to manually refresh to see status changes
+
+**Root Cause:**
+1. TasksContext using getDocs() for one-time fetch instead of real-time subscription
+2. No mechanism to notify UI when task status changes from subtask completion
+3. SubtaskList subscribed to subtasks but parent task card had no subscription
+
+**Solution:**
+1. Added optimistic UI updates in SubtaskList - checkboxes update instantly
+2. Implemented custom event system:
+   - subtaskService.js fires 'taskStatusUpdated' event after updating task status
+   - TasksContext listens to event and triggers loadTasks()
+3. Event-driven architecture bridges gap until full real-time subscription implemented
+
+**Lesson:**
+1. **Use real-time subscriptions** - onSnapshot() instead of getDocs() for live data
+2. **Optimistic UI crucial** - update UI immediately, sync database in background
+3. **Custom events work** - simple bridge solution when full real-time not feasible
+4. **Component re-render chain** - ensure parent components re-render when child data changes
+5. **Event cleanup essential** - always removeEventListener in useEffect cleanup
+6. **Test real-time flow** - check subtask ? status change ? UI update without refresh
+
+**Related Files:**
+- src/services/subtaskService.js (event emission)
+- src/contexts/TasksContext.jsx (event listener)
+- src/components/SubtaskList.jsx (optimistic UI)
+
+---
+

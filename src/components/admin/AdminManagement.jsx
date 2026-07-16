@@ -263,7 +263,7 @@ const AdminManagement = () => {
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete admin "${admin.name}"? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete admin "${admin.name}"? This action cannot be undone.`)) {
       return;
     }
 
@@ -287,7 +287,7 @@ const AdminManagement = () => {
   };
 
   const handleResetPassword = async (admin) => {
-    if (!confirm(`Send password reset email to ${admin.email}?`)) {
+    if (!window.confirm(`Send password reset email to ${admin.email}?`)) {
       return;
     }
 
