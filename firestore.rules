@@ -4,7 +4,11 @@ service cloud.firestore {
 
     function isSignedIn() { return request.auth != null; }
     function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function isMasterAdmin() { return isSignedIn() && me().role == 'master-admin'; }
+    function myRole() { return me().role; }
+    function isMasterAdmin() { return isSignedIn() && myRole() == 'master-admin'; }
+    // The live app is a single-tenant admin/staff system. "admin"/"org-admin" are
+    // treated as full administrators; "master-admin" is the super admin.
+    function isAdmin() { return isSignedIn() && myRole() in ['admin', 'org-admin', 'master-admin']; }
     function isOrgMember(orgId) { return isSignedIn() && me().orgId == orgId; }
     function isOrgAdmin(orgId) { return isOrgMember(orgId) && (me().role == 'org-admin' || me().role == 'admin'); }
     function isDeptMember(orgId, deptId) { return isOrgMember(orgId) && deptId in me().departmentIds; }
@@ -34,37 +38,40 @@ service cloud.firestore {
       }
     }
 
-    // Users — legacy flat collection (still used pre-migration)
+    // Users — primary collection for the admin/staff app.
     match /users/{uid} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == uid
-        || isMasterAdmin()
-        || (resource.data.orgId != null && isOrgAdmin(resource.data.orgId))
-      );
-      allow write: if isMasterAdmin()
-        || (resource.data.orgId != null && isOrgAdmin(resource.data.orgId))
-        || request.auth.uid == uid;
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Only admins create or delete user documents.
+      allow create, delete: if isAdmin();
+
+      // Admins can update any user. A user may update their OWN document but must
+      // NOT be able to change their role or account status (privilege escalation).
+      allow update: if isAdmin()
+        || (request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.status == resource.data.status);
     }
 
-    // Legacy flat tasks (pre-migration; remove after migration complete)
+    // Tasks — primary collection for the admin/staff app.
     match /tasks/{taskId} {
       allow read: if isSignedIn() && (
-        isMasterAdmin()
+        isAdmin()
         || resource.data.assignedTo == request.auth.uid
-        || (resource.data.orgId != null && isOrgAdmin(resource.data.orgId))
+        || resource.data.createdBy == request.auth.uid
       );
       allow create: if isSignedIn() && (
-        isMasterAdmin()
-        || me().role in ['org-admin', 'admin', 'manager', 'department-head']
+        isAdmin()
+        || request.resource.data.createdBy == request.auth.uid
       );
       allow update: if isSignedIn() && (
-        resource.data.assignedTo == request.auth.uid
-        || isMasterAdmin()
-        || (resource.data.orgId != null && isOrgAdmin(resource.data.orgId))
+        isAdmin()
+        || resource.data.assignedTo == request.auth.uid
+        || resource.data.createdBy == request.auth.uid
       );
       allow delete: if isSignedIn() && (
-        isMasterAdmin()
-        || (resource.data.orgId != null && isOrgAdmin(resource.data.orgId))
+        isAdmin()
+        || resource.data.createdBy == request.auth.uid
       );
     }
 

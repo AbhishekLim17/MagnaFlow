@@ -10,13 +10,20 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DesignationsProvider } from "@/contexts/DesignationsContext";
 import { TasksProvider } from "@/contexts/TasksContext";
-import { getHomeRoute } from "@/config/roleRoutes";
+import { getHomeRoute, ADMIN_ROLES, STAFF_ROLES } from "@/config/roleRoutes";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import LoginPage from "@/pages/LoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import StaffDashboard from "@/pages/StaffDashboard";
 
 function ProtectedRoute({ children, allowedRoles }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+
+  // Wait for Firebase to resolve the session before deciding to redirect,
+  // otherwise a hard refresh bounces authenticated users to /login.
+  if (loading) {
+    return <LoadingSpinner size="large" className="min-h-screen" />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -30,7 +37,12 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
+
+  // Don't render routes until the auth state is known.
+  if (loading) {
+    return <LoadingSpinner size="large" className="min-h-screen" />;
+  }
 
   return (
     <Routes>
@@ -47,7 +59,7 @@ function AppRoutes() {
       <Route
         path="/admin/*"
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={ADMIN_ROLES}>
             <AdminDashboard />
           </ProtectedRoute>
         }
@@ -55,13 +67,23 @@ function AppRoutes() {
       <Route
         path="/staff"
         element={
-          <ProtectedRoute allowedRoles={["staff"]}>
+          <ProtectedRoute allowedRoles={STAFF_ROLES}>
             <StaffDashboard />
           </ProtectedRoute>
         }
       />
       <Route
         path="/"
+        element={
+          <Navigate
+            to={isAuthenticated ? getHomeRoute(user.role) : "/login"}
+            replace
+          />
+        }
+      />
+      {/* Catch-all: send unknown URLs to a sensible home instead of a blank screen. */}
+      <Route
+        path="*"
         element={
           <Navigate
             to={isAuthenticated ? getHomeRoute(user.role) : "/login"}

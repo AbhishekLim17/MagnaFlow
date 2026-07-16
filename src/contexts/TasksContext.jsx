@@ -32,28 +32,9 @@ export const TasksProvider = ({ children }) => {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
-  // Load tasks when user logs in
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadTasks();
-    } else {
-      setTasks([]);
-      setStatistics(null);
-      setLoading(false);
-    }
-  }, [isAuthenticated, user, loadTasks]);
-
-  // Listen for task status updates (from subtask completion)
-  useEffect(() => {
-    const handler = () => {
-      console.log('🔄 Task status updated, reloading tasks...');
-      loadTasks();
-    };
-    window.addEventListener('taskStatusUpdated', handler);
-    return () => window.removeEventListener('taskStatusUpdated', handler);
-  }, [loadTasks]);
-
   // Load tasks based on user role
+  // NOTE: must be defined before the effects below that list it as a dependency,
+  // otherwise the dependency array reads it in the temporal dead zone (ReferenceError).
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
@@ -84,6 +65,27 @@ export const TasksProvider = ({ children }) => {
       setLoading(false);
     }
   }, [user, toast]);
+
+  // Load tasks when user logs in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadTasks();
+    } else {
+      setTasks([]);
+      setStatistics(null);
+      setLoading(false);
+    }
+  }, [isAuthenticated, user, loadTasks]);
+
+  // Listen for task status updates (from subtask completion)
+  useEffect(() => {
+    const handler = () => {
+      console.log('🔄 Task status updated, reloading tasks...');
+      loadTasks();
+    };
+    window.addEventListener('taskStatusUpdated', handler);
+    return () => window.removeEventListener('taskStatusUpdated', handler);
+  }, [loadTasks]);
 
   /**
    * Create a new task
