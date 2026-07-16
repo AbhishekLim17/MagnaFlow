@@ -1,362 +1,140 @@
-# 🌊 MagnaFlow - Advanced Project Management System
+# 🌊 MagnaFlow - Enterprise Multi-Tenant Project Management System
 
 ![React](https://img.shields.io/badge/React-18.2.0-blue.svg)
-![Vite](https://img.shields.io/badge/Vite-4.4.5-purple.svg)
+![Vite](https://img.shields.io/badge/Vite-7.2.6-purple.svg)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.3.3-cyan.svg)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-MagnaFlow is a modern, feature-rich project management system built with React and Tailwind CSS. It provides role-based access control, task management, performance tracking, and an intuitive user interface with smooth animations and a dark theme.
+MagnaFlow is a state-of-the-art, secure, and performant enterprise-grade project management system. Designed as a multi-tenant SaaS application, it provides robust organizational boundaries, advanced role-based access control (RBAC), real-time updates, automated notification pipelines, and optimized asset delivery.
 
-## 🚀 Features
+---
 
-- **🔐 Role-Based Authentication** - Secure login system with Admin and Staff roles
-- **👥 User Management** - Admin can manage staff members and their designations
-- **📋 Task Management** - Create, assign, and track tasks with multiple status levels
-- **📊 Performance Analytics** - Visual reports and statistics for project tracking
-- **🎨 Modern UI/UX** - Dark theme with glassmorphism effects and smooth animations
-- **📱 Responsive Design** - Fully responsive across all device sizes
-- **💾 Local Storage** - Client-side data persistence using browser local storage
+## 🚀 Key Features
+
+* **🏢 Multi-Tenant Architecture** - Complete tenant isolation. Organizations manage their own departments, projects, users, and tasks without cross-tenant exposure.
+* **🔐 Robust Role-Based Access Control (RBAC)** - Security-enforced at both application and database layers (via Firestore rules). Supports 5 user tiers:
+  * **Master Admin** - Global provisioning of organizations, plan billing limit controls, and audit-logged user impersonation.
+  * **Org Admin** - Full management of own organization, departments, projects, and users.
+  * **Department Head** - Management of projects and tasks within assigned departments.
+  * **Manager** - Assigns and tracks tasks for assigned projects.
+  * **Staff** - Personal dashboard to view tasks, update status, complete subtasks, and add comments.
+* **💬 Comments & Mention System** - Threaded task discussions with inline `@mentions`. Resolves usernames and dispatches real-time in-app notifications and email alerts.
+* **📎 Attachments & File Uploads** - Seamless file upload pipeline integrated with Firebase Storage, showing real-time progress bars.
+* **🚨 Critical Alert Pipeline** - Automatically flags high-priority tasks and triggers instant notification emails. Daily summaries are scheduled at 8 AM IST using Cloud Functions to ensure no critical deadlines are missed.
+* **⚡ Server-Side Rate Limiting** - Protection against brute-force logins using Cloud Functions-backed rate-limiting collections. Bypasses client-side reset exploits.
+* **📉 Optimized Bundling** - Built-in Rollup code splitting (manual chunks) reducing main package delivery size by over **52%** (down to ~394kB gzip).
+
+---
 
 ## 🏗️ Project Structure
 
 ```
 MagnaFlow/
-├── public/
-│   └── vite.svg
+├── api/                   # Serverless functions
+├── functions/             # Firebase Cloud Functions code
+│   ├── index.js           # Core admin functions & rate limiters
+│   └── package.json       
+├── scripts/               
+│   └── migrate-to-multitenant.js # Admin SDK script for data backfilling
 ├── src/
 │   ├── components/
-│   │   ├── admin/           # Admin-specific components
-│   │   │   ├── AddStaffDialog.jsx
-│   │   │   ├── AddTaskDialog.jsx
-│   │   │   ├── DesignationsManagement.jsx
-│   │   │   ├── EditStaffDialog.jsx
-│   │   │   ├── EditTaskDialog.jsx
-│   │   │   ├── PerformanceReports.jsx
-│   │   │   ├── StaffManagement.jsx
-│   │   │   └── TaskManagement.jsx
-│   │   ├── staff/          # Staff-specific components
-│   │   │   └── AddTaskDialog.jsx
-│   │   └── ui/             # Reusable UI components (shadcn/ui)
-│   │       ├── badge.jsx
-│   │       ├── button.jsx
-│   │       ├── card.jsx
-│   │       ├── dialog.jsx
-│   │       ├── input.jsx
-│   │       ├── label.jsx
-│   │       ├── select.jsx
-│   │       ├── sheet.jsx
-│   │       ├── textarea.jsx
-│   │       ├── toast.jsx
-│   │       ├── toaster.jsx
-│   │       └── use-toast.js
-│   ├── contexts/           # React Context providers
-│   │   ├── AuthContext.jsx
-│   │   └── DesignationsContext.jsx
-│   ├── lib/               # Utility functions
-│   │   └── utils.js
-│   ├── pages/             # Main page components
-│   │   ├── AdminDashboard.jsx
-│   │   ├── LoginPage.jsx
-│   │   └── StaffDashboard.jsx
-│   ├── App.jsx            # Main application component
-│   ├── index.css          # Global styles and CSS variables
-│   └── main.jsx           # Application entry point
-├── index.html             # HTML template
-├── package.json           # Project dependencies and scripts
-├── tailwind.config.js     # Tailwind CSS configuration
-├── postcss.config.js      # PostCSS configuration
-└── vite.config.js         # Vite build tool configuration
+│   │   ├── admin/         # Org & Master dashboards, Reports, Staff management
+│   │   ├── shared/        # Notification bells, layouts
+│   │   ├── staff/         # Task detail modals, change password panels
+│   │   ├── tasks/         # Attachment uploaders, Mention inputs, Comments
+│   │   └── ui/            # Radix-UI components
+│   ├── config/            
+│   │   ├── firebase.js    # Firebase initialization & exports (db, auth, storage)
+│   │   ├── roleRoutes.js  # Centralized RBAC page routing routes
+│   │   └── emailConfig.js # EmailJS integration credentials
+│   ├── contexts/          # Global state (Auth, Tasks, Designations)
+│   ├── pages/             # Root views (Login, Dashboards)
+│   ├── services/          # Abstracted Firestore API layer (taskStatusUtils, etc.)
+│   ├── utils/             # Input sanitization, validation, rate limiting wrappers
+│   ├── App.jsx            # Main router & protected RBAC route engine
+│   └── index.css          # Core CSS stylesheet
+├── firestore.rules        # Production-ready multi-tenant security rules
+├── storage.rules          # Firebase Storage rules
+├── firebase.json          # Deployment configuration
+├── vite.config.js         # Custom Vite bundler & chunking setup
+└── .env.example           # Decoupled template configuration variables
 ```
-
-## 🛠️ Tech Stack
-
-### Core Technologies
-- **Frontend Framework**: React 18.2.0
-- **Build Tool**: Vite 4.4.5
-- **Routing**: React Router DOM 6.16.0
-- **Styling**: Tailwind CSS 3.3.3
-
-### UI & Design
-- **Component Library**: Radix UI primitives
-- **Icons**: Lucide React
-- **Animations**: Framer Motion
-- **Design System**: Custom components based on shadcn/ui
-
-### State Management
-- **Authentication**: React Context API
-- **Data Persistence**: Browser LocalStorage
-- **Form Handling**: Controlled components
-
-### Development Tools
-- **Package Manager**: npm
-- **Code Quality**: ESLint
-- **CSS Processing**: PostCSS with Autoprefixer
-
-## 🚦 Getting Started
-
-### Prerequisites
-- Node.js (version 14 or higher)
-- npm or yarn package manager
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd MagnaFlow
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser**
-   Navigate to `http://localhost:5173`
-
-### Build for Production
-
-```bash
-npm run build
-```
-
-### Preview Production Build
-
-```bash
-npm run preview
-```
-
-## 👤 Default User Accounts
-
-The application comes with pre-configured demo accounts:
-
-### Admin Account
-- **Email**: `admin@projectflow.com`
-- **Password**: `admin123`
-- **Permissions**: Full system access, user management, task management, reports
-
-### Staff Account
-- **Email**: `staff@projectflow.com`
-- **Password**: `staff123`
-- **Permissions**: Task management, personal dashboard
-
-## 🔄 Application Flow
-
-### Authentication Flow
-
-1. **Login Process**
-   - User enters credentials on login page
-   - System validates against localStorage users
-   - On success, user data is stored in AuthContext
-   - User is redirected based on their role (Admin → `/admin`, Staff → `/staff`)
-
-2. **Protected Routes**
-   - All routes except `/login` require authentication
-   - Role-based access control prevents unauthorized access
-   - Automatic redirection for unauthenticated users
-
-### Admin Workflow
-
-1. **Dashboard Overview**
-   - Statistics cards showing key metrics
-   - Quick actions for common tasks
-   - Navigation to different management sections
-
-2. **Staff Management**
-   - View all staff members
-   - Add new staff with role assignment
-   - Edit existing staff information
-   - Manage staff designations
-
-3. **Task Management**
-   - Create and assign tasks to staff
-   - Set priorities and deadlines
-   - Track task status and progress
-   - Edit or delete existing tasks
-
-4. **Performance Reports**
-   - Visual analytics and charts
-   - Staff performance metrics
-   - Task completion statistics
-   - Exportable reports
-
-### Staff Workflow
-
-1. **Personal Dashboard**
-   - View assigned tasks
-   - Track personal progress
-   - Task status management
-
-2. **Task Operations**
-   - View task details
-   - Update task status (Pending → In Progress → Completed)
-   - Add new personal tasks
-   - Filter and search tasks
-
-## 💾 Data Management
-
-### LocalStorage Structure
-
-The application uses browser localStorage for data persistence:
-
-```javascript
-// User authentication
-projectflow_user: {
-  id: number,
-  name: string,
-  email: string,
-  role: 'admin' | 'staff'
-}
-
-// All users in system
-projectflow_users: [{
-  id: number,
-  name: string,
-  email: string,
-  password: string,
-  role: 'admin' | 'staff'
-}]
-
-// Task management
-projectflow_tasks: [{
-  id: number,
-  title: string,
-  description: string,
-  assignedTo: number,
-  priority: 'low' | 'medium' | 'high',
-  status: 'pending' | 'in-progress' | 'completed',
-  dueDate: string,
-  createdAt: string,
-  createdBy: number
-}]
-
-// Designations
-projectflow_designations: [{
-  id: number,
-  name: string,
-  description: string
-}]
-```
-
-## 🎨 Styling & Theming
-
-### CSS Architecture
-
-1. **Global Styles** (`src/index.css`)
-   - CSS custom properties for theme colors
-   - Base styles and typography
-   - Custom utility classes
-
-2. **Tailwind Configuration** (`tailwind.config.js`)
-   - Extended color palette
-   - Custom animations
-   - Component variants
-
-3. **Component Styling**
-   - Utility-first approach with Tailwind CSS
-   - Consistent design tokens
-   - Responsive design patterns
-
-### Custom CSS Classes
-
-- `.glass-effect` - Glassmorphism background
-- `.gradient-text` - Gradient text effect
-- `.card-hover` - Interactive card animations
-- `.animate-float` - Floating animation
-- `.animate-pulse-slow` - Slow pulse animation
-
-## 🔧 Configuration Files
-
-### Vite Configuration (`vite.config.js`)
-- React plugin setup
-- Path aliases (`@` → `./src`)
-- Development server configuration
-
-### Tailwind Configuration (`tailwind.config.js`)
-- Custom color system
-- Extended animations
-- Plugin integrations
-
-### PostCSS Configuration (`postcss.config.js`)
-- Tailwind CSS processing
-- Autoprefixer for browser compatibility
-
-## 🚀 Development Guidelines
-
-### Code Structure
-- Follow component-based architecture
-- Use React hooks for state management
-- Implement proper error handling
-- Maintain consistent naming conventions
-
-### Styling Guidelines
-- Use Tailwind CSS utility classes
-- Follow mobile-first responsive design
-- Maintain consistent spacing and typography
-- Use CSS custom properties for theming
-
-### State Management
-- Use React Context for global state
-- Keep component state local when possible
-- Implement proper data validation
-- Handle loading and error states
-
-## 🐛 Common Issues & Solutions
-
-### Blank Page on First Load
-- **Cause**: Missing dependencies or build issues
-- **Solution**: Run `npm install` and `npm run dev`
-
-### Authentication Issues
-- **Cause**: LocalStorage data corruption
-- **Solution**: Clear browser localStorage and refresh
-
-### Styling Issues
-- **Cause**: CSS not loading properly
-- **Solution**: Check Tailwind configuration and rebuild
-
-## 📝 API Endpoints
-
-Currently, the application uses localStorage for data persistence. For production deployment, consider implementing:
-
-- RESTful API endpoints
-- Database integration
-- Authentication middleware
-- File upload handling
-- Real-time updates with WebSockets
-
-## 🔮 Future Enhancements
-
-- [ ] Backend API integration
-- [ ] Real-time notifications
-- [ ] File attachment support
-- [ ] Advanced reporting features
-- [ ] Mobile application
-- [ ] Integration with third-party tools
-- [ ] Advanced user permissions
-- [ ] Data export/import functionality
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📞 Support
-
-For support and questions, please open an issue in the GitHub repository or contact the development team.
 
 ---
 
-**MagnaFlow** - Streamline your project management with advanced features and intuitive design.
+## 🛠️ Tech Stack
+
+* **Frontend Framework**: React 18.2.0
+* **Build Tooling**: Vite 7.2.6 & Rollup
+* **Backend Infrastructure**: Firebase (Auth, Firestore, Cloud Functions, Cloud Storage)
+* **Real-time Notifications**: Firestore Snapshots & Custom Event Listeners
+* **Email System**: EmailJS (@emailjs/browser & @emailjs/nodejs)
+* **Styling**: Tailwind CSS & Radix UI primitives
+* **Security & Sanitization**: DOMPurify & Regular Expression validation
+
+---
+
+## 🚦 Getting Started
+
+### 1. Prerequisites
+* Node.js (version 18 or higher)
+* Firebase CLI (`npm install -g firebase-tools`)
+
+### 2. Installation
+```bash
+# Clone the repository
+git clone <repository-url>
+cd MagnaFlow
+
+# Install frontend dependencies
+npm install
+
+# Install cloud function dependencies
+cd functions && npm install && cd ..
+```
+
+### 3. Environment Setup
+Copy the environment template and populate it with your credentials:
+```bash
+cp .env.example .env
+```
+*Note: `.env` is automatically ignored from git tracking.*
+
+### 4. Running Locally
+```bash
+# Run local client
+npm run dev
+
+# Run Firebase emulators
+firebase emulators:start
+```
+
+---
+
+## 📊 Deployment & Operations
+
+### Deployment
+Deploy both the rules, functions, and client files:
+```bash
+# Deploy Backend rules and Cloud Functions
+firebase deploy --only firestore:rules,functions
+
+# Build and Deploy frontend
+npm run build
+# Deploy output `dist/` directory to hosting
+firebase deploy --only hosting
+```
+
+### Data Migration
+To transition legacy databases into the multi-tenant layout, run the migration runner:
+```bash
+# Ensure serviceAccountKey.json is placed in the project root
+node scripts/migrate-to-multitenant.js
+```
+*Warning: Verify output counts against sandbox emulators before executing against production databases.*
+
+---
+
+## 📄 License
+This project is licensed under the MIT License.
