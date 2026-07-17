@@ -17,6 +17,10 @@ build/
 .env.test.local
 .env.production.local
 
+# Firebase service account keys
+*firebase-adminsdk*.json
+*serviceAccount*.json
+
 # IDE files
 .vscode/
 .idea/
