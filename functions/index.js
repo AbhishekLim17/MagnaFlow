@@ -283,8 +283,14 @@ exports.deleteUserAccount = functions.https.onCall(async (data, ctx) => {
 });
 
 // ─── 0.4 · Server-side login rate limiter ──────────────────────────────────
+// Firestore document IDs may not contain '/', which plain base64 can produce —
+// use URL-safe base64 (base64url) so every email maps to a valid doc ID.
+function emailKey(email) {
+  return Buffer.from((email || '').toLowerCase()).toString('base64url');
+}
+
 exports.checkLoginRateLimit = functions.https.onCall(async (data, _ctx) => {
-  const emailHash = Buffer.from((data.email || '').toLowerCase()).toString('base64');
+  const emailHash = emailKey(data.email);
   const docRef = admin.firestore().collection('login_attempts').doc(emailHash);
   const now = admin.firestore.Timestamp.now();
   const MAX = 5, WINDOW = 15 * 60 * 1000, BLOCK = 30 * 60 * 1000;
@@ -311,8 +317,7 @@ exports.checkLoginRateLimit = functions.https.onCall(async (data, _ctx) => {
 });
 
 exports.clearLoginAttempts = functions.https.onCall(async (data, _ctx) => {
-  const emailHash = Buffer.from((data.email || '').toLowerCase()).toString('base64');
-  await admin.firestore().collection('login_attempts').doc(emailHash).delete();
+  await admin.firestore().collection('login_attempts').doc(emailKey(data.email)).delete();
   return { success: true };
 });
 

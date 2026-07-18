@@ -104,24 +104,25 @@ export const AuthProvider = ({ children }) => {
       if (!email || !password) throw new Error("Email and password are required");
       if (!isValidEmail(email)) throw new Error("Invalid email address format");
 
-      // Server-side rate limit check (replaces in-memory limiter — bypass-proof)
+      // Server-side rate limit check (defense-in-depth against brute force).
+      // The rate limiter must NEVER be able to lock out all logins: if the
+      // check itself can't run (function not deployed, unavailable, internal
+      // error, timeout, cold-start), we proceed to normal Firebase Auth, which
+      // still fully validates credentials. Only an actual "blocked" verdict
+      // stops the login.
+      let limitResult = null;
       try {
         const functions = getFunctions();
         const checkLimit = httpsCallable(functions, 'checkLoginRateLimit');
-        const { data: limitResult } = await checkLimit({ email });
-        if (!limitResult.allowed) {
-          const resetTime = limitResult.blockedUntil
-            ? new Date(limitResult.blockedUntil).toLocaleTimeString()
-            : 'later';
-          throw new Error(`Too many failed attempts. Try again after ${resetTime}`);
-        }
+        limitResult = (await checkLimit({ email })).data;
       } catch (limitError) {
-        // If Cloud Function unavailable, fall through (don't block login entirely)
-        if (limitError.code === 'functions/unavailable' || limitError.message?.includes('unavailable')) {
-          console.warn('Rate limit function unavailable, proceeding without server check');
-        } else {
-          throw limitError;
-        }
+        console.warn('Login rate-limit check unavailable, proceeding without it:', limitError?.code || limitError?.message);
+      }
+      if (limitResult && limitResult.allowed === false) {
+        const resetTime = limitResult.blockedUntil
+          ? new Date(limitResult.blockedUntil).toLocaleTimeString()
+          : 'later';
+        throw new Error(`Too many failed attempts. Try again after ${resetTime}`);
       }
 
       // Sign in with Firebase Authentication
