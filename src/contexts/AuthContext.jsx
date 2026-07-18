@@ -9,10 +9,26 @@ import {
 } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth } from "@/config/firebase";
-import { getUserById } from "@/services/userService";
+import { getUserById, clearCallerProfileCache } from "@/services/userService";
+import { getOrganizationById } from "@/services/organizationService";
 import { isValidEmail } from "@/utils/validation";
 
 const AuthContext = createContext();
+
+// A master-admin can suspend an organization; suspension must actually block
+// its members. Enforced at login/session-restore (one org read) rather than in
+// Firestore rules (which would cost an extra read on every operation). Fails
+// open on a read error so a transient Firestore glitch can't lock everyone out
+// — data access itself is still governed by the security rules regardless.
+const orgIsSuspended = async (orgId) => {
+  if (!orgId) return false;
+  try {
+    const org = await getOrganizationById(orgId);
+    return org?.status === 'suspended';
+  } catch {
+    return false;
+  }
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -33,14 +49,24 @@ export const AuthProvider = ({ children }) => {
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log("� Auth state changed:", firebaseUser ? "User logged in" : "User logged out");
-      
+
+      // The signed-in identity may have changed (login, logout, or an
+      // impersonation session swap) — drop any cached org profile so the next
+      // scoped query resolves against the new user, never the previous one.
+      clearCallerProfileCache();
+
       if (firebaseUser) {
         try {
           // Fetch user data from Firestore
           console.log("� Fetching user data for UID:", firebaseUser.uid);
           const userData = await getUserById(firebaseUser.uid);
           
-          if (userData) {
+          if (userData && await orgIsSuspended(userData.orgId)) {
+            console.warn("⚠️  Organization suspended — signing out");
+            await signOut(auth);
+            setUser(null);
+            setIsAuthenticated(false);
+          } else if (userData) {
             console.log("✅ User data loaded:", userData);
             setUser(userData);
             setIsAuthenticated(true);
@@ -118,6 +144,10 @@ export const AuthProvider = ({ children }) => {
         await signOut(auth);
         throw new Error("Your account has been deactivated. Please contact administrator.");
       }
+      if (await orgIsSuspended(userData.orgId)) {
+        await signOut(auth);
+        throw new Error("Your organization has been suspended. Please contact support.");
+      }
       
       return { success: true, user: userData };
       
@@ -158,6 +188,9 @@ export const AuthProvider = ({ children }) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      orgId: user.orgId ?? null,
+      departmentIds: user.departmentIds ?? [],
+      projectIds: user.projectIds ?? [],
     } : null,
     isAuthenticated,
     loading,

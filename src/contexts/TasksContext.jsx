@@ -6,7 +6,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
 import {
   getAllTasks,
-  getTasksForUser,
   createTask as createTaskService,
   updateTask as updateTaskService,
   deleteTask as deleteTaskService,
@@ -32,6 +31,31 @@ export const TasksProvider = ({ children }) => {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
+  // Task visibility filters, by role:
+  // - master-admin: no task list at all — they operate via the Master Admin
+  //   dashboard's org list / usage stats, not a task view.
+  // - org-admin/admin (legacy alias): every task in their org.
+  // - department-head: tasks in any of their departments.
+  // - manager: tasks in any of their projects.
+  // - staff: only tasks assigned to them.
+  const getTaskFiltersForUser = (u) => {
+    if (!u) return null;
+    switch (u.role) {
+      case 'master-admin':
+        return null;
+      case 'org-admin':
+      case 'admin':
+        return { orgId: u.orgId };
+      case 'department-head':
+        return { orgId: u.orgId, departmentIds: u.departmentIds || [] };
+      case 'manager':
+        return { orgId: u.orgId, projectIds: u.projectIds || [] };
+      case 'staff':
+      default:
+        return { assignedTo: u.id };
+    }
+  };
+
   // Load tasks based on user role
   // NOTE: must be defined before the effects below that list it as a dependency,
   // otherwise the dependency array reads it in the temporal dead zone (ReferenceError).
@@ -40,19 +64,20 @@ export const TasksProvider = ({ children }) => {
       setLoading(true);
       console.log("📥 Loading tasks for user:", user?.email);
 
-      let tasksData;
-      if (user.role === 'admin') {
-        tasksData = await getAllTasks();
-      } else {
-        tasksData = await getTasksForUser(user.id);
+      const filters = getTaskFiltersForUser(user);
+      if (!filters) {
+        // master-admin: no org-scoped task list.
+        setTasks([]);
+        setStatistics(null);
+        setLoading(false);
+        return;
       }
 
+      const tasksData = await getAllTasks(filters);
       setTasks(tasksData);
       console.log("✅ Tasks loaded:", tasksData.length);
 
-      const stats = await getTaskStatistics(
-        user.role === 'admin' ? null : user.id
-      );
+      const stats = await getTaskStatistics(filters);
       setStatistics(stats);
     } catch (error) {
       console.error("❌ Error loading tasks:", error);
@@ -97,8 +122,17 @@ export const TasksProvider = ({ children }) => {
       const newTaskData = {
         ...taskData,
         createdBy: user.id,
+        ...(user.orgId !== undefined && { orgId: user.orgId }),
       };
-      
+      // Default department-head/manager-created tasks to their own scope
+      // unless the caller already specified one explicitly.
+      if (newTaskData.departmentId === undefined && user.role === 'department-head') {
+        newTaskData.departmentId = user.departmentIds?.[0];
+      }
+      if (newTaskData.projectId === undefined && user.role === 'manager') {
+        newTaskData.projectId = user.projectIds?.[0];
+      }
+
       const newTask = await createTaskService(newTaskData);
       
       setTasks(prev => [newTask, ...prev]);
@@ -242,9 +276,9 @@ export const TasksProvider = ({ children }) => {
    */
   const refreshStatistics = async () => {
     try {
-      const stats = await getTaskStatistics(
-        user.role === 'admin' ? null : user.id
-      );
+      const filters = getTaskFiltersForUser(user);
+      if (!filters) return;
+      const stats = await getTaskStatistics(filters);
       setStatistics(stats);
     } catch (error) {
       console.error("❌ Error refreshing statistics:", error);

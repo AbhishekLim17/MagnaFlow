@@ -6,15 +6,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { getAllUsers, createUser, updateUser, deleteUser, resetUserPassword } from '@/services/userService';
+import { getDepartments, getProjects } from '@/services/organizationService';
 
-const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
+const ROLE_LABELS = {
+  'department-head': 'Department Head',
+  manager: 'Manager',
+};
+
+// Org-admins manage the two mid-tier roles here. They cannot create other
+// org-admins (only master-admin does that, via org provisioning) — staff
+// accounts are managed separately in Staff Management.
+const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departments, projects }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     phone: '',
+    role: 'department-head',
+    departmentId: '',
+    projectId: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,6 +46,9 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
         email: initialData.email || '',
         password: '',
         phone: initialData.phone || '',
+        role: initialData.role || 'department-head',
+        departmentId: initialData.departmentIds?.[0] || '',
+        projectId: initialData.projectIds?.[0] || '',
       });
     } else {
       setFormData({
@@ -33,6 +56,9 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
         email: '',
         password: '',
         phone: '',
+        role: 'department-head',
+        departmentId: '',
+        projectId: '',
       });
     }
     setShowPassword(false);
@@ -40,13 +66,10 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!formData.name.trim() || !formData.email.trim()) {
       return;
     }
-
-    // Password required for new admin
     if (!initialData && !formData.password) {
       return;
     }
@@ -68,11 +91,58 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               {initialData ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             </div>
-            <span>{initialData ? 'Edit Admin' : 'Add New Admin'}</span>
+            <span>{initialData ? 'Edit Account' : 'Add Department Head / Manager'}</span>
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
+            {!initialData && (
+              <div>
+                <Label className="text-gray-200">Role *</Label>
+                <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
+                  <SelectTrigger className="mt-2 glass-effect border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="department-head">Department Head</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {!initialData && formData.role === 'department-head' && (
+              <div>
+                <Label className="text-gray-200">Department *</Label>
+                <Select value={formData.departmentId} onValueChange={(v) => handleChange('departmentId', v)}>
+                  <SelectTrigger className="mt-2 glass-effect border-white/20 text-white">
+                    <SelectValue placeholder="Select a department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {!initialData && formData.role === 'manager' && (
+              <div>
+                <Label className="text-gray-200">Project *</Label>
+                <Select value={formData.projectId} onValueChange={(v) => handleChange('projectId', v)}>
+                  <SelectTrigger className="mt-2 glass-effect border-white/20 text-white">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="admin-name" className="text-gray-200">
                 Full Name *
@@ -159,12 +229,12 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="bg-indigo-600 hover:bg-indigo-700"
               disabled={loading}
             >
-              {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Admin')}
+              {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Account')}
             </Button>
           </DialogFooter>
         </form>
@@ -174,7 +244,10 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null }) => {
 };
 
 const AdminManagement = () => {
+  const { currentUser } = useAuth();
   const [admins, setAdmins] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -183,17 +256,37 @@ const AdminManagement = () => {
 
   useEffect(() => {
     loadAdmins();
+    loadOrgStructure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadOrgStructure = async () => {
+    if (!currentUser?.orgId) return;
+    try {
+      const [depts, projs] = await Promise.all([
+        getDepartments(currentUser.orgId),
+        getProjects(currentUser.orgId),
+      ]);
+      setDepartments(depts);
+      setProjects(projs);
+    } catch (error) {
+      console.error('Error loading departments/projects:', error);
+    }
+  };
 
   const loadAdmins = async () => {
     try {
       setLoading(true);
-      const adminUsers = await getAllUsers({ role: 'admin' });
-      setAdmins(adminUsers);
+      const orgId = currentUser?.orgId;
+      const [deptHeads, managers] = await Promise.all([
+        getAllUsers({ role: 'department-head', ...(orgId && { orgId }) }),
+        getAllUsers({ role: 'manager', ...(orgId && { orgId }) }),
+      ]);
+      setAdmins([...deptHeads, ...managers]);
     } catch (error) {
-      console.error('Error loading admins:', error);
+      console.error('Error loading department heads/managers:', error);
       toast({
-        title: "Error loading admins",
+        title: "Error loading accounts",
         description: error.message,
         variant: "destructive"
       });
@@ -204,23 +297,40 @@ const AdminManagement = () => {
 
   const handleAdd = async (formData) => {
     try {
+      const isDeptHead = formData.role === 'department-head';
+      if (isDeptHead && !formData.departmentId) {
+        toast({ title: "Select a department", variant: "destructive" });
+        return;
+      }
+      if (!isDeptHead && !formData.projectId) {
+        toast({ title: "Select a project", variant: "destructive" });
+        return;
+      }
+
       await createUser({
-        ...formData,
-        role: 'admin',
-        designation: 'Administrator'
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        role: formData.role,
+        designation: ROLE_LABELS[formData.role],
+        orgId: currentUser?.orgId,
+        ...(isDeptHead
+          ? { departmentIds: [formData.departmentId] }
+          : { projectIds: [formData.projectId] }),
       });
-      
+
       toast({
-        title: "Admin created successfully",
-        description: `${formData.name} has been added as an admin.`
+        title: "Account created successfully",
+        description: `${formData.name} has been added as a ${ROLE_LABELS[formData.role]}.`
       });
-      
+
       setIsAddDialogOpen(false);
       loadAdmins();
     } catch (error) {
-      console.error('Error creating admin:', error);
+      console.error('Error creating account:', error);
       toast({
-        title: "Failed to create admin",
+        title: "Failed to create account",
         description: error.message,
         variant: "destructive"
       });
@@ -234,19 +344,19 @@ const AdminManagement = () => {
         phone: formData.phone,
         // Email and role cannot be changed
       });
-      
+
       toast({
-        title: "Admin updated successfully",
+        title: "Account updated successfully",
         description: `${formData.name}'s information has been updated.`
       });
-      
+
       setIsEditDialogOpen(false);
       setCurrentAdmin(null);
       loadAdmins();
     } catch (error) {
-      console.error('Error updating admin:', error);
+      console.error('Error updating account:', error);
       toast({
-        title: "Failed to update admin",
+        title: "Failed to update account",
         description: error.message,
         variant: "destructive"
       });
@@ -254,32 +364,23 @@ const AdminManagement = () => {
   };
 
   const handleDelete = async (admin) => {
-    if (admins.length === 1) {
-      toast({
-        title: "Cannot delete admin",
-        description: "At least one admin account must exist.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to delete admin "${admin.name}"? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete "${admin.name}"? This action cannot be undone.`)) {
       return;
     }
 
     try {
       await deleteUser(admin.id);
-      
+
       toast({
-        title: "Admin deleted successfully",
-        description: `${admin.name} has been removed from admins.`
+        title: "Account deleted successfully",
+        description: `${admin.name} has been removed.`
       });
-      
+
       loadAdmins();
     } catch (error) {
-      console.error('Error deleting admin:', error);
+      console.error('Error deleting account:', error);
       toast({
-        title: "Failed to delete admin",
+        title: "Failed to delete account",
         description: error.message,
         variant: "destructive"
       });
@@ -293,7 +394,7 @@ const AdminManagement = () => {
 
     try {
       await resetUserPassword(admin.email);
-      
+
       toast({
         title: "Password reset email sent",
         description: `${admin.name} will receive an email with instructions to reset their password.`
@@ -321,15 +422,16 @@ const AdminManagement = () => {
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-white mb-2">Admin Management</h2>
-          <p className="text-gray-300">Manage administrator accounts and permissions.</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Department Heads & Managers</h2>
+          <p className="text-gray-300">Manage department head and manager accounts within your organization.</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
           className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg w-full sm:w-auto"
+          disabled={departments.length === 0 && projects.length === 0}
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Admin
+          Add Account
         </Button>
       </div>
 
@@ -337,14 +439,14 @@ const AdminManagement = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="text-purple-300" />
-            <span>Administrator Accounts ({admins.length})</span>
+            <span>Accounts ({admins.length})</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-12 text-gray-400">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-              <p>Loading admins...</p>
+              <p>Loading accounts...</p>
             </div>
           ) : admins.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -364,7 +466,7 @@ const AdminManagement = () => {
                         </div>
                         <div>
                           <h3 className="font-semibold text-white">{admin.name}</h3>
-                          <p className="text-xs text-gray-400">Administrator</p>
+                          <p className="text-xs text-gray-400">{ROLE_LABELS[admin.role] || admin.role}</p>
                         </div>
                       </div>
                       <div className="space-y-1 ml-12">
@@ -389,7 +491,7 @@ const AdminManagement = () => {
                         size="icon"
                         className="h-8 w-8 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
                         onClick={() => openEditDialog(admin)}
-                        title="Edit Admin"
+                        title="Edit"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -407,8 +509,7 @@ const AdminManagement = () => {
                         size="icon"
                         className="h-8 w-8 text-red-400 hover:bg-red-500/20 hover:text-red-300"
                         onClick={() => handleDelete(admin)}
-                        title="Delete Admin"
-                        disabled={admins.length === 1}
+                        title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -420,8 +521,12 @@ const AdminManagement = () => {
           ) : (
             <div className="text-center py-12 text-gray-400">
               <Shield className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">No admins found.</h3>
-              <p>Click "Add Admin" to create your first administrator account.</p>
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">No accounts found.</h3>
+              <p>
+                {departments.length === 0 && projects.length === 0
+                  ? 'Create a department or project first, then add a Department Head or Manager here.'
+                  : 'Click "Add Account" to create a Department Head or Manager.'}
+              </p>
             </div>
           )}
         </CardContent>
@@ -431,12 +536,16 @@ const AdminManagement = () => {
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSubmit={handleAdd}
+        departments={departments}
+        projects={projects}
       />
       <AdminDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onSubmit={handleEdit}
         initialData={currentAdmin}
+        departments={departments}
+        projects={projects}
       />
     </motion.div>
   );

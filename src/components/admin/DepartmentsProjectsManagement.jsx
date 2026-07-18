@@ -1,0 +1,237 @@
+// Departments & Projects Management - org-admin CRUD for their own org's
+// departments and projects. Department Heads/Managers are assigned to these
+// via Admin Management (src/components/admin/AdminManagement.jsx).
+
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Building2, FolderKanban, Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  getDepartments,
+  createDepartment,
+  deleteDepartment,
+  getProjects,
+  createProject,
+  deleteProject,
+} from '@/services/organizationService';
+
+const DepartmentsProjectsManagement = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [departments, setDepartments] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isDeptDialogOpen, setIsDeptDialogOpen] = useState(false);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newProject, setNewProject] = useState({ name: '', departmentId: '' });
+
+  useEffect(() => {
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadAll = async () => {
+    if (!user?.orgId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      const [depts, projs] = await Promise.all([getDepartments(user.orgId), getProjects(user.orgId)]);
+      setDepartments(depts);
+      setProjects(projs);
+    } catch (error) {
+      console.error('Error loading departments/projects:', error);
+      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateDept = async (e) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+    try {
+      await createDepartment(user.orgId, newDeptName.trim());
+      toast({ title: 'Department created', description: `"${newDeptName}" has been added.` });
+      setNewDeptName('');
+      setIsDeptDialogOpen(false);
+      loadAll();
+    } catch (error) {
+      console.error('Error creating department:', error);
+      toast({ title: 'Failed to create department', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteDept = async (dept) => {
+    if (!window.confirm(`Delete department "${dept.name}"? This does not delete its projects or staff.`)) return;
+    try {
+      await deleteDepartment(user.orgId, dept.id);
+      loadAll();
+    } catch (error) {
+      console.error('Error deleting department:', error);
+      toast({ title: 'Failed to delete department', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    if (!newProject.name.trim() || !newProject.departmentId) return;
+    try {
+      await createProject(user.orgId, { name: newProject.name.trim(), departmentId: newProject.departmentId });
+      toast({ title: 'Project created', description: `"${newProject.name}" has been added.` });
+      setNewProject({ name: '', departmentId: '' });
+      setIsProjectDialogOpen(false);
+      loadAll();
+    } catch (error) {
+      console.error('Error creating project:', error);
+      toast({ title: 'Failed to create project', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteProject = async (project) => {
+    if (!window.confirm(`Delete project "${project.name}"?`)) return;
+    try {
+      await deleteProject(user.orgId, project.id);
+      loadAll();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({ title: 'Failed to delete project', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const departmentName = (id) => departments.find(d => d.id === id)?.name || 'Unknown';
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Departments & Projects</h2>
+        <p className="text-gray-300">Create the departments and projects that Department Heads and Managers get assigned to.</p>
+      </div>
+
+      <Card className="glass-effect p-6 mb-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="text-purple-300" /> Departments ({departments.length})
+          </CardTitle>
+          <Button onClick={() => setIsDeptDialogOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Plus className="w-4 h-4 mr-2" /> Add Department
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8 text-gray-400">Loading...</div>
+          ) : departments.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No departments yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {departments.map((dept) => (
+                <div key={dept.id} className="p-3 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between">
+                  <span className="text-white">{dept.name}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20"
+                    onClick={() => handleDeleteDept(dept)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="glass-effect p-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <FolderKanban className="text-purple-300" /> Projects ({projects.length})
+          </CardTitle>
+          <Button onClick={() => setIsProjectDialogOpen(true)} className="bg-indigo-600 hover:bg-indigo-700" disabled={departments.length === 0}>
+            <Plus className="w-4 h-4 mr-2" /> Add Project
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8 text-gray-400">Loading...</div>
+          ) : projects.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">
+              {departments.length === 0 ? 'Create a department first.' : 'No projects yet.'}
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {projects.map((proj) => (
+                <div key={proj.id} className="p-3 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between">
+                  <div>
+                    <p className="text-white">{proj.name}</p>
+                    <p className="text-xs text-gray-400">{departmentName(proj.departmentId)}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20"
+                    onClick={() => handleDeleteProject(proj)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
+        <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+          <DialogHeader><DialogTitle>Add Department</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreateDept} className="space-y-4 py-2">
+            <div>
+              <Label className="text-gray-200">Department Name *</Label>
+              <Input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)}
+                className="mt-2 glass-effect border-white/20 text-white" placeholder="e.g. Engineering" required />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDeptDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Create</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+        <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+          <DialogHeader><DialogTitle>Add Project</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreateProject} className="space-y-4 py-2">
+            <div>
+              <Label className="text-gray-200">Project Name *</Label>
+              <Input value={newProject.name} onChange={(e) => setNewProject(p => ({ ...p, name: e.target.value }))}
+                className="mt-2 glass-effect border-white/20 text-white" placeholder="e.g. Website Redesign" required />
+            </div>
+            <div>
+              <Label className="text-gray-200">Department *</Label>
+              <Select value={newProject.departmentId} onValueChange={(v) => setNewProject(p => ({ ...p, departmentId: v }))}>
+                <SelectTrigger className="mt-2 glass-effect border-white/20 text-white"><SelectValue placeholder="Select a department" /></SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsProjectDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Create</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+};
+
+export default DepartmentsProjectsManagement;

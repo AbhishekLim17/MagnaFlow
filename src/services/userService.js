@@ -8,23 +8,53 @@ import {
   getDocs, 
   setDoc, 
   updateDoc, 
-  deleteDoc,
   query,
   where,
   orderBy,
   Timestamp 
 } from 'firebase/firestore';
-import { 
-  createUserWithEmailAndPassword, 
+import {
+  createUserWithEmailAndPassword,
   deleteUser as deleteAuthUser,
   signOut,
   updatePassword,
   sendPasswordResetEmail
 } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, secondaryAuth } from '@/config/firebase';
 
 // Collection reference
 const USERS_COLLECTION = 'users';
+
+// Cached lookup of the signed-in caller's own user doc (orgId/departmentIds/
+// projectIds/role). Firestore rules require org-scoped queries/writes for
+// org-admin+ roles once a second org exists, but pre-existing components
+// (StaffManagementNew, TaskManagementNew, PerformanceReports, etc.) call
+// getAllUsers/createUser without ever thinking about orgId. Rather than
+// touching every call site, reads/writes that don't explicitly specify orgId
+// auto-resolve it from the caller's own profile here, so those components
+// keep working unmodified while still being correctly org-scoped. Legacy
+// 'admin' accounts (created before this feature existed) have no orgId, so
+// this resolves to null for them — same as before, unchanged behavior.
+let _cachedCallerProfile = null;
+export const getCallerProfile = async () => {
+  if (!auth.currentUser) return null;
+  if (_cachedCallerProfile?.uid === auth.currentUser.uid) return _cachedCallerProfile;
+  const snap = await getDoc(doc(db, USERS_COLLECTION, auth.currentUser.uid));
+  const data = snap.exists() ? snap.data() : {};
+  _cachedCallerProfile = {
+    uid: auth.currentUser.uid,
+    orgId: data.orgId ?? null,
+    departmentIds: data.departmentIds ?? [],
+    projectIds: data.projectIds ?? [],
+    role: data.role ?? null,
+  };
+  return _cachedCallerProfile;
+};
+
+// Invalidate the cache on logout / session switch so a subsequent sign-in
+// never consults the previous user's org scope.
+export const clearCallerProfileCache = () => { _cachedCallerProfile = null; };
 
 /**
  * Get user data by UID
@@ -46,13 +76,23 @@ export const getUserById = async (uid) => {
 
 /**
  * Get all users from Firestore
- * @param {Object} filters - Optional filters (role, status, designation)
+ * @param {Object} filters - Optional filters (role, status, designation, orgId,
+ *   departmentIds (array, matches users whose departmentIds overlaps any of these),
+ *   projectIds (array, matches users whose projectIds overlaps any of these))
  * @returns {Promise<Array>} Array of user objects
  */
 export const getAllUsers = async (filters = {}) => {
   try {
     let q = collection(db, USERS_COLLECTION);
-    
+
+    // Auto-resolve orgId from the caller's own profile when not explicitly
+    // specified, so org-scoping applies even to callers that don't pass it.
+    let orgId = filters.orgId;
+    if (orgId === undefined) {
+      const caller = await getCallerProfile();
+      if (caller && caller.role !== 'master-admin') orgId = caller.orgId;
+    }
+
     // Apply filters if provided
     const constraints = [];
     if (filters.role) {
@@ -64,32 +104,43 @@ export const getAllUsers = async (filters = {}) => {
     if (filters.designation) {
       constraints.push(where('designation', '==', filters.designation));
     }
-    
+    if (orgId !== undefined) {
+      constraints.push(where('orgId', '==', orgId));
+    }
+    if (filters.departmentIds?.length) {
+      constraints.push(where('departmentIds', 'array-contains-any', filters.departmentIds.slice(0, 10)));
+    }
+    if (filters.projectIds?.length) {
+      constraints.push(where('projectIds', 'array-contains-any', filters.projectIds.slice(0, 10)));
+    }
+
     // Only add ordering if no filters (to avoid index requirement)
     // If filters exist, we'll sort in memory
+    let hasOrderBy = false;
     if (constraints.length === 0) {
       constraints.push(orderBy('createdAt', 'desc'));
+      hasOrderBy = true;
     }
-    
+
     if (constraints.length > 0) {
       q = query(collection(db, USERS_COLLECTION), ...constraints);
     }
-    
+
     const snapshot = await getDocs(q);
     const users = [];
     snapshot.forEach((doc) => {
       users.push({ id: doc.id, ...doc.data() });
     });
-    
-    // Sort in memory if filters were applied
-    if (filters.role || filters.status || filters.designation) {
+
+    // Sort in memory if we didn't use orderBy
+    if (!hasOrderBy) {
       users.sort((a, b) => {
         const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
         const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
         return bTime - aTime;
       });
     }
-    
+
     return users;
   } catch (error) {
     console.error('Error getting users:', error);
@@ -118,19 +169,27 @@ export const getAllStaff = async () => {
  * @returns {Promise<Object>} Created user data
  */
 export const createUser = async (userData) => {
-  const { email, password, name, role, designation, status } = userData;
+  let { email, password, name, role, designation, status, orgId, departmentIds, projectIds } = userData;
   try {
-    
+
     // Verify admin is logged in
     const currentAdmin = auth.currentUser;
     if (!currentAdmin) {
       throw new Error('You must be logged in as an admin to create users.');
     }
-    
+
+    // Auto-stamp orgId from the creating user's own org when not explicitly
+    // provided, so pre-existing callers (StaffManagementNew, etc.) that don't
+    // know about orgId still create correctly-scoped docs.
+    if (orgId === undefined) {
+      const caller = await getCallerProfile();
+      if (caller && caller.role !== 'master-admin') orgId = caller.orgId;
+    }
+
     // Create user using SECONDARY auth instance (won't affect admin session)
     const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     const uid = userCredential.user.uid;
-    
+
     // Create user document in Firestore
     const userDoc = {
       name: name || '',
@@ -138,10 +197,13 @@ export const createUser = async (userData) => {
       role: role || 'staff',
       designation: designation || '',
       status: status || 'active',
+      ...(orgId !== undefined && { orgId }),
+      ...(departmentIds !== undefined && { departmentIds }),
+      ...(projectIds !== undefined && { projectIds }),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
-    
+
     await setDoc(doc(db, USERS_COLLECTION, uid), userDoc);
     
     // Sign out from secondary auth (cleanup)
@@ -200,34 +262,18 @@ export const updateUser = async (uid, updates) => {
 };
 
 /**
- * Delete user (Firestore + creates marker for manual Firebase Auth cleanup)
+ * Delete user — Auth account + Firestore doc, atomically, via the
+ * deleteUserAccount Cloud Function (requires elevated Admin SDK privileges
+ * that the client doesn't have).
  * @param {string} uid - User ID
  * @returns {Promise<void>}
  */
 export const deleteUser = async (uid) => {
   try {
-    // Get user data before deletion
-    const userData = await getUserById(uid);
-    if (!userData) {
-      throw new Error('User not found');
-    }
-    
-    // Delete from Firestore
-    await deleteDoc(doc(db, USERS_COLLECTION, uid));
-    
-    // Create deletion marker for manual Firebase Auth cleanup
-    await setDoc(doc(db, 'userDeletions', uid), {
-      userId: uid,
-      email: userData.email,
-      name: userData.name,
-      deletedAt: Timestamp.now(),
-      deletedBy: auth.currentUser?.email || 'unknown',
-      completed: false,
-      instructions: 'Go to Firebase Console → Authentication → Search email → Delete account'
-    });
-    
-    console.log('✅ User deleted from Firestore. Manual Firebase Auth cleanup required.');
-    console.log('📋 Check Admin Dashboard → System tab for deletion instructions.');
+    const functions = getFunctions();
+    const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+    await deleteUserAccount({ uid });
+    console.log('✅ User account deleted (Auth + Firestore).');
   } catch (error) {
     console.error('Error deleting user:', error);
     throw error;
@@ -301,45 +347,3 @@ export const resetUserPassword = async (email) => {
   }
 };
 
-/**
- * Get all pending user deletions (users deleted from portal but not from Firebase Auth)
- * @returns {Promise<Array>} Array of pending deletions
- */
-export const getPendingDeletions = async () => {
-  try {
-    const q = query(
-      collection(db, 'userDeletions'),
-      where('completed', '==', false),
-      orderBy('deletedAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    const deletions = [];
-    snapshot.forEach((doc) => {
-      deletions.push({ id: doc.id, ...doc.data() });
-    });
-    return deletions;
-  } catch (error) {
-    console.error('Error getting pending deletions:', error);
-    // Return empty array if collection doesn't exist yet
-    return [];
-  }
-};
-
-/**
- * Mark a deletion as completed (after manual Firebase Auth cleanup)
- * @param {string} deletionId - Deletion marker document ID
- * @returns {Promise<void>}
- */
-export const markDeletionCompleted = async (deletionId) => {
-  try {
-    await updateDoc(doc(db, 'userDeletions', deletionId), {
-      completed: true,
-      completedAt: Timestamp.now(),
-      completedBy: auth.currentUser?.email || 'unknown'
-    });
-    console.log('✅ Deletion marked as completed:', deletionId);
-  } catch (error) {
-    console.error('Error marking deletion completed:', error);
-    throw error;
-  }
-};

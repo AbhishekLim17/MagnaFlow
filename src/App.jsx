@@ -10,11 +10,22 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DesignationsProvider } from "@/contexts/DesignationsContext";
 import { TasksProvider } from "@/contexts/TasksContext";
-import { getHomeRoute, ADMIN_ROLES, STAFF_ROLES } from "@/config/roleRoutes";
+import {
+  getHomeRoute,
+  MASTER_ADMIN_ROLES,
+  ORG_ADMIN_ROLES,
+  DEPARTMENT_HEAD_ROLES,
+  MANAGER_ROLES,
+  STAFF_ROLES,
+} from "@/config/roleRoutes";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import LoginPage from "@/pages/LoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import StaffDashboard from "@/pages/StaffDashboard";
+import MasterAdminDashboard from "@/components/admin/MasterAdminDashboard";
+import DepartmentHeadDashboard from "@/pages/DepartmentHeadDashboard";
+import ManagerDashboard from "@/pages/ManagerDashboard";
+import ImpersonationBanner from "@/components/shared/ImpersonationBanner";
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -57,10 +68,34 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/master/*"
+        element={
+          <ProtectedRoute allowedRoles={MASTER_ADMIN_ROLES}>
+            <MasterAdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/*"
         element={
-          <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+          <ProtectedRoute allowedRoles={ORG_ADMIN_ROLES}>
             <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/department/*"
+        element={
+          <ProtectedRoute allowedRoles={DEPARTMENT_HEAD_ROLES}>
+            <DepartmentHeadDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/*"
+        element={
+          <ProtectedRoute allowedRoles={MANAGER_ROLES}>
+            <ManagerDashboard />
           </ProtectedRoute>
         }
       />
@@ -117,6 +152,7 @@ function App() {
               />
             </Helmet>
             <div className="min-h-screen">
+              <ImpersonationBanner />
               <AppRoutes />
               <Toaster />
             </div>

@@ -242,10 +242,37 @@ exports.testDailyCriticalTaskReminders = functions
     }
   });
 
+// Role checks read the caller's Firestore users/{uid} doc — this app has never
+// set Firebase Auth custom claims, so ctx.auth.token.role is always undefined.
+// Firestore is the single source of truth for role everywhere else (rules'
+// me() helper, AuthContext), so Cloud Functions match that convention.
+async function getCallerProfile(ctx) {
+  if (!ctx.auth) return null;
+  const doc = await admin.firestore().doc(`users/${ctx.auth.uid}`).get();
+  return doc.exists ? doc.data() : null;
+}
+
 // ─── 0.5 · Delete user from Auth + Firestore atomically ────────────────────
 exports.deleteUserAccount = functions.https.onCall(async (data, ctx) => {
-  if (!ctx.auth || !['master-admin', 'org-admin', 'admin'].includes(ctx.auth.token.role))
+  const caller = await getCallerProfile(ctx);
+  const callerRole = caller?.role;
+  if (!['master-admin', 'org-admin', 'admin'].includes(callerRole))
     throw new functions.https.HttpsError('permission-denied', 'Not authorized');
+
+  // Master-admin may delete anyone. An org-admin may only delete users in their
+  // OWN org, and never another org-admin/master-admin (that mirrors the
+  // Firestore rules and prevents cross-org / privilege-tier deletion).
+  if (callerRole !== 'master-admin') {
+    const targetSnap = await admin.firestore().doc(`users/${data.uid}`).get();
+    const target = targetSnap.exists ? targetSnap.data() : null;
+    if (!target)
+      throw new functions.https.HttpsError('not-found', 'User not found');
+    const sameOrg = (target.orgId ?? null) === (caller.orgId ?? null);
+    const targetIsManageable = ['department-head', 'manager', 'staff'].includes(target.role);
+    if (!sameOrg || !targetIsManageable)
+      throw new functions.https.HttpsError('permission-denied', 'Cannot delete this user');
+  }
+
   await admin.auth().deleteUser(data.uid);
   await admin.firestore().doc(`users/${data.uid}`).delete();
   await admin.firestore().collection('audit_logs').add({
@@ -291,7 +318,7 @@ exports.clearLoginAttempts = functions.https.onCall(async (data, _ctx) => {
 
 // ─── Section 4 · Org provisioning / management ─────────────────────────────
 exports.provisionOrg = functions.https.onCall(async (data, ctx) => {
-  if (ctx.auth?.token?.role !== 'master-admin')
+  if ((await getCallerProfile(ctx))?.role !== 'master-admin')
     throw new functions.https.HttpsError('permission-denied', 'master-admin only');
   const orgRef = await admin.firestore().collection('organizations').add({
     name: data.name, plan: data.plan ?? 'trial', status: 'trial',
@@ -308,7 +335,7 @@ exports.provisionOrg = functions.https.onCall(async (data, ctx) => {
 });
 
 exports.suspendOrg = functions.https.onCall(async (data, ctx) => {
-  if (ctx.auth?.token?.role !== 'master-admin')
+  if ((await getCallerProfile(ctx))?.role !== 'master-admin')
     throw new functions.https.HttpsError('permission-denied', 'master-admin only');
   await admin.firestore().doc(`organizations/${data.orgId}`).update({ status: 'suspended' });
   await admin.firestore().collection('audit_logs').add({
@@ -319,7 +346,7 @@ exports.suspendOrg = functions.https.onCall(async (data, ctx) => {
 });
 
 exports.impersonateUser = functions.https.onCall(async (data, ctx) => {
-  if (ctx.auth?.token?.role !== 'master-admin')
+  if ((await getCallerProfile(ctx))?.role !== 'master-admin')
     throw new functions.https.HttpsError('permission-denied', 'master-admin only');
   const token = await admin.auth().createCustomToken(data.targetUid, { impersonatedBy: ctx.auth.uid });
   await admin.firestore().collection('audit_logs').add({
@@ -342,7 +369,7 @@ exports.checkSeatLimit = functions.firestore.document('users/{uid}').onCreate(as
 exports.computeUsageStats = functions.pubsub.schedule('every 24 hours').onRun(async () => {
   const orgs = await admin.firestore().collection('organizations').get();
   for (const org of orgs.docs) {
-    const tasks = await admin.firestore().collection(`organizations/${org.id}/tasks`).get();
+    const tasks = await admin.firestore().collection('tasks').where('orgId', '==', org.id).get();
     const users = await admin.firestore().collection('users').where('orgId', '==', org.id).get();
     await admin.firestore().doc(`org_usage_stats/${org.id}`).set({
       activeUserCount: users.size, taskCount: tasks.size,

@@ -16,7 +16,8 @@ import {
   Target,
   Clock,
   TrendingUp,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import TaskManagement from '@/components/admin/TaskManagementNew';
 import PerformanceReports from '@/components/admin/PerformanceReports';
 import DesignationsManagement from '@/components/admin/DesignationsManagement';
 import AdminManagement from '@/components/admin/AdminManagement';
+import DepartmentsProjectsManagement from '@/components/admin/DepartmentsProjectsManagement';
 import NotificationBell from '@/components/shared/NotificationBell';
 import { AdminCommandCenter } from '@/components/admin/AdminCommandCenter';
 import { getAllUsers } from '@/services/userService';
@@ -92,7 +94,8 @@ const AdminDashboard = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'staff', label: 'Staff Management', icon: Users },
-    { id: 'admins', label: 'Admin Management', icon: Shield },
+    { id: 'admins', label: 'Department Heads & Managers', icon: Shield },
+    { id: 'departments', label: 'Departments & Projects', icon: Building2 },
     { id: 'designations', label: 'Designations', icon: Briefcase },
     { id: 'tasks', label: 'Task Management', icon: CheckSquare },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
@@ -319,6 +322,7 @@ const AdminDashboard = () => {
               <Route path="/" element={<DashboardOverview />} />
               <Route path="/staff" element={<StaffManagement />} />
               <Route path="/admins" element={<AdminManagement />} />
+              <Route path="/departments" element={<DepartmentsProjectsManagement />} />
               <Route path="/designations" element={<DesignationsManagement />} />
               <Route path="/tasks" element={<TaskManagement />} />
               <Route path="/reports" element={<PerformanceReports />} />
