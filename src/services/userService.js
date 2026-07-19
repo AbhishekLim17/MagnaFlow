@@ -63,13 +63,24 @@ export const getUserById = async (uid) => {
   try {
     const userDoc = await getDoc(doc(db, USERS_COLLECTION, uid));
     if (userDoc.exists()) {
-      return { id: userDoc.id, ...userDoc.data() };
+      return normalizeUser({ id: userDoc.id, ...userDoc.data() });
     }
     return null;
   } catch (error) {
     console.error('Error getting user:', error);
     throw error;
   }
+};
+
+// Role is matched by exact string throughout the app (routing, rules, context).
+// Manually bootstrapped accounts (the first master-admin, etc.) are created by
+// hand in the Firebase console, where a stray leading/trailing space in the
+// role silently sends the user to a blank screen. Trim it defensively on read.
+const normalizeUser = (user) => {
+  if (user && typeof user.role === 'string') {
+    user.role = user.role.trim();
+  }
+  return user;
 };
 
 /**
