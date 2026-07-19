@@ -1,15 +1,16 @@
-// Master Admin Dashboard - Global org provisioning, suspension, usage stats,
-// audit log, and user impersonation. Operates above any single organization.
+// Master Admin Dashboard - Global org provisioning, suspension, live usage,
+// and audit log. Operates above any single organization.
+// Note: user impersonation is intentionally absent — it requires the Firebase
+// Admin SDK (custom tokens), which needs Cloud Functions / the Blaze plan.
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { signInWithCustomToken } from 'firebase/auth';
 import {
   Building2,
   Plus,
   Ban,
+  Play,
   ScrollText,
-  UserCog,
   LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,17 +27,15 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/config/firebase';
 import {
   getAllOrganizations,
   provisionOrganization,
   suspendOrganization,
-  getOrgUsageStats,
+  reactivateOrganization,
+  computeOrgUsage,
   getAuditLogs,
-  impersonateUser as impersonateUserCall,
 } from '@/services/organizationService';
-import { createUser, getUserByEmail } from '@/services/userService';
-import { startImpersonationSession } from '@/components/shared/ImpersonationBanner';
+import { createUser } from '@/services/userService';
 
 const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
   const [form, setForm] = useState({
@@ -150,15 +149,13 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 };
 
 const MasterAdminDashboard = () => {
-  const { user, currentUser, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [organizations, setOrganizations] = useState([]);
   const [usageStats, setUsageStats] = useState({});
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
-  const [impersonateEmail, setImpersonateEmail] = useState('');
-  const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -171,8 +168,12 @@ const MasterAdminDashboard = () => {
       setOrganizations(orgs);
       setAuditLogs(logs);
 
+      // Compute usage live (no scheduled function on the Spark plan).
       const statsEntries = await Promise.all(
-        orgs.map(async (org) => [org.id, await getOrgUsageStats(org.id)])
+        orgs.map(async (org) => {
+          try { return [org.id, await computeOrgUsage(org.id)]; }
+          catch { return [org.id, null]; }
+        })
       );
       setUsageStats(Object.fromEntries(statsEntries));
     } catch (error) {
@@ -184,7 +185,7 @@ const MasterAdminDashboard = () => {
   };
 
   const handleSuspend = async (org) => {
-    if (!window.confirm(`Suspend "${org.name}"? Its org-admin and staff will lose access.`)) return;
+    if (!window.confirm(`Suspend "${org.name}"? Its org-admin and staff will be blocked at login.`)) return;
     try {
       await suspendOrganization(org.id);
       toast({ title: 'Organization suspended', description: `${org.name} has been suspended.` });
@@ -195,36 +196,14 @@ const MasterAdminDashboard = () => {
     }
   };
 
-  const handleImpersonate = async () => {
-    if (!impersonateEmail.trim()) return;
-    setImpersonating(true);
+  const handleReactivate = async (org) => {
     try {
-      const target = await getUserByEmail(impersonateEmail.trim());
-      if (!target) {
-        toast({ title: 'User not found', description: `No account with email ${impersonateEmail}`, variant: 'destructive' });
-        return;
-      }
-
-      // Mint BOTH tokens while still authenticated as master-admin (the
-      // impersonateUser callable requires master-admin) — the return token for
-      // our own account and the target token — before touching the session, so
-      // a failure can't leave us mid-switch with a stale banner.
-      const { token: returnToken } = await impersonateUserCall(currentUser.uid);
-      const { token: targetToken } = await impersonateUserCall(target.id);
-
-      startImpersonationSession({
-        returnToken,
-        targetName: target.name || target.email,
-        masterAdminEmail: currentUser.email,
-      });
-      await signInWithCustomToken(auth, targetToken);
-      // AuthContext's onAuthStateChanged picks up the new session and routes
-      // to the target user's own dashboard automatically.
+      await reactivateOrganization(org.id);
+      toast({ title: 'Organization reactivated', description: `${org.name} is active again.` });
+      loadAll();
     } catch (error) {
-      console.error('Error impersonating user:', error);
-      toast({ title: 'Failed to impersonate', description: error.message, variant: 'destructive' });
-    } finally {
-      setImpersonating(false);
+      console.error('Error reactivating organization:', error);
+      toast({ title: 'Failed to reactivate', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -279,25 +258,35 @@ const MasterAdminDashboard = () => {
                           <h3 className="font-semibold text-white">{org.name}</h3>
                           <p className="text-xs text-gray-400 capitalize">{org.plan} · {org.status}</p>
                         </div>
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-8 w-8 text-red-400 hover:bg-red-500/20"
-                          onClick={() => handleSuspend(org)}
-                          disabled={org.status === 'suspended'}
-                          title="Suspend organization"
-                        >
-                          <Ban className="w-4 h-4" />
-                        </Button>
+                        {org.status === 'suspended' ? (
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-8 w-8 text-green-400 hover:bg-green-500/20"
+                            onClick={() => handleReactivate(org)}
+                            title="Reactivate organization"
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-8 w-8 text-red-400 hover:bg-red-500/20"
+                            onClick={() => handleSuspend(org)}
+                            title="Suspend organization"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                       <div className="mt-3 text-sm text-gray-300 space-y-1">
                         <div>Seat limit: {org.seatLimit}</div>
                         {stats ? (
                           <>
-                            <div>Active users: {stats.activeUserCount}</div>
+                            <div>Users: {stats.activeUserCount}</div>
                             <div>Tasks: {stats.taskCount}</div>
                           </>
                         ) : (
-                          <div className="text-gray-500">Usage stats not computed yet (runs every 24h)</div>
+                          <div className="text-gray-500">Usage unavailable</div>
                         )}
                       </div>
                     </div>
@@ -305,30 +294,6 @@ const MasterAdminDashboard = () => {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Impersonate */}
-        <Card className="glass-effect p-6 mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <UserCog className="text-purple-300" /> Impersonate User
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="user@example.com"
-                value={impersonateEmail}
-                onChange={(e) => setImpersonateEmail(e.target.value)}
-                className="glass-effect border-white/20 text-white"
-              />
-              <Button onClick={handleImpersonate} disabled={impersonating} className="bg-indigo-600 hover:bg-indigo-700">
-                {impersonating ? 'Switching...' : 'Impersonate'}
-              </Button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">Signs you in as this user. A banner will let you return to your Master Admin session.</p>
           </CardContent>
         </Card>
 

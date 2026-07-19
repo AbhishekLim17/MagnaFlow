@@ -25,7 +25,6 @@ import StaffDashboard from "@/pages/StaffDashboard";
 import MasterAdminDashboard from "@/components/admin/MasterAdminDashboard";
 import DepartmentHeadDashboard from "@/pages/DepartmentHeadDashboard";
 import ManagerDashboard from "@/pages/ManagerDashboard";
-import ImpersonationBanner from "@/components/shared/ImpersonationBanner";
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -152,7 +151,6 @@ function App() {
               />
             </Helmet>
             <div className="min-h-screen">
-              <ImpersonationBanner />
               <AppRoutes />
               <Toaster />
             </div>

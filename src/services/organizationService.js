@@ -1,24 +1,42 @@
 // Organization Service - Organizations, Departments, Projects
-// Org-level CRUD (departments/projects) is direct Firestore; org-level
-// provisioning/suspension/impersonation runs through Cloud Functions since
-// those require elevated Admin SDK privileges the client doesn't have.
+// This app runs on the Firebase Spark (free) plan, which has no Cloud
+// Functions. All org operations are therefore direct Firestore writes, gated
+// entirely by the security rules (organizations write => master-admin only;
+// departments/projects write => that org's org-admin or master-admin). Actions
+// that genuinely require the Admin SDK (user impersonation, seat-limit
+// triggers, scheduled usage stats) are unavailable on this plan.
 
 import {
   collection,
   doc,
   getDoc,
   getDocs,
+  addDoc,
   setDoc,
   updateDoc,
   deleteDoc,
   query,
+  where,
   orderBy,
   Timestamp,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 
 const ORGS_COLLECTION = 'organizations';
+
+// Best-effort audit trail. Rules allow only master-admin to write audit_logs,
+// so this silently no-ops for other callers rather than failing their action.
+const writeAuditLog = async (entry) => {
+  try {
+    await addDoc(collection(db, 'audit_logs'), {
+      actorId: auth.currentUser?.uid || null,
+      timestamp: Timestamp.now(),
+      ...entry,
+    });
+  } catch (err) {
+    console.warn('Audit log write skipped:', err?.code || err?.message);
+  }
+};
 
 // ─── Organizations (master-admin) ──────────────────────────────────────────
 
@@ -33,44 +51,60 @@ export const getOrganizationById = async (orgId) => {
 };
 
 /**
- * Provision a new organization (master-admin only — enforced server-side).
+ * Provision a new organization. Security rules restrict organizations writes
+ * to master-admin, so this can only succeed for a master-admin.
  * @param {Object} orgData - {name, plan, seatLimit, storageQuotaMB, billingEmail, ccEmails}
  * @returns {Promise<{orgId: string}>}
  */
 export const provisionOrganization = async (orgData) => {
-  const functions = getFunctions();
-  const provisionOrg = httpsCallable(functions, 'provisionOrg');
-  const { data } = await provisionOrg(orgData);
-  return data;
+  const orgRef = doc(collection(db, ORGS_COLLECTION));
+  await setDoc(orgRef, {
+    name: orgData.name,
+    plan: orgData.plan ?? 'trial',
+    status: orgData.plan === 'active' ? 'active' : 'trial',
+    seatLimit: orgData.seatLimit ?? 10,
+    storageQuotaMB: orgData.storageQuotaMB ?? 1000,
+    billingEmail: orgData.billingEmail ?? '',
+    ccEmails: orgData.ccEmails ?? [],
+    createdAt: Timestamp.now(),
+    createdByMasterAdminId: auth.currentUser?.uid || null,
+  });
+  await writeAuditLog({ action: 'provision_org', targetOrgId: orgRef.id });
+  return { orgId: orgRef.id };
 };
 
 /**
- * Suspend an organization (master-admin only — enforced server-side).
+ * Suspend an organization (master-admin only, enforced by rules).
  * @param {string} orgId
  */
 export const suspendOrganization = async (orgId) => {
-  const functions = getFunctions();
-  const suspendOrg = httpsCallable(functions, 'suspendOrg');
-  return (await suspendOrg({ orgId })).data;
+  await updateDoc(doc(db, ORGS_COLLECTION, orgId), { status: 'suspended' });
+  await writeAuditLog({ action: 'suspend_org', targetOrgId: orgId });
+  return { success: true };
 };
 
 /**
- * Mint a custom auth token to sign in as another user (master-admin only —
- * enforced server-side). Caller is responsible for calling
- * signInWithCustomToken(auth, token) and for restoring the master-admin's
- * own session afterwards.
- * @param {string} targetUid
- * @returns {Promise<{token: string}>}
+ * Reactivate a suspended organization.
+ * @param {string} orgId
  */
-export const impersonateUser = async (targetUid) => {
-  const functions = getFunctions();
-  const impersonate = httpsCallable(functions, 'impersonateUser');
-  return (await impersonate({ targetUid })).data;
+export const reactivateOrganization = async (orgId) => {
+  await updateDoc(doc(db, ORGS_COLLECTION, orgId), { status: 'active' });
+  await writeAuditLog({ action: 'reactivate_org', targetOrgId: orgId });
+  return { success: true };
 };
 
-export const getOrgUsageStats = async (orgId) => {
-  const statsDoc = await getDoc(doc(db, 'org_usage_stats', orgId));
-  return statsDoc.exists() ? statsDoc.data() : null;
+/**
+ * Compute live usage for an org (user + task counts). Replaces the scheduled
+ * computeUsageStats Cloud Function, which isn't available on the Spark plan.
+ * Master-admin can read all users/tasks per the security rules.
+ * @param {string} orgId
+ */
+export const computeOrgUsage = async (orgId) => {
+  const [usersSnap, tasksSnap] = await Promise.all([
+    getDocs(query(collection(db, 'users'), where('orgId', '==', orgId))),
+    getDocs(query(collection(db, 'tasks'), where('orgId', '==', orgId))),
+  ]);
+  return { activeUserCount: usersSnap.size, taskCount: tasksSnap.size };
 };
 
 export const getAuditLogs = async () => {

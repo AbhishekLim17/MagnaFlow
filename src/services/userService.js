@@ -1,26 +1,24 @@
 // User Service - Handles all user-related Firebase operations
 // CRUD operations for user management (Admin functionality)
 
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
-  deleteUser as deleteAuthUser,
   signOut,
-  updatePassword,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, secondaryAuth } from '@/config/firebase';
 
 // Collection reference
@@ -262,18 +260,20 @@ export const updateUser = async (uid, updates) => {
 };
 
 /**
- * Delete user — Auth account + Firestore doc, atomically, via the
- * deleteUserAccount Cloud Function (requires elevated Admin SDK privileges
- * that the client doesn't have).
+ * Delete a user's Firestore record. Security rules restrict this to the user's
+ * own org-admin / master-admin. Deleting the underlying Firebase Auth account
+ * requires the Admin SDK (Cloud Functions / Blaze plan), which isn't available
+ * on this project — so the Auth account remains and must be removed manually in
+ * the Firebase console if you want to free up the email address. The user is
+ * effectively locked out regardless, since login requires a matching Firestore
+ * doc (which is now gone).
  * @param {string} uid - User ID
  * @returns {Promise<void>}
  */
 export const deleteUser = async (uid) => {
   try {
-    const functions = getFunctions();
-    const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-    await deleteUserAccount({ uid });
-    console.log('✅ User account deleted (Auth + Firestore).');
+    await deleteDoc(doc(db, USERS_COLLECTION, uid));
+    console.log('✅ User record removed. (Auth account cleanup is manual on the free plan.)');
   } catch (error) {
     console.error('Error deleting user:', error);
     throw error;
