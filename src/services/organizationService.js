@@ -51,14 +51,25 @@ export const getOrganizationById = async (orgId) => {
 };
 
 /**
- * Provision a new organization. Security rules restrict organizations writes
- * to master-admin, so this can only succeed for a master-admin.
+ * Reserve an organization ID without writing anything yet. Provisioning
+ * creates the first org-admin's Auth account BEFORE writing the organization
+ * doc (see MasterAdminDashboard) — if account creation fails (e.g. email
+ * already in use), nothing should be left behind. Generating the ID up front
+ * lets both writes share it without creating the org doc prematurely.
+ * @returns {string}
+ */
+export const generateOrgId = () => doc(collection(db, ORGS_COLLECTION)).id;
+
+/**
+ * Provision a new organization under a given ID (see generateOrgId). Security
+ * rules restrict organizations writes to master-admin, so this can only
+ * succeed for a master-admin.
+ * @param {string} orgId - from generateOrgId()
  * @param {Object} orgData - {name, plan, seatLimit, storageQuotaMB, billingEmail, ccEmails}
  * @returns {Promise<{orgId: string}>}
  */
-export const provisionOrganization = async (orgData) => {
-  const orgRef = doc(collection(db, ORGS_COLLECTION));
-  await setDoc(orgRef, {
+export const provisionOrganization = async (orgId, orgData) => {
+  await setDoc(doc(db, ORGS_COLLECTION, orgId), {
     name: orgData.name,
     plan: orgData.plan ?? 'trial',
     status: orgData.plan === 'active' ? 'active' : 'trial',
@@ -69,8 +80,8 @@ export const provisionOrganization = async (orgData) => {
     createdAt: Timestamp.now(),
     createdByMasterAdminId: auth.currentUser?.uid || null,
   });
-  await writeAuditLog({ action: 'provision_org', targetOrgId: orgRef.id });
-  return { orgId: orgRef.id };
+  await writeAuditLog({ action: 'provision_org', targetOrgId: orgId });
+  return { orgId };
 };
 
 /**

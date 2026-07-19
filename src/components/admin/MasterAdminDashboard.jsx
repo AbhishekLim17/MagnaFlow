@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getAllOrganizations,
+  generateOrgId,
   provisionOrganization,
   suspendOrganization,
   reactivateOrganization,
@@ -53,15 +54,11 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 
     setLoading(true);
     try {
-      const { orgId } = await provisionOrganization({
-        name: form.name,
-        plan: form.plan,
-        seatLimit: Number(form.seatLimit) || 10,
-        storageQuotaMB: Number(form.storageQuotaMB) || 1000,
-        billingEmail: form.billingEmail,
-        ccEmails: form.ccEmails ? form.ccEmails.split(',').map(s => s.trim()).filter(Boolean) : [],
-      });
-
+      // Create the org-admin account FIRST (most likely failure point — email
+      // already in use, weak password). Only write the organization doc if
+      // that succeeds, so a failed attempt never leaves an orphaned org with
+      // no admin.
+      const orgId = generateOrgId();
       await createUser({
         name: form.adminName,
         email: form.adminEmail,
@@ -69,6 +66,15 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
         role: 'org-admin',
         designation: 'Organization Admin',
         orgId,
+      });
+
+      await provisionOrganization(orgId, {
+        name: form.name,
+        plan: form.plan,
+        seatLimit: Number(form.seatLimit) || 10,
+        storageQuotaMB: Number(form.storageQuotaMB) || 1000,
+        billingEmail: form.billingEmail,
+        ccEmails: form.ccEmails ? form.ccEmails.split(',').map(s => s.trim()).filter(Boolean) : [],
       });
 
       toast({ title: 'Organization provisioned', description: `${form.name} is live with ${form.adminName} as its org-admin.` });
