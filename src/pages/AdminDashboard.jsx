@@ -17,7 +17,8 @@ import {
   Clock,
   TrendingUp,
   Shield,
-  Building2
+  Building2,
+  GanttChartSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +34,7 @@ import PerformanceReports from '@/components/admin/PerformanceReports';
 import DesignationsManagement from '@/components/admin/DesignationsManagement';
 import AdminManagement from '@/components/admin/AdminManagement';
 import DepartmentsProjectsManagement from '@/components/admin/DepartmentsProjectsManagement';
+import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import NotificationBell from '@/components/shared/NotificationBell';
 import { AdminCommandCenter } from '@/components/admin/AdminCommandCenter';
 import { getAllUsers } from '@/services/userService';
@@ -98,6 +100,7 @@ const AdminDashboard = () => {
     { id: 'departments', label: 'Departments & Projects', icon: Building2 },
     { id: 'designations', label: 'Designations', icon: Briefcase },
     { id: 'tasks', label: 'Task Management', icon: CheckSquare },
+    { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   ];
 
@@ -325,6 +328,7 @@ const AdminDashboard = () => {
               <Route path="/departments" element={<DepartmentsProjectsManagement />} />
               <Route path="/designations" element={<DesignationsManagement />} />
               <Route path="/tasks" element={<TaskManagement />} />
+              <Route path="/timeline" element={<ProjectTimeline />} />
               <Route path="/reports" element={<PerformanceReports />} />
             </Routes>
           </div>

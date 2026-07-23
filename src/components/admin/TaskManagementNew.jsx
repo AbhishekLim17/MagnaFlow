@@ -38,6 +38,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
+import { getProjects } from '@/services/organizationService';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
@@ -160,6 +161,7 @@ const TaskManagement = () => {
   const { tasks, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
   const [staff, setStaff] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -177,14 +179,18 @@ const TaskManagement = () => {
     assignedTo: '',
     priority: 'medium',
     status: 'pending',
+    startDate: '',
     deadline: '',
+    projectId: '',
   });
 
   const { toast } = useToast();
 
   useEffect(() => {
     loadStaff();
+    loadProjects();
     refreshTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadStaff = async () => {
@@ -194,6 +200,27 @@ const TaskManagement = () => {
     } catch (error) {
       console.error('Error loading staff:', error);
     }
+  };
+
+  const loadProjects = async () => {
+    if (!currentUser?.orgId) return;
+    try {
+      const projs = await getProjects(currentUser.orgId);
+      setProjects(projs);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
+
+  // Build the task payload, attaching the selected project (and its department,
+  // so department-heads see the task too) for the Gantt view.
+  const buildTaskPayload = () => {
+    const project = projects.find((p) => p.id === formData.projectId);
+    return {
+      ...formData,
+      projectId: formData.projectId || undefined,
+      departmentId: project?.departmentId || undefined,
+    };
   };
 
   const handleAddTask = async () => {
@@ -207,7 +234,7 @@ const TaskManagement = () => {
     }
 
     try {
-      await createTask(formData);
+      await createTask(buildTaskPayload());
       setIsAddDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -226,7 +253,7 @@ const TaskManagement = () => {
     }
 
     try {
-      await updateTask(selectedTask.id, formData);
+      await updateTask(selectedTask.id, buildTaskPayload());
       setIsEditDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -254,7 +281,9 @@ const TaskManagement = () => {
       assignedTo: task.assignedTo,
       priority: task.priority,
       status: task.status,
+      startDate: task.startDate ? formatDateForInput(task.startDate) : '',
       deadline: task.deadline ? formatDateForInput(task.deadline) : '',
+      projectId: task.projectId || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -271,7 +300,9 @@ const TaskManagement = () => {
       assignedTo: '',
       priority: 'medium',
       status: 'pending',
+      startDate: '',
       deadline: '',
+      projectId: '',
     });
     setSelectedTask(null);
   };
@@ -508,6 +539,35 @@ const TaskManagement = () => {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              <div>
+                <Label htmlFor="project">Project</Label>
+                <Select
+                  value={formData.projectId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, projectId: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsAddDialogOpen(false); resetForm(); }}>
@@ -609,6 +669,35 @@ const TaskManagement = () => {
                   onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                   className="bg-gray-800/50 border-gray-700"
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-startDate">Start Date</Label>
+                <Input
+                  id="edit-startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-project">Project</Label>
+                <Select
+                  value={formData.projectId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, projectId: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
