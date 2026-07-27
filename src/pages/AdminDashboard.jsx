@@ -96,7 +96,7 @@ const AdminDashboard = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'staff', label: 'Staff Management', icon: Users },
-    { id: 'admins', label: 'Department Heads & Managers', icon: Shield },
+    { id: 'admins', label: 'Dept. Heads & Managers', icon: Shield },
     { id: 'departments', label: 'Departments & Projects', icon: Building2 },
     { id: 'designations', label: 'Designations', icon: Briefcase },
     { id: 'tasks', label: 'Task Management', icon: CheckSquare },
@@ -171,7 +171,7 @@ const AdminDashboard = () => {
               }`}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium whitespace-nowrap">{item.label}</span>
+              <span className="font-medium text-left leading-tight">{item.label}</span>
             </motion.button>
           ))}
         </nav>
