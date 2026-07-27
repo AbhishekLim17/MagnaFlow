@@ -51,7 +51,9 @@ const ProjectTimeline = () => {
     (async () => {
       setLoadingTasks(true);
       try {
-        const data = await getAllTasks({ projectId: selectedProjectId });
+        // orgId is required alongside projectId: the task-read rules are
+        // org-scoped, so Firestore rejects a projectId-only query.
+        const data = await getAllTasks({ orgId: currentUser.orgId, projectId: selectedProjectId });
         setTasks(data);
       } catch (error) {
         console.error('Error loading project tasks:', error);
@@ -71,6 +73,16 @@ const ProjectTimeline = () => {
 
   const getStaffName = (uid) => userMap[uid] || null;
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+
+  // Legacy admins without an org can't have projects to chart.
+  if (!currentUser?.orgId) {
+    return (
+      <div className="text-center py-16 text-gray-400 max-w-lg mx-auto">
+        <h2 className="text-xl font-semibold text-gray-300 mb-2">No organization linked</h2>
+        <p>This account isn't part of an organization, so there are no projects to chart. Sign in with an organization-admin account.</p>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
