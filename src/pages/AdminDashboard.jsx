@@ -25,7 +25,7 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 
 // Import admin components
 import StaffManagement from '@/components/admin/StaffManagementNew';
@@ -285,6 +285,7 @@ const AdminDashboard = () => {
         {/* Mobile Sidebar */}
         <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
           <SheetContent side="left" className="w-64 p-0 bg-gray-900 border-gray-800">
+            <SheetTitle className="sr-only">Navigation menu</SheetTitle>
             <SidebarContent />
           </SheetContent>
         </Sheet>

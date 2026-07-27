@@ -122,7 +122,7 @@ const StaffManagement = () => {
       if (error.message && error.message.includes('Email already registered')) {
         toast({
           title: "⚠️ Email Already Exists",
-          description: "This email is already registered. Check the System tab or use a different email.",
+          description: "This email is already registered. Use a different email, or remove the old sign-in from Firebase Console → Authentication.",
           variant: "destructive",
           duration: 5000,
         });

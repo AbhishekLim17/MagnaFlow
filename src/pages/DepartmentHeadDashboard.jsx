@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, CheckSquare, Users, Plus, Mail } from 'lucide-react';
+import { LogOut, CheckSquare, Users, Plus, Mail, GanttChartSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
 import { getAllUsers, createUser } from '@/services/userService';
+import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 
 const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, departmentId }) => {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -156,6 +157,17 @@ const DepartmentHeadDashboard = () => {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="glass-effect p-6 mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <GanttChartSquare className="text-purple-300" /> Department Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProjectGanttChart tasks={tasks} getStaffName={(uid) => staff.find((s) => s.id === uid)?.name || null} />
           </CardContent>
         </Card>
 
