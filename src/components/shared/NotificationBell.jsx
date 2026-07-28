@@ -18,12 +18,15 @@ const NotificationBell = () => {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Subscribe to notifications
+  // Subscribe to notifications. Keyed on the uid (a stable string) rather than
+  // the currentUser object so the listener isn't torn down and recreated on
+  // every parent re-render.
+  const userId = currentUser?.uid;
   useEffect(() => {
-    if (!currentUser) return;
+    if (!userId) return undefined;
 
     const unsubscribe = subscribeToUnreadNotifications(
-      currentUser.uid,
+      userId,
       (fetchedNotifications) => {
         setNotifications(fetchedNotifications);
         setUnreadCount(fetchedNotifications.length);
@@ -35,7 +38,7 @@ const NotificationBell = () => {
         unsubscribe();
       }
     };
-  }, [currentUser]);
+  }, [userId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

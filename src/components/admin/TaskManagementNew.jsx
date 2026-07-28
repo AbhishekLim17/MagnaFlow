@@ -160,7 +160,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
 const TaskManagement = () => {
   const { tasks, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
-  const [staff, setStaff] = useState([]);
+  const [staff, setStaff] = useState([]);        // assignable in this scope
   const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -186,6 +186,14 @@ const TaskManagement = () => {
 
   const { toast } = useToast();
 
+  // This component serves org-admins, department-heads and managers. The task
+  // LIST is already role-scoped by TasksContext; what varies here is which
+  // staff can be assigned and which projects can be picked.
+  const role = currentUser?.role;
+  const isDeptHead = role === 'department-head';
+  const isManager = role === 'manager';
+  const isScoped = isDeptHead || isManager;
+
   useEffect(() => {
     loadStaff();
     loadProjects();
@@ -195,7 +203,12 @@ const TaskManagement = () => {
 
   const loadStaff = async () => {
     try {
-      const staffList = await getAllUsers({ role: 'staff' });
+      // Scoped roles may only assign work to staff inside their own
+      // department/project; org-admins can assign to anyone in the org.
+      const filters = { role: 'staff' };
+      if (isDeptHead) filters.departmentIds = currentUser?.departmentIds || [];
+      if (isManager) filters.projectIds = currentUser?.projectIds || [];
+      const staffList = await getAllUsers(filters);
       setStaff(staffList);
     } catch (error) {
       console.error('Error loading staff:', error);
@@ -205,22 +218,34 @@ const TaskManagement = () => {
   const loadProjects = async () => {
     if (!currentUser?.orgId) return;
     try {
-      const projs = await getProjects(currentUser.orgId);
-      setProjects(projs);
+      const all = await getProjects(currentUser.orgId);
+      // Narrow the project picker to the caller's own scope.
+      let visible = all;
+      if (isManager) {
+        const mine = currentUser?.projectIds || [];
+        visible = all.filter((p) => mine.includes(p.id));
+      } else if (isDeptHead) {
+        const mine = currentUser?.departmentIds || [];
+        visible = all.filter((p) => mine.includes(p.departmentId));
+      }
+      setProjects(visible);
     } catch (error) {
       console.error('Error loading projects:', error);
     }
   };
 
   // Build the task payload, attaching the selected project (and its department,
-  // so department-heads see the task too) for the Gantt view.
+  // so department-heads see the task too) for the Gantt view. Scoped roles fall
+  // back to their own project/department when they don't pick one explicitly.
   const buildTaskPayload = () => {
-    const project = projects.find((p) => p.id === formData.projectId);
-    return {
-      ...formData,
-      projectId: formData.projectId || undefined,
-      departmentId: project?.departmentId || undefined,
-    };
+    let projectId = formData.projectId || undefined;
+    if (!projectId && isManager) projectId = currentUser?.projectIds?.[0];
+
+    const project = projects.find((p) => p.id === projectId);
+    let departmentId = project?.departmentId || undefined;
+    if (!departmentId && isDeptHead) departmentId = currentUser?.departmentIds?.[0];
+
+    return { ...formData, projectId, departmentId };
   };
 
   const handleAddTask = async () => {
@@ -323,9 +348,15 @@ const TaskManagement = () => {
     });
   };
 
+  // A scoped manager/department-head can only read user docs inside their own
+  // scope (enforced by the Firestore rules), so a task assigned to someone
+  // outside it can't be resolved to a name. Say that plainly rather than
+  // mislabelling an assigned task as "Unassigned".
   const getStaffName = (userId) => {
-    const staffMember = staff.find(s => s.id === userId);
-    return staffMember?.name || 'Unassigned';
+    if (!userId) return 'Unassigned';
+    const known = staff.find((s) => s.id === userId);
+    if (known) return known.name || known.email;
+    return isScoped ? 'Outside your team' : 'Unassigned';
   };
 
   const getPriorityBadge = (priority) => {

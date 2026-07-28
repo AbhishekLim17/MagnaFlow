@@ -115,9 +115,13 @@ service cloud.firestore {
         || resource.data.assignedTo == request.auth.uid
         || resource.data.createdBy == request.auth.uid
       );
+      // Department-heads and managers own the tasks inside their scope, so they
+      // may delete them — not just the ones they personally created.
       allow delete: if isSignedIn() && (
         isOrgAdmin(resource.data.get('orgId', null))
         || isMasterAdmin()
+        || isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
+        || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null))
         || resource.data.createdBy == request.auth.uid
       );
     }

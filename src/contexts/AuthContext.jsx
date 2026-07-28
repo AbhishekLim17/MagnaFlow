@@ -1,7 +1,7 @@
 // AuthContext - Firebase Authentication Integration
 // Handles user authentication, session management, and role-based access
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -180,24 +180,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  // Memoized so its identity only changes when the underlying user changes.
+  // Consumers put `currentUser` in useEffect dependency arrays (NotificationBell
+  // subscribes a Firestore listener on it); rebuilding this object on every
+  // render made those effects re-run constantly, tearing down and re-creating
+  // listeners and producing spurious permission-denied errors mid-teardown.
+  const currentUser = useMemo(() => (
+    user
+      ? {
+          uid: user.id || user.uid, // Use id or fallback to uid
+          id: user.id || user.uid,
+          displayName: user.name,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          orgId: user.orgId ?? null,
+          departmentIds: user.departmentIds ?? [],
+          projectIds: user.projectIds ?? [],
+        }
+      : null
+  ), [user]);
+
+  const value = useMemo(() => ({
     user,
-    currentUser: user ? {
-      uid: user.id || user.uid, // Use id or fallback to uid
-      id: user.id || user.uid,
-      displayName: user.name,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      orgId: user.orgId ?? null,
-      departmentIds: user.departmentIds ?? [],
-      projectIds: user.projectIds ?? [],
-    } : null,
+    currentUser,
     isAuthenticated,
     loading,
     login,
     logout,
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [user, currentUser, isAuthenticated, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

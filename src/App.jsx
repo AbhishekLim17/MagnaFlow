@@ -23,8 +23,7 @@ import LoginPage from "@/pages/LoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import StaffDashboard from "@/pages/StaffDashboard";
 import MasterAdminDashboard from "@/components/admin/MasterAdminDashboard";
-import DepartmentHeadDashboard from "@/pages/DepartmentHeadDashboard";
-import ManagerDashboard from "@/pages/ManagerDashboard";
+import ScopedDashboard from "@/pages/ScopedDashboard";
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -86,7 +85,7 @@ function AppRoutes() {
         path="/department/*"
         element={
           <ProtectedRoute allowedRoles={DEPARTMENT_HEAD_ROLES}>
-            <DepartmentHeadDashboard />
+            <ScopedDashboard scope="department" />
           </ProtectedRoute>
         }
       />
@@ -94,12 +93,12 @@ function AppRoutes() {
         path="/manager/*"
         element={
           <ProtectedRoute allowedRoles={MANAGER_ROLES}>
-            <ManagerDashboard />
+            <ScopedDashboard scope="project" />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/staff"
+        path="/staff/*"
         element={
           <ProtectedRoute allowedRoles={STAFF_ROLES}>
             <StaffDashboard />

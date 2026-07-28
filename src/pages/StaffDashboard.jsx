@@ -35,7 +35,8 @@ import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
-import NotificationBell from '@/components/shared/NotificationBell';
+import DashboardLayout from '@/components/shared/DashboardLayout';
+import StatCard from '@/components/shared/StatCard';
 import { useCommentCountStatic } from '@/hooks/useCommentCountStatic';
 import { useSubtaskCountStatic } from '@/hooks/useSubtaskCountStatic';
 import { useCommentCount } from '@/hooks/useCommentCount';
@@ -260,34 +261,35 @@ const StaffDashboard = () => {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  // Dashboard statistics
+  // Dashboard statistics. Colors are semantic StatCard keys, not raw Tailwind
+  // tokens — interpolated class names get stripped by Tailwind's JIT.
   const dashboardStats = [
-    { 
-      title: 'Total Tasks', 
-      value: statistics?.total || 0, 
-      icon: Target, 
-      color: 'blue-600',
+    {
+      title: 'Total Tasks',
+      value: statistics?.total || 0,
+      icon: Target,
+      color: 'blue',
       description: 'Assigned to you'
     },
-    { 
-      title: 'Pending', 
-      value: statistics?.pending || 0, 
-      icon: AlertCircle, 
-      color: 'slate-600',
+    {
+      title: 'Pending',
+      value: statistics?.pending || 0,
+      icon: AlertCircle,
+      color: 'slate',
       description: 'Awaiting start'
     },
-    { 
-      title: 'In Progress', 
-      value: statistics?.inProgress || 0, 
-      icon: TrendingUp, 
-      color: 'indigo-600',
+    {
+      title: 'In Progress',
+      value: statistics?.inProgress || 0,
+      icon: TrendingUp,
+      color: 'indigo',
       description: 'Currently working'
     },
-    { 
-      title: 'Completed', 
-      value: statistics?.completed || 0, 
-      icon: CheckSquare, 
-      color: 'teal-600',
+    {
+      title: 'Completed',
+      value: statistics?.completed || 0,
+      icon: CheckSquare,
+      color: 'teal',
       description: 'Successfully done'
     },
   ];
@@ -324,55 +326,28 @@ const StaffDashboard = () => {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-gray-900/80 backdrop-blur-xl border-b border-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <CheckSquare className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold gradient-text">MagnaFlow</h1>
-              <p className="text-sm text-gray-400">Staff Dashboard</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <NotificationBell />
-            <div className="flex items-center space-x-3 px-4 py-2 bg-gray-800/50 rounded-lg">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                {user?.name?.charAt(0) || 'S'}
-              </div>
-              <div>
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-gray-400">{user?.designation || 'Staff'}</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
-              onClick={() => setShowChangePassword(true)}
-            >
-              <KeyRound className="w-4 h-4 mr-2" />
-              Change Password
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+  const headerActions = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+      onClick={() => setShowChangePassword(true)}
+    >
+      <KeyRound className="w-4 h-4 sm:mr-2" />
+      <span className="hidden sm:inline">Change Password</span>
+    </Button>
+  );
 
-      {/* Main Content */}
-      <main className="p-6 space-y-6">
+  return (
+    <DashboardLayout
+      subtitle="Staff Panel"
+      menuItems={[{ id: 'dashboard', label: 'My Tasks', icon: CheckSquare }]}
+      activeTab="dashboard"
+      onTabChange={() => {}}
+      title="My Tasks"
+      headerActions={headerActions}
+    >
+      <main className="space-y-6">
         {/* Welcome Section */}
         <div>
           <h2 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h2>
@@ -380,27 +355,17 @@ const StaffDashboard = () => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {dashboardStats.map((stat, index) => (
-            <motion.div
+            <StatCard
               key={stat.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-lg bg-${stat.color} shadow-lg flex items-center justify-center`}>
-                      <stat.icon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <h3 className="text-3xl font-bold text-white mb-1">{stat.value}</h3>
-                  <p className="text-sm text-gray-400">{stat.title}</p>
-                  <p className="text-xs text-gray-500 mt-2">{stat.description}</p>
-                </div>
-              </Card>
-            </motion.div>
+              title={stat.title}
+              value={stat.value}
+              icon={stat.icon}
+              color={stat.color}
+              description={stat.description}
+              index={index}
+            />
           ))}
         </div>
 
@@ -518,7 +483,7 @@ const StaffDashboard = () => {
         open={showChangePassword}
         onOpenChange={setShowChangePassword}
       />
-    </div>
+    </DashboardLayout>
   );
 };
 
