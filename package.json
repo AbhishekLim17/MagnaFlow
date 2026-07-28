@@ -36,7 +36,7 @@
     "lucide-react": "^0.468.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react-helmet": "^6.1.0",
+    "react-helmet-async": "^3.0.0",
     "react-router-dom": "^6.16.0",
     "recharts": "^2.8.0",
     "resend": "^6.4.2",

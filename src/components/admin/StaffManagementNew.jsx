@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useDesignations } from '@/contexts/DesignationsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { getDepartments, getProjects } from '@/services/organizationService';
 import {
   getAllUsers,
   createUser,
@@ -65,14 +67,45 @@ const StaffManagement = () => {
     password: '',
     designation: '',
     status: 'active',
+    departmentId: '',
+    projectId: '',
   });
 
+  // Departments/projects a staff member can be assigned to. Without an
+  // assignment, department heads and managers can't see their own people.
+  const [departments, setDepartments] = useState([]);
+  const [projects, setProjects] = useState([]);
+
   const { designations } = useDesignations();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     loadStaff();
+    loadOrgStructure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadOrgStructure = async () => {
+    if (!currentUser?.orgId) return;
+    try {
+      const [depts, projs] = await Promise.all([
+        getDepartments(currentUser.orgId),
+        getProjects(currentUser.orgId),
+      ]);
+      setDepartments(depts);
+      setProjects(projs);
+    } catch (error) {
+      console.error('Error loading departments/projects:', error);
+    }
+  };
+
+  // Translate the two single-select fields into the array fields the data
+  // model and security rules use.
+  const scopeFields = () => ({
+    departmentIds: formData.departmentId ? [formData.departmentId] : [],
+    projectIds: formData.projectId ? [formData.projectId] : [],
+  });
 
   const loadStaff = async () => {
     try {
@@ -103,9 +136,10 @@ const StaffManagement = () => {
     try {
       await createUser({
         ...formData,
+        ...scopeFields(),
         role: 'staff',
       });
-      
+
       toast({
         title: "✅ Staff Added Successfully!",
         description: `${formData.name} has been added and can now login.`,
@@ -151,6 +185,7 @@ const StaffManagement = () => {
         name: formData.name,
         designation: formData.designation,
         status: formData.status,
+        ...scopeFields(),
       });
       
       toast({
@@ -256,6 +291,8 @@ const StaffManagement = () => {
       password: '',
       designation: staffMember.designation || '',
       status: staffMember.status || 'active',
+      departmentId: staffMember.departmentIds?.[0] || '',
+      projectId: staffMember.projectIds?.[0] || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -272,6 +309,8 @@ const StaffManagement = () => {
       password: '',
       designation: '',
       status: 'active',
+      departmentId: '',
+      projectId: '',
     });
     setSelectedStaff(null);
   };
@@ -475,6 +514,45 @@ const StaffManagement = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="department">Department</Label>
+                <Select
+                  value={formData.departmentId || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, departmentId: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No department</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="project">Project</Label>
+                <Select
+                  value={formData.projectId || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, projectId: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              Assigning a department or project lets that Department Head / Manager see this person on their dashboard.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsAddDialogOpen(false); resetForm(); }}>
@@ -546,6 +624,45 @@ const StaffManagement = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-department">Department</Label>
+                <Select
+                  value={formData.departmentId || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, departmentId: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No department</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-project">Project</Label>
+                <Select
+                  value={formData.projectId || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, projectId: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              Assigning a department or project lets that Department Head / Manager see this person on their dashboard.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); resetForm(); }}>
