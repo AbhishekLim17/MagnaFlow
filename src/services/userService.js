@@ -227,19 +227,14 @@ export const createUser = async (userData) => {
     // Provide helpful error messages
     if (error.code === 'auth/email-already-in-use') {
       const helpfulError = new Error(
-        `❌ Email already registered: ${email}\n\n` +
-        `This email exists in Firebase Authentication but may have been deleted from your portal.\n\n` +
-        `📋 TO FIX:\n` +
-        `1. Go to Firebase Console: https://console.firebase.google.com/project/magnaflow-07sep25/authentication/users\n` +
-        `2. Search for: ${email}\n` +
-        `3. Click the ⋮ menu → Delete account\n` +
-        `4. Try adding this user again\n\n` +
-        `💡 TIP: Check Admin Dashboard → System tab for pending deletions.`
+        `This email (${email}) is already registered. ` +
+        `If the account was removed from the portal, its Firebase sign-in still exists — ` +
+        `delete it from Firebase Console → Authentication, then try again, or use a different email.`
       );
       helpfulError.code = error.code;
       throw helpfulError;
     }
-    
+
     throw error;
   }
 };

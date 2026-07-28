@@ -139,6 +139,7 @@ export const createTask = async (taskData) => {
       assignedTo,
       priority = 'medium',
       status = 'pending',
+      startDate,
       deadline,
       createdBy,
       departmentId,
@@ -159,6 +160,7 @@ export const createTask = async (taskData) => {
       assignedTo: assignedTo || null,
       priority: priority,
       status: status,
+      startDate: startDate ? Timestamp.fromDate(new Date(startDate)) : null,
       deadline: deadline ? Timestamp.fromDate(new Date(deadline)) : null,
       createdBy: createdBy,
       ...(orgId !== undefined && { orgId }),
@@ -205,7 +207,12 @@ export const updateTask = async (taskId, updates) => {
     if (updates.deadline && typeof updates.deadline === 'string') {
       updatedData.deadline = Timestamp.fromDate(new Date(updates.deadline));
     }
-    
+
+    // Convert startDate to Timestamp if it's a string
+    if (updates.startDate && typeof updates.startDate === 'string') {
+      updatedData.startDate = Timestamp.fromDate(new Date(updates.startDate));
+    }
+
     await updateDoc(taskRef, updatedData);
     
     // Return updated task

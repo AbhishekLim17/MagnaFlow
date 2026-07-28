@@ -174,7 +174,6 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           value={stats.completedToday}
           icon={<CheckCircle className="w-5 h-5" />}
           color="green"
-          trend="+12%"
         />
         <StatCard
           title="In Progress"

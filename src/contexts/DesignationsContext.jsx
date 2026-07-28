@@ -13,6 +13,7 @@ import {
 import { getAllUsers } from '@/services/userService';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DesignationsContext = createContext();
 
@@ -24,20 +25,27 @@ export const DesignationsProvider = ({ children }) => {
   const [designations, setDesignations] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
-  // Load designations from Firebase on mount with real-time listener
+  // The designations collection requires an authenticated user (Firestore
+  // rules). Only open the listener once signed in — otherwise it spams
+  // permission-denied errors on the login screen.
   useEffect(() => {
+    if (!isAuthenticated) {
+      setDesignations([]);
+      setLoading(false);
+      return undefined;
+    }
+
     console.log("🚀 Setting up designations real-time listener");
-    
-    // Set up real-time listener for instant updates
     const unsubscribe = setupDesignationsListener();
-    
-    // Cleanup listener on unmount
+
     return () => {
       console.log("🔌 Cleaning up designations listener");
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Set up real-time listener for designations
   const setupDesignationsListener = () => {

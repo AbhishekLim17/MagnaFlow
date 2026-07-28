@@ -85,6 +85,45 @@ export const provisionOrganization = async (orgId, orgData) => {
 };
 
 /**
+ * Update an organization's editable fields (master-admin only, enforced by
+ * rules). Accepts any of: name, plan, seatLimit, storageQuotaMB, billingEmail,
+ * ccEmails. Does not touch status (use suspend/reactivate) or createdAt.
+ * @param {string} orgId
+ * @param {Object} updates
+ */
+export const updateOrganization = async (orgId, updates) => {
+  const allowed = ['name', 'plan', 'seatLimit', 'storageQuotaMB', 'billingEmail', 'ccEmails'];
+  const patch = {};
+  for (const k of allowed) {
+    if (updates[k] !== undefined) patch[k] = updates[k];
+  }
+  await updateDoc(doc(db, ORGS_COLLECTION, orgId), patch);
+  await writeAuditLog({ action: 'update_org', targetOrgId: orgId });
+  return { success: true };
+};
+
+/**
+ * Permanently delete an organization document (master-admin only, enforced by
+ * rules). Does NOT delete member users/tasks — callers must ensure the org has
+ * no members first (see getOrgMemberCount).
+ * @param {string} orgId
+ */
+export const deleteOrganization = async (orgId) => {
+  await deleteDoc(doc(db, ORGS_COLLECTION, orgId));
+  await writeAuditLog({ action: 'delete_org', targetOrgId: orgId });
+  return { success: true };
+};
+
+/**
+ * Count users belonging to an org — used to guard deletion.
+ * @param {string} orgId
+ */
+export const getOrgMemberCount = async (orgId) => {
+  const snap = await getDocs(query(collection(db, 'users'), where('orgId', '==', orgId)));
+  return snap.size;
+};
+
+/**
  * Suspend an organization (master-admin only, enforced by rules).
  * @param {string} orgId
  */

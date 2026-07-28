@@ -3,12 +3,22 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  // Strip developer logging from production bundles. `pure` marks these calls
+  // as side-effect free so minification drops them, while deliberately keeping
+  // console.error so genuine failures are still reportable in the field.
+  esbuild: {
+    pure:
+      mode === 'production'
+        ? ['console.log', 'console.info', 'console.debug', 'console.warn', 'console.trace']
+        : [],
+    drop: mode === 'production' ? ['debugger'] : [],
   },
   build: {
     chunkSizeWarningLimit: 600,
@@ -41,4 +51,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

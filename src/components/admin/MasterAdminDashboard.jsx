@@ -10,6 +10,8 @@ import {
   Plus,
   Ban,
   Play,
+  Pencil,
+  Trash2,
   ScrollText,
   LogOut,
 } from 'lucide-react';
@@ -27,16 +29,116 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import DashboardLayout from '@/components/shared/DashboardLayout';
+import { EmptyState, LoadingState } from '@/components/shared/States';
 import {
   getAllOrganizations,
   generateOrgId,
   provisionOrganization,
+  updateOrganization,
+  deleteOrganization,
+  getOrgMemberCount,
   suspendOrganization,
   reactivateOrganization,
   computeOrgUsage,
   getAuditLogs,
 } from '@/services/organizationService';
 import { createUser } from '@/services/userService';
+
+const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
+  const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '' });
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (org) {
+      setForm({
+        name: org.name || '',
+        plan: org.plan || 'trial',
+        seatLimit: org.seatLimit ?? 10,
+        storageQuotaMB: org.storageQuotaMB ?? 1000,
+        billingEmail: org.billingEmail || '',
+      });
+    }
+  }, [org]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setLoading(true);
+    try {
+      await updateOrganization(org.id, {
+        name: form.name,
+        plan: form.plan,
+        seatLimit: Number(form.seatLimit) || 1,
+        storageQuotaMB: Number(form.storageQuotaMB) || 0,
+        billingEmail: form.billingEmail,
+      });
+      toast({ title: 'Organization updated', description: `${form.name} has been saved.` });
+      onOpenChange(false);
+      onSaved();
+    } catch (error) {
+      console.error('Error updating organization:', error);
+      toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-effect border-white/20 text-white max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Pencil className="w-5 h-5" /> Edit Organization
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div>
+            <Label className="text-gray-200">Organization Name *</Label>
+            <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              className="mt-2 glass-effect border-white/20 text-white" required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-gray-200">Plan</Label>
+              <Select value={form.plan} onValueChange={(v) => setForm((p) => ({ ...p, plan: v }))}>
+                <SelectTrigger className="mt-2 glass-effect border-white/20 text-white"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="trial">Trial</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-gray-200">Seat Limit</Label>
+              <Input type="number" min="1" value={form.seatLimit} onChange={(e) => setForm((p) => ({ ...p, seatLimit: e.target.value }))}
+                className="mt-2 glass-effect border-white/20 text-white" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-gray-200">Storage (MB)</Label>
+              <Input type="number" min="0" value={form.storageQuotaMB} onChange={(e) => setForm((p) => ({ ...p, storageQuotaMB: e.target.value }))}
+                className="mt-2 glass-effect border-white/20 text-white" />
+            </div>
+            <div>
+              <Label className="text-gray-200">Billing Email</Label>
+              <Input type="email" value={form.billingEmail} onChange={(e) => setForm((p) => ({ ...p, billingEmail: e.target.value }))}
+                className="mt-2 glass-effect border-white/20 text-white" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
   const [form, setForm] = useState({
@@ -162,6 +264,8 @@ const MasterAdminDashboard = () => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
+  const [editOrg, setEditOrg] = useState(null);
+  const [activeTab, setActiveTab] = useState('organizations');
 
   useEffect(() => {
     loadAll();
@@ -213,38 +317,66 @@ const MasterAdminDashboard = () => {
     }
   };
 
+  const handleDelete = async (org) => {
+    try {
+      const memberCount = await getOrgMemberCount(org.id);
+      if (memberCount > 0) {
+        toast({
+          title: 'Cannot delete organization',
+          description: `${org.name} still has ${memberCount} member(s). Remove or reassign them first.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!window.confirm(`Permanently delete "${org.name}"? This cannot be undone.`)) return;
+      await deleteOrganization(org.id);
+      toast({ title: 'Organization deleted', description: `${org.name} has been removed.` });
+      loadAll();
+    } catch (error) {
+      console.error('Error deleting organization:', error);
+      toast({ title: 'Failed to delete', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
+  // Map an org id to its name for the audit log; orgs deleted since the entry
+  // was written won't be found, so show a friendly label instead of a raw id.
+  const orgName = (id) => organizations.find((o) => o.id === id)?.name || 'a deleted org';
+
+  const menuItems = [
+    { id: 'organizations', label: 'Organizations', icon: Building2 },
+    { id: 'audit', label: 'Audit Logs', icon: ScrollText },
+  ];
+
+  const headerActions = (
+    <Button
+      onClick={() => setIsProvisionOpen(true)}
+      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+      size="sm"
+    >
+      <Plus className="w-4 h-4 sm:mr-2" />
+      <span className="hidden sm:inline">Provision Organization</span>
+    </Button>
+  );
 
   return (
-    <div className="min-h-screen p-6 md:p-10 max-w-6xl mx-auto">
+    <DashboardLayout
+      subtitle="Master Panel"
+      menuItems={menuItems}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      title={menuItems.find((m) => m.id === activeTab)?.label || 'Master Admin'}
+      headerActions={headerActions}
+    >
+      {loading ? (
+        <LoadingState label="Loading organizations..." size="large" />
+      ) : (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Master Admin</h1>
-            <p className="text-gray-300">Signed in as {user?.email}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setIsProvisionOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Plus className="w-4 h-4 mr-2" /> Provision Organization
-            </Button>
-            <Button onClick={handleLogout} variant="outline" className="border-white/20 text-white">
-              <LogOut className="w-4 h-4 mr-2" /> Logout
-            </Button>
-          </div>
-        </div>
-
         {/* Organizations */}
-        <Card className="glass-effect p-6 mb-6">
+        <Card className={`glass-effect p-6 mb-6 ${activeTab === 'organizations' ? '' : 'hidden'}`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
               <Building2 className="text-purple-300" /> Organizations ({organizations.length})
@@ -264,25 +396,43 @@ const MasterAdminDashboard = () => {
                           <h3 className="font-semibold text-white">{org.name}</h3>
                           <p className="text-xs text-gray-400 capitalize">{org.plan} · {org.status}</p>
                         </div>
-                        {org.status === 'suspended' ? (
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="ghost" size="icon"
-                            className="h-8 w-8 text-green-400 hover:bg-green-500/20"
-                            onClick={() => handleReactivate(org)}
-                            title="Reactivate organization"
+                            className="h-8 w-8 text-blue-400 hover:bg-blue-500/20"
+                            onClick={() => setEditOrg(org)}
+                            title="Edit organization"
                           >
-                            <Play className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           </Button>
-                        ) : (
+                          {org.status === 'suspended' ? (
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-8 w-8 text-green-400 hover:bg-green-500/20"
+                              onClick={() => handleReactivate(org)}
+                              title="Reactivate organization"
+                            >
+                              <Play className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-8 w-8 text-amber-400 hover:bg-amber-500/20"
+                              onClick={() => handleSuspend(org)}
+                              title="Suspend organization"
+                            >
+                              <Ban className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost" size="icon"
                             className="h-8 w-8 text-red-400 hover:bg-red-500/20"
-                            onClick={() => handleSuspend(org)}
-                            title="Suspend organization"
+                            onClick={() => handleDelete(org)}
+                            title="Delete organization"
                           >
-                            <Ban className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
-                        )}
+                        </div>
                       </div>
                       <div className="mt-3 text-sm text-gray-300 space-y-1">
                         <div>Seat limit: {org.seatLimit}</div>
@@ -304,7 +454,7 @@ const MasterAdminDashboard = () => {
         </Card>
 
         {/* Audit Logs */}
-        <Card className="glass-effect p-6">
+        <Card className={`glass-effect p-6 ${activeTab === 'audit' ? '' : 'hidden'}`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
               <ScrollText className="text-purple-300" /> Audit Logs
@@ -312,14 +462,14 @@ const MasterAdminDashboard = () => {
           </CardHeader>
           <CardContent>
             {auditLogs.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">No audit log entries yet.</p>
+              <EmptyState icon={ScrollText} title="No audit log entries yet." />
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {auditLogs.map((log) => (
                   <div key={log.id} className="text-sm text-gray-300 p-2 rounded bg-white/5 border border-white/10 flex justify-between">
                     <span>
                       <span className="text-white font-medium">{log.action}</span>
-                      {log.targetOrgId && ` · org ${log.targetOrgId}`}
+                      {log.targetOrgId && ` · ${orgName(log.targetOrgId)}`}
                       {log.targetUserId && ` · user ${log.targetUserId}`}
                     </span>
                     <span className="text-gray-500">
@@ -332,9 +482,11 @@ const MasterAdminDashboard = () => {
           </CardContent>
         </Card>
       </motion.div>
+      )}
 
       <ProvisionOrgDialog open={isProvisionOpen} onOpenChange={setIsProvisionOpen} onCreated={loadAll} />
-    </div>
+      <EditOrgDialog open={!!editOrg} onOpenChange={(v) => !v && setEditOrg(null)} org={editOrg} onSaved={loadAll} />
+    </DashboardLayout>
   );
 };
 

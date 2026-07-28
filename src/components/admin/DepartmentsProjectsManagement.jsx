@@ -116,6 +116,21 @@ const DepartmentsProjectsManagement = () => {
 
   const departmentName = (id) => departments.find(d => d.id === id)?.name || 'Unknown';
 
+  // Legacy admin accounts (role 'admin', created before multi-tenancy) have no
+  // orgId, so they can't own departments/projects. Show a clear message instead
+  // of letting the org-scoped Firestore paths fail cryptically.
+  if (!user?.orgId) {
+    return (
+      <div className="text-center py-16 text-gray-400 max-w-lg mx-auto">
+        <h2 className="text-xl font-semibold text-gray-300 mb-2">No organization linked</h2>
+        <p>
+          This account isn't part of an organization, so it can't manage departments or projects.
+          Sign in with an organization-admin account, or ask a master admin to provision one.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="mb-8">

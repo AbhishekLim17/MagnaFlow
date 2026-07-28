@@ -38,6 +38,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
+import { getProjects } from '@/services/organizationService';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
@@ -159,7 +160,8 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
 const TaskManagement = () => {
   const { tasks, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
-  const [staff, setStaff] = useState([]);
+  const [staff, setStaff] = useState([]);        // assignable in this scope
+  const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -177,23 +179,73 @@ const TaskManagement = () => {
     assignedTo: '',
     priority: 'medium',
     status: 'pending',
+    startDate: '',
     deadline: '',
+    projectId: '',
   });
 
   const { toast } = useToast();
 
+  // This component serves org-admins, department-heads and managers. The task
+  // LIST is already role-scoped by TasksContext; what varies here is which
+  // staff can be assigned and which projects can be picked.
+  const role = currentUser?.role;
+  const isDeptHead = role === 'department-head';
+  const isManager = role === 'manager';
+  const isScoped = isDeptHead || isManager;
+
   useEffect(() => {
     loadStaff();
+    loadProjects();
     refreshTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadStaff = async () => {
     try {
-      const staffList = await getAllUsers({ role: 'staff' });
+      // Scoped roles may only assign work to staff inside their own
+      // department/project; org-admins can assign to anyone in the org.
+      const filters = { role: 'staff' };
+      if (isDeptHead) filters.departmentIds = currentUser?.departmentIds || [];
+      if (isManager) filters.projectIds = currentUser?.projectIds || [];
+      const staffList = await getAllUsers(filters);
       setStaff(staffList);
     } catch (error) {
       console.error('Error loading staff:', error);
     }
+  };
+
+  const loadProjects = async () => {
+    if (!currentUser?.orgId) return;
+    try {
+      const all = await getProjects(currentUser.orgId);
+      // Narrow the project picker to the caller's own scope.
+      let visible = all;
+      if (isManager) {
+        const mine = currentUser?.projectIds || [];
+        visible = all.filter((p) => mine.includes(p.id));
+      } else if (isDeptHead) {
+        const mine = currentUser?.departmentIds || [];
+        visible = all.filter((p) => mine.includes(p.departmentId));
+      }
+      setProjects(visible);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
+
+  // Build the task payload, attaching the selected project (and its department,
+  // so department-heads see the task too) for the Gantt view. Scoped roles fall
+  // back to their own project/department when they don't pick one explicitly.
+  const buildTaskPayload = () => {
+    let projectId = formData.projectId || undefined;
+    if (!projectId && isManager) projectId = currentUser?.projectIds?.[0];
+
+    const project = projects.find((p) => p.id === projectId);
+    let departmentId = project?.departmentId || undefined;
+    if (!departmentId && isDeptHead) departmentId = currentUser?.departmentIds?.[0];
+
+    return { ...formData, projectId, departmentId };
   };
 
   const handleAddTask = async () => {
@@ -207,7 +259,7 @@ const TaskManagement = () => {
     }
 
     try {
-      await createTask(formData);
+      await createTask(buildTaskPayload());
       setIsAddDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -226,7 +278,7 @@ const TaskManagement = () => {
     }
 
     try {
-      await updateTask(selectedTask.id, formData);
+      await updateTask(selectedTask.id, buildTaskPayload());
       setIsEditDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -254,7 +306,9 @@ const TaskManagement = () => {
       assignedTo: task.assignedTo,
       priority: task.priority,
       status: task.status,
+      startDate: task.startDate ? formatDateForInput(task.startDate) : '',
       deadline: task.deadline ? formatDateForInput(task.deadline) : '',
+      projectId: task.projectId || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -271,7 +325,9 @@ const TaskManagement = () => {
       assignedTo: '',
       priority: 'medium',
       status: 'pending',
+      startDate: '',
       deadline: '',
+      projectId: '',
     });
     setSelectedTask(null);
   };
@@ -292,9 +348,15 @@ const TaskManagement = () => {
     });
   };
 
+  // A scoped manager/department-head can only read user docs inside their own
+  // scope (enforced by the Firestore rules), so a task assigned to someone
+  // outside it can't be resolved to a name. Say that plainly rather than
+  // mislabelling an assigned task as "Unassigned".
   const getStaffName = (userId) => {
-    const staffMember = staff.find(s => s.id === userId);
-    return staffMember?.name || 'Unassigned';
+    if (!userId) return 'Unassigned';
+    const known = staff.find((s) => s.id === userId);
+    if (known) return known.name || known.email;
+    return isScoped ? 'Outside your team' : 'Unassigned';
   };
 
   const getPriorityBadge = (priority) => {
@@ -508,6 +570,35 @@ const TaskManagement = () => {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              <div>
+                <Label htmlFor="project">Project</Label>
+                <Select
+                  value={formData.projectId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, projectId: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsAddDialogOpen(false); resetForm(); }}>
@@ -609,6 +700,35 @@ const TaskManagement = () => {
                   onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                   className="bg-gray-800/50 border-gray-700"
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-startDate">Start Date</Label>
+                <Input
+                  id="edit-startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-project">Project</Label>
+                <Select
+                  value={formData.projectId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, projectId: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
+                    <SelectValue placeholder="No project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
