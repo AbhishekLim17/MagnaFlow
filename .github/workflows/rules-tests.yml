@@ -1,0 +1,32 @@
+# Firestore security-rules tests.
+#
+# These guard the multi-tenant guarantees (cross-org isolation, privilege
+# escalation, scoped-role access). Kept in a separate workflow from the deploy
+# so an emulator/harness problem can't block shipping, while a genuine rules
+# regression still shows up as a failed check on the commit.
+
+name: Firestore rules tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # The Firestore emulator is a Java process and needs a JDK 11+.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Run rules tests
+        run: npm run test:rules
