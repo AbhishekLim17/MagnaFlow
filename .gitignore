@@ -56,3 +56,8 @@ tmp/
 temp/
 # Local Firestore backups — contain all user data in plain text
 backups/
+
+# Firebase emulator artifacts
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
