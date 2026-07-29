@@ -371,13 +371,32 @@ export const deleteUser = async (uid) => {
  * Users removed from the portal whose Firebase Auth sign-in still exists.
  * Until that account is deleted in the Firebase console its email stays
  * reserved and cannot be reused.
+ *
+ * CRITICAL: an email may have been re-added since it was deleted (the same
+ * person rehired, or the address reused). Acting on such a stale record would
+ * delete the sign-in of a CURRENTLY ACTIVE user and lock them out, so any
+ * record whose email now belongs to a live user is filtered out here.
  */
 export const getPendingAuthCleanups = async (orgId) => {
   try {
     const constraints = [where('authCleanupDone', '==', false)];
     if (orgId) constraints.push(where('orgId', '==', orgId));
     const snap = await getDocs(query(collection(db, 'userDeletions'), ...constraints, firestoreLimit(100)));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (records.length === 0) return [];
+
+    // Emails currently in use by a live account.
+    const activeEmails = new Set(
+      (await getAllUsers({ ...(orgId ? { orgId } : {}) }))
+        .map((u) => (u.email || '').toLowerCase())
+        .filter(Boolean)
+    );
+
+    return records.filter((r) => {
+      const email = (r.email || '').toLowerCase();
+      // Keep only records whose email is genuinely unused today.
+      return email && !activeEmails.has(email);
+    });
   } catch (error) {
     // Non-critical: never block the page on this.
     console.warn('Could not load pending auth cleanups:', error?.code);

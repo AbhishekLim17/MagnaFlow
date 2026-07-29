@@ -61,3 +61,6 @@ backups/
 firestore-debug.log
 firebase-debug.log
 ui-debug.log
+
+# Product-tracking tool output (not source)
+.telemetry/
