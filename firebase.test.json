@@ -1,0 +1,16 @@
+{
+  "_comment": "Minimal Firebase config used ONLY by `npm run test:rules`. The main firebase.json also declares hosting/storage/functions; loading those pulls in a functions codebase whose dependencies aren't installed in CI, which broke the emulator there. This keeps the rules tests dependent on nothing but the rules themselves.",
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}
