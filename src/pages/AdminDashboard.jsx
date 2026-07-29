@@ -51,15 +51,15 @@ const AdminDashboard = () => {
     setActiveTab(path === '' ? 'dashboard' : path);
   }, [location]);
 
-  const navigateToTab = (tab) => {
+  const navigateToTab = (tab, search = '') => {
     setActiveTab(tab);
-    navigate(`/admin/${tab === 'dashboard' ? '' : tab}`);
+    navigate(`/admin/${tab === 'dashboard' ? '' : tab}${search}`);
   };
 
   const DashboardOverview = () => (
     <div className="space-y-6">
       <AdminCommandCenter
-        onCreateTask={() => navigateToTab('tasks')}
+        onCreateTask={() => navigateToTab('tasks', '?new=1')}
         onViewReports={() => navigateToTab('reports')}
         onManageStaff={() => navigateToTab('staff')}
       />

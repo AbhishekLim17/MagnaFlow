@@ -2,6 +2,7 @@
 // Includes task list, filters, search, and dialogs for CRUD operations
 
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -160,6 +161,8 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
 const TaskManagement = () => {
   const { tasks, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [staff, setStaff] = useState([]);        // assignable in this scope
   const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,6 +203,17 @@ const TaskManagement = () => {
     refreshTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // "New Task" elsewhere in the app links here with ?new=1 so the create
+  // dialog opens straight away instead of just landing on the list. The param
+  // is stripped afterwards so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('new') === '1') {
+      setIsAddDialogOpen(true);
+      navigate(location.pathname, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const loadStaff = async () => {
     try {
