@@ -138,12 +138,16 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                   {r.assignee && <p className="text-[11px] text-gray-400 truncate">{r.assignee}</p>}
                 </div>
                 <div className="relative flex-1 h-full">
+                  {/* Status is conveyed by an accessible label as well as by
+                      colour, so it doesn't depend on colour perception alone. */}
                   <div
                     className={`absolute top-1/2 -translate-y-1/2 h-5 rounded ${style.bar} flex items-center px-1.5 shadow`}
                     style={{ left: `${left}%`, width: `${width}%` }}
                     title={`${fmt(r.start)} → ${fmt(r.end)} · ${style.label}`}
+                    role="img"
+                    aria-label={`${r.title}: ${style.label}, ${fmt(r.start)} to ${fmt(r.end)}`}
                   >
-                    {r.isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" />}
+                    {r.isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" aria-hidden="true" />}
                   </div>
                 </div>
               </div>

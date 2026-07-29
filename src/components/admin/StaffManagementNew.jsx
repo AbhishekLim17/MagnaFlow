@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, UserCheck, UserX, KeyRound, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,8 @@ import {
   activateUser,
   deactivateUser,
   resetUserPassword,
+  getPendingAuthCleanups,
+  markAuthCleanupDone,
 } from '@/services/userService';
 
 const StaffManagement = () => {
@@ -76,6 +78,10 @@ const StaffManagement = () => {
   const [departments, setDepartments] = useState([]);
   const [projects, setProjects] = useState([]);
 
+  // Removed users whose Firebase Auth sign-in still exists (their email stays
+  // reserved until it's deleted in the console).
+  const [pendingCleanups, setPendingCleanups] = useState([]);
+
   const { designations } = useDesignations();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -83,8 +89,22 @@ const StaffManagement = () => {
   useEffect(() => {
     loadStaff();
     loadOrgStructure();
+    loadPendingCleanups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadPendingCleanups = async () => {
+    setPendingCleanups(await getPendingAuthCleanups(currentUser?.orgId));
+  };
+
+  const handleMarkCleanupDone = async (uid) => {
+    try {
+      await markAuthCleanupDone(uid);
+      loadPendingCleanups();
+    } catch (error) {
+      toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
+    }
+  };
 
   const loadOrgStructure = async () => {
     if (!currentUser?.orgId) return;
@@ -338,12 +358,51 @@ const StaffManagement = () => {
         </Button>
       </div>
 
+      {/* Leftover Firebase Auth accounts from deleted users. Their email stays
+          reserved until removed in the console, which otherwise silently blocks
+          re-adding that person. */}
+      {pendingCleanups.length > 0 && (
+        <Card className="glass-effect border-amber-500/40 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-amber-300">
+                {pendingCleanups.length} removed {pendingCleanups.length === 1 ? 'account still has' : 'accounts still have'} a Firebase sign-in
+              </h3>
+              <p className="text-xs text-gray-400 mt-1 mb-3">
+                Their email addresses stay reserved until deleted in Firebase Console → Authentication.
+                Mark each one done once you have removed it.
+              </p>
+              <ul className="space-y-2">
+                {pendingCleanups.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 text-sm bg-white/5 border border-white/10 rounded px-3 py-2">
+                    <span className="truncate">
+                      <span className="text-white">{c.name || 'Unnamed'}</span>
+                      <span className="text-gray-400"> · {c.email}</span>
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-white/20 text-white flex-shrink-0"
+                      onClick={() => handleMarkCleanupDone(c.id)}
+                    >
+                      Mark done
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Search */}
       <Card className="glass-effect border-gray-800 p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
           <Input
             placeholder="Search staff by name, email, or designation..."
+            aria-label="Search staff"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 bg-gray-800/50 border-gray-700"

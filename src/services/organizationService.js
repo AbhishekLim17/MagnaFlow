@@ -18,6 +18,7 @@ import {
   query,
   where,
   orderBy,
+  limit as firestoreLimit,
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
@@ -157,8 +158,12 @@ export const computeOrgUsage = async (orgId) => {
   return { activeUserCount: usersSnap.size, taskCount: tasksSnap.size };
 };
 
-export const getAuditLogs = async () => {
-  const q = query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'));
+/**
+ * Most recent audit entries. Bounded — this collection only grows.
+ * @param {number} max
+ */
+export const getAuditLogs = async (max = 200) => {
+  const q = query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), firestoreLimit(max));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 };

@@ -13,7 +13,8 @@ import {
   query,
   where,
   orderBy,
-  Timestamp 
+  limit as firestoreLimit,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { sendCriticalTaskAlert } from './emailService';
@@ -22,6 +23,10 @@ import { getCallerProfile } from './userService';
 
 // Collection reference
 const TASKS_COLLECTION = 'tasks';
+
+// Upper bound on how many tasks a single query returns. Chosen to comfortably
+// cover a real org's active workload while preventing an unbounded scan.
+const DEFAULT_TASK_LIMIT = 500;
 
 /**
  * Get task by ID
@@ -87,7 +92,12 @@ export const getAllTasks = async (filters = {}) => {
       constraints.push(orderBy('createdAt', 'desc'));
       hasOrderBy = true;
     }
-    
+
+    // Always bound the read. Firestore bills per document returned, and an
+    // unbounded collection scan gets slower and more expensive as the data
+    // grows. Callers that need more can raise `limit` explicitly.
+    constraints.push(firestoreLimit(filters.limit ?? DEFAULT_TASK_LIMIT));
+
     const q = query(collection(db, TASKS_COLLECTION), ...constraints);
     const snapshot = await getDocs(q);
     
