@@ -111,9 +111,19 @@ const DashboardLayout = ({
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {/* Keyboard users can jump past the nav straight to the page content. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-3 focus:left-3 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-blue-600 focus:text-white"
+      >
+        Skip to main content
+      </a>
       <div className="flex">
         {/* Desktop sidebar */}
-        <aside className="hidden lg:block w-64 fixed h-screen overflow-y-auto bg-gray-900/50 backdrop-blur-xl border-r border-gray-800">
+        <aside
+          className="hidden lg:block w-64 fixed h-screen overflow-y-auto bg-gray-900/50 backdrop-blur-xl border-r border-gray-800"
+          aria-label="Main navigation"
+        >
           <SidebarContent />
         </aside>
 
@@ -154,7 +164,7 @@ const DashboardLayout = ({
             </div>
           </header>
 
-          <div className="p-4 sm:p-6">{children}</div>
+          <div id="main-content" className="p-4 sm:p-6">{children}</div>
         </main>
       </div>
     </div>

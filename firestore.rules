@@ -98,22 +98,32 @@ service cloud.firestore {
         || resource.data.assignedTo == request.auth.uid
         || resource.data.createdBy == request.auth.uid
       );
+      // Creation is always confined to the creator's OWN organization. A bare
+      // `createdBy == uid` check would otherwise let any signed-in user plant a
+      // task inside another organization simply by naming themselves as author.
+      // (isOrgAdmin / isDeptMember / isProjectMember all imply org membership,
+      // so org membership + self-authorship is the complete condition.)
       allow create: if isSignedIn() && (
-        isOrgAdmin(request.resource.data.get('orgId', null))
-        || isMasterAdmin()
-        || isDeptMember(request.resource.data.get('orgId', null), request.resource.data.get('departmentId', null))
-        || isProjectMember(request.resource.data.get('orgId', null), request.resource.data.get('projectId', null))
-        || request.resource.data.createdBy == request.auth.uid
+        isMasterAdmin()
+        || (isOrgMember(request.resource.data.get('orgId', null))
+            && request.resource.data.createdBy == request.auth.uid)
       );
+
+      // Only a master-admin may move a task between organizations.
       allow update: if isSignedIn() && (
-        isOrgAdmin(resource.data.get('orgId', null))
-        || isMasterAdmin()
-        || ((isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
-             || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null)))
-            && request.resource.data.get('departmentId', null) == resource.data.get('departmentId', null)
-            && request.resource.data.get('projectId', null) == resource.data.get('projectId', null))
-        || resource.data.assignedTo == request.auth.uid
-        || resource.data.createdBy == request.auth.uid
+        isMasterAdmin()
+        || (
+          request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
+          && (
+            isOrgAdmin(resource.data.get('orgId', null))
+            || ((isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
+                 || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null)))
+                && request.resource.data.get('departmentId', null) == resource.data.get('departmentId', null)
+                && request.resource.data.get('projectId', null) == resource.data.get('projectId', null))
+            || resource.data.assignedTo == request.auth.uid
+            || resource.data.createdBy == request.auth.uid
+          )
+        )
       );
       // Department-heads and managers own the tasks inside their scope, so they
       // may delete them — not just the ones they personally created.
@@ -162,9 +172,17 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
-    // Audit logs — master-admin only
+    // Audit logs.
+    // Master-admin sees everything. Org-admins may append entries for their own
+    // organization and read that organization's history, so account changes are
+    // accountable at the org level too. Entries are append-only: nobody may
+    // edit or delete history, and an org-admin cannot forge another org's log.
     match /audit_logs/{logId} {
-      allow read, write: if isMasterAdmin();
+      allow read: if isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null));
+      allow create: if isMasterAdmin()
+        || (isOrgAdmin(request.resource.data.get('orgId', null))
+            && request.resource.data.actorId == request.auth.uid);
+      allow update, delete: if false;
     }
 
     // Login attempts — Cloud Functions (Admin SDK) only
@@ -196,10 +214,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // User deletion markers
+    // User deletion markers.
+    // On the Spark plan the client cannot delete a Firebase Auth account, so a
+    // removed user leaves an orphaned sign-in that keeps their email reserved.
+    // Admins record and later clear these markers; they are never deleted, so
+    // the record of the removal survives.
     match /userDeletions/{uid} {
-      allow read: if isSignedIn() && myRole() in ['admin', 'org-admin', 'master-admin'];
-      allow write: if false;
+      allow read: if isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null));
+      allow create: if isMasterAdmin() || isOrgAdmin(request.resource.data.get('orgId', null));
+      // Only the cleanup bookkeeping may change — the identity fields are fixed.
+      allow update: if (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)))
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.get('orgId', null) == resource.data.get('orgId', null);
+      allow delete: if false;
     }
   }
 }

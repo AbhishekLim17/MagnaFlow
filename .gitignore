@@ -54,3 +54,5 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+# Local Firestore backups — contain all user data in plain text
+backups/

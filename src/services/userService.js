@@ -4,6 +4,7 @@
 import {
   collection,
   doc,
+  addDoc,
   getDoc,
   getDocs,
   setDoc,
@@ -12,6 +13,7 @@ import {
   query,
   where,
   orderBy,
+  limit as firestoreLimit,
   Timestamp
 } from 'firebase/firestore';
 import {
@@ -23,6 +25,25 @@ import { auth, db, secondaryAuth } from '@/config/firebase';
 
 // Collection reference
 const USERS_COLLECTION = 'users';
+
+// Upper bound on a single user query — see the note in taskService.
+const DEFAULT_USER_LIMIT = 500;
+
+// Best-effort audit trail for account changes. Deliberately swallows its own
+// errors: an audit write must never block the operation it is recording, and
+// rules may forbid the write for some roles.
+const writeAuditLog = async (entry) => {
+  try {
+    await addDoc(collection(db, 'audit_logs'), {
+      actorId: auth.currentUser?.uid || null,
+      actorEmail: auth.currentUser?.email || null,
+      timestamp: Timestamp.now(),
+      ...entry,
+    });
+  } catch (err) {
+    console.warn('Audit log write skipped:', err?.code || err?.message);
+  }
+};
 
 // Cached lookup of the signed-in caller's own user doc (orgId/departmentIds/
 // projectIds/role). Firestore rules require org-scoped queries/writes for
@@ -131,9 +152,10 @@ export const getAllUsers = async (filters = {}) => {
       hasOrderBy = true;
     }
 
-    if (constraints.length > 0) {
-      q = query(collection(db, USERS_COLLECTION), ...constraints);
-    }
+    // Always bound the read — see the note in taskService.
+    constraints.push(firestoreLimit(filters.limit ?? DEFAULT_USER_LIMIT));
+
+    q = query(collection(db, USERS_COLLECTION), ...constraints);
 
     const snapshot = await getDocs(q);
     const users = [];
@@ -195,7 +217,9 @@ export const createUser = async (userData) => {
       if (caller && caller.role !== 'master-admin') orgId = caller.orgId;
     }
 
-    // Create user using SECONDARY auth instance (won't affect admin session)
+    // Create user using SECONDARY auth instance (won't affect admin session).
+    // The secondary instance becomes signed-in as the new user as a side
+    // effect, so it MUST be signed out again on every path — see finally.
     const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     const uid = userCredential.user.uid;
 
@@ -213,17 +237,35 @@ export const createUser = async (userData) => {
       updatedAt: Timestamp.now(),
     };
 
-    await setDoc(doc(db, USERS_COLLECTION, uid), userDoc);
-    
-    // Sign out from secondary auth (cleanup)
-    await signOut(secondaryAuth);
-    
+    try {
+      await setDoc(doc(db, USERS_COLLECTION, uid), userDoc);
+    } catch (docError) {
+      // The Auth account exists but has no profile — it can never sign in and
+      // its email is now reserved. Make that recoverable instead of silent.
+      console.error('User profile write failed after account creation:', docError);
+      const orphanError = new Error(
+        `The sign-in account for ${email} was created, but saving their profile failed ` +
+        `(${docError.code || docError.message}). Delete that account in ` +
+        `Firebase Console → Authentication before retrying, or the email stays reserved.`
+      );
+      orphanError.code = 'profile-write-failed';
+      throw orphanError;
+    }
+
+    await writeAuditLog({
+      action: 'create_user',
+      targetUserId: uid,
+      targetEmail: email,
+      targetRole: userDoc.role,
+      orgId: orgId ?? null,
+    });
+
     console.log('✅ User created successfully. Admin session maintained.');
-    
+
     return { id: uid, ...userDoc };
   } catch (error) {
     console.error('Error creating user:', error);
-    
+
     // Provide helpful error messages
     if (error.code === 'auth/email-already-in-use') {
       const helpfulError = new Error(
@@ -234,8 +276,22 @@ export const createUser = async (userData) => {
       helpfulError.code = error.code;
       throw helpfulError;
     }
+    if (error.code === 'auth/weak-password') {
+      throw new Error('Password is too weak — use at least 6 characters.');
+    }
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many accounts created in a short time. Please wait a moment and try again.');
+    }
 
     throw error;
+  } finally {
+    // Always release the secondary session. If this is skipped, the next
+    // createUser call inherits a stale signed-in user.
+    try {
+      if (secondaryAuth.currentUser) await signOut(secondaryAuth);
+    } catch (signOutError) {
+      console.warn('Secondary auth sign-out failed:', signOutError?.code);
+    }
   }
 };
 
@@ -278,12 +334,65 @@ export const updateUser = async (uid, updates) => {
  */
 export const deleteUser = async (uid) => {
   try {
+    // Capture identity before the doc disappears, so the leftover Auth account
+    // can be surfaced for manual cleanup and recorded in the audit trail.
+    const victim = await getUserById(uid).catch(() => null);
+
     await deleteDoc(doc(db, USERS_COLLECTION, uid));
-    console.log('✅ User record removed. (Auth account cleanup is manual on the free plan.)');
+
+    if (victim) {
+      // The Firebase Auth account still exists and keeps the email address
+      // reserved. Record it so an admin can clear it in the console.
+      await setDoc(doc(db, 'userDeletions', uid), {
+        userId: uid,
+        email: victim.email || null,
+        name: victim.name || null,
+        orgId: victim.orgId ?? null,
+        deletedAt: Timestamp.now(),
+        deletedBy: auth.currentUser?.uid || null,
+        deletedByEmail: auth.currentUser?.email || null,
+        authCleanupDone: false,
+      }).catch((e) => console.warn('Could not record deletion marker:', e?.code));
+
+      await writeAuditLog({
+        action: 'delete_user',
+        targetUserId: uid,
+        targetEmail: victim.email || null,
+        orgId: victim.orgId ?? null,
+      });
+    }
   } catch (error) {
     console.error('Error deleting user:', error);
     throw error;
   }
+};
+
+/**
+ * Users removed from the portal whose Firebase Auth sign-in still exists.
+ * Until that account is deleted in the Firebase console its email stays
+ * reserved and cannot be reused.
+ */
+export const getPendingAuthCleanups = async (orgId) => {
+  try {
+    const constraints = [where('authCleanupDone', '==', false)];
+    if (orgId) constraints.push(where('orgId', '==', orgId));
+    const snap = await getDocs(query(collection(db, 'userDeletions'), ...constraints, firestoreLimit(100)));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    // Non-critical: never block the page on this.
+    console.warn('Could not load pending auth cleanups:', error?.code);
+    return [];
+  }
+};
+
+/**
+ * Mark a leftover Auth account as cleaned up (after deleting it in the console).
+ */
+export const markAuthCleanupDone = async (uid) => {
+  await updateDoc(doc(db, 'userDeletions', uid), {
+    authCleanupDone: true,
+    completedAt: Timestamp.now(),
+  });
 };
 
 /**
