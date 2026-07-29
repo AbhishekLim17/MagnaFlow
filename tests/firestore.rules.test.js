@@ -51,7 +51,10 @@ const asUser = (uid) => testEnv.authenticatedContext(uid).firestore();
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
-    projectId: 'magnaflow-rules-test',
+    // Must match the --project passed to emulators:exec. A "demo-" prefix tells
+    // the emulator this project doesn't exist, so it runs without any Firebase
+    // credentials — which is what lets these tests run in CI.
+    projectId: 'demo-magnaflow',
     firestore: {
       rules: readFileSync(join(__dirname, '..', 'firestore.rules'), 'utf8'),
       host: '127.0.0.1',
