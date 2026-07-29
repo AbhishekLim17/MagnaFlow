@@ -1,29 +1,43 @@
-# 🌊 MagnaFlow - Enterprise Multi-Tenant Project Management System
+# 🌊 MagnaFlow - Role-Based Project & Task Management
 
-![React](https://img.shields.io/badge/React-18.2.0-blue.svg)
-![Vite](https://img.shields.io/badge/Vite-7.2.6-purple.svg)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.3.3-cyan.svg)
-![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-orange.svg)
+![React](https://img.shields.io/badge/React-19.2-blue.svg)
+![Vite](https://img.shields.io/badge/Vite-7.2-purple.svg)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.3-cyan.svg)
+![Firebase](https://img.shields.io/badge/Firebase-Spark%20Plan-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-MagnaFlow is a state-of-the-art, secure, and performant enterprise-grade project management system. Designed as a multi-tenant SaaS application, it provides robust organizational boundaries, advanced role-based access control (RBAC), real-time updates, automated notification pipelines, and optimized asset delivery.
+MagnaFlow is a multi-tenant project and task management system with a 5-tier role hierarchy, org-scoped Firestore security rules, and a task Gantt chart generated automatically from task dates. It runs entirely on the **Firebase Spark (free) plan** — no Cloud Functions are deployed, so every multi-tenant operation (org provisioning, staff creation, audit logging) is a direct, rules-gated client write.
 
 ---
 
 ## 🚀 Key Features
 
-* **🏢 Multi-Tenant Architecture** - Complete tenant isolation. Organizations manage their own departments, projects, users, and tasks without cross-tenant exposure.
-* **🔐 Robust Role-Based Access Control (RBAC)** - Security-enforced at both application and database layers (via Firestore rules). Supports 5 user tiers:
-  * **Master Admin** - Global provisioning of organizations, plan billing limit controls, and audit-logged user impersonation.
-  * **Org Admin** - Full management of own organization, departments, projects, and users.
-  * **Department Head** - Management of projects and tasks within assigned departments.
-  * **Manager** - Assigns and tracks tasks for assigned projects.
-  * **Staff** - Personal dashboard to view tasks, update status, complete subtasks, and add comments.
-* **💬 Comments & Mention System** - Threaded task discussions with inline `@mentions`. Resolves usernames and dispatches real-time in-app notifications and email alerts.
-* **📎 Attachments & File Uploads** - Seamless file upload pipeline integrated with Firebase Storage, showing real-time progress bars.
-* **🚨 Critical Alert Pipeline** - Automatically flags high-priority tasks and triggers instant notification emails. Daily summaries are scheduled at 8 AM IST using Cloud Functions to ensure no critical deadlines are missed.
-* **⚡ Server-Side Rate Limiting** - Protection against brute-force logins using Cloud Functions-backed rate-limiting collections. Bypasses client-side reset exploits.
-* **📉 Optimized Bundling** - Built-in Rollup code splitting (manual chunks) reducing main package delivery size by over **52%** (down to ~394kB gzip).
+* **🏢 Multi-Tenant Organizations** — Firestore security rules enforce that one organization's admin can never read or write another organization's users or tasks. Verified by an automated test suite (`npm run test:rules`), not just by convention.
+* **🔐 5-Tier Role-Based Access Control**, each with its own dashboard and route:
+  * **Master Admin** (`/master`) — provisions and suspends organizations, sets seat limits, views usage stats and an append-only audit log.
+  * **Org Admin** (`/admin`) — full control of their own organization: staff, departments, projects, designations, tasks, reports.
+  * **Department Head** (`/department`) — tasks and staff scoped to their department; can create staff and manage tasks within it.
+  * **Manager** (`/manager`) — same as Department Head, scoped to a project instead.
+  * **Staff** (`/staff`) — personal dashboard: view assigned tasks, update status, complete subtasks, comment.
+  * Legacy accounts created before this model existed carry role `admin`, treated everywhere as an alias for `org-admin`.
+* **📊 Project Gantt Chart** — every task has a start date and deadline; org-admins, managers and department heads see their project's tasks rendered as a timeline (completed / in-progress / pending / overdue, with a "today" marker) with no separate charting setup.
+* **💬 Comments & Mention System** — threaded task discussions with inline `@mentions`, in-app and email notifications.
+* **📎 Attachments & File Uploads** — Firebase Storage-backed uploads with progress bars.
+* **🚨 Critical Alert Pipeline** — a scheduled Cloud Function (`sendDailyCriticalTaskReminders`) emails staff about overdue critical tasks daily at 8 AM IST. This is the one Cloud Function still deployed — see "Firebase Plan" below.
+* **🧯 Error Boundary** — a render-time crash shows a recoverable "Something went wrong" screen instead of a blank page.
+* **📉 Code-Split Bundle** — dashboards are lazy-loaded per role; the main JS bundle is ~262 kB (gzip ~83 kB), down from ~1.4 MB before splitting, since a signed-in user only downloads their own role's dashboard.
+
+---
+
+## 🔥 Firebase Plan & what that means
+
+This project intentionally runs on **Spark**, Firebase's free tier, which cannot deploy most Cloud Functions (it needs the pay-as-you-go Blaze plan for that). Two consequences worth knowing before you touch the code:
+
+* **`functions/index.js` contains working code that is mostly *not deployed*.** `provisionOrg`, `suspendOrg`, `impersonateUser`, `deleteUserAccount`, `checkSeatLimit`, and `computeUsageStats` all exist in that file but cannot run on this plan. The equivalent operations are implemented as direct client Firestore writes instead (see `src/services/organizationService.js`), gated by `firestore.rules` rather than server code. Only the scheduled reminder email function is actually live.
+* **Deliberately absent capabilities**: user impersonation (needs the Admin SDK), automatic seat-limit enforcement, scheduled usage-stat computation, and server-side login rate limiting. The login flow calls a rate-limit check but **fails open** if it can't reach a Cloud Function — a missing function must never be able to lock out every user.
+* The client cannot delete a Firebase Auth account, so deleting a user leaves their sign-in behind (their email stays reserved). This is tracked in the `userDeletions` collection and surfaced in **Staff Management** as a "needs manual cleanup" list — filtered so it never suggests deleting an email that's since been reused by an active account.
+
+If you upgrade to Blaze, deploy `functions/` and wire the client back up to the callables in `organizationService.js` — the server-side versions are already written and were working before this constraint was adopted.
 
 ---
 
@@ -31,108 +45,105 @@ MagnaFlow is a state-of-the-art, secure, and performant enterprise-grade project
 
 ```
 MagnaFlow/
-├── api/                   # Serverless functions
-├── functions/             # Firebase Cloud Functions code
-│   ├── index.js           # Core admin functions & rate limiters
-│   └── package.json       
-├── scripts/               
-│   └── migrate-to-multitenant.js # Admin SDK script for data backfilling
+├── functions/                        # Cloud Functions (mostly undeployed — see above)
+│   └── index.js                      # Reminder email (live) + org/user admin ops (not deployed)
+├── scripts/
+│   ├── backup-firestore.cjs          # Dumps all collections (incl. subcollections) to timestamped JSON
+│   └── send-daily-reminders.js
+├── tests/
+│   └── firestore.rules.test.js       # Rules tests: cross-org isolation, privilege escalation, scoped access
 ├── src/
 │   ├── components/
-│   │   ├── admin/         # Org & Master dashboards, Reports, Staff management
-│   │   ├── shared/        # Notification bells, layouts
-│   │   ├── staff/         # Task detail modals, change password panels
-│   │   ├── tasks/         # Attachment uploaders, Mention inputs, Comments
-│   │   └── ui/            # Radix-UI components
-│   ├── config/            
-│   │   ├── firebase.js    # Firebase initialization & exports (db, auth, storage)
-│   │   ├── roleRoutes.js  # Centralized RBAC page routing routes
-│   │   └── emailConfig.js # EmailJS integration credentials
-│   ├── contexts/          # Global state (Auth, Tasks, Designations)
-│   ├── pages/             # Root views (Login, Dashboards)
-│   ├── services/          # Abstracted Firestore API layer (taskStatusUtils, etc.)
-│   ├── utils/             # Input sanitization, validation, rate limiting wrappers
-│   ├── App.jsx            # Main router & protected RBAC route engine
-│   └── index.css          # Core CSS stylesheet
-├── firestore.rules        # Production-ready multi-tenant security rules
-├── storage.rules          # Firebase Storage rules
-├── firebase.json          # Deployment configuration
-├── vite.config.js         # Custom Vite bundler & chunking setup
-└── .env.example           # Decoupled template configuration variables
+│   │   ├── admin/                    # Org-admin & master-admin dashboards, staff/task/report management
+│   │   ├── shared/                   # DashboardLayout, StatCard, ProjectGanttChart, ErrorBoundary, States
+│   │   ├── staff/                    # Task detail modals, change-password panel
+│   │   ├── tasks/                    # Attachment uploaders, mention inputs, comments
+│   │   └── ui/                       # Radix-UI primitives
+│   ├── config/
+│   │   ├── firebase.js               # Firebase initialization & exports (db, auth, storage)
+│   │   ├── roles.js                  # Canonical role name constants
+│   │   └── roleRoutes.js             # role → home route map
+│   ├── contexts/                     # AuthContext, TasksContext, DesignationsContext
+│   ├── pages/                        # LoginPage, AdminDashboard, StaffDashboard, ScopedDashboard
+│   ├── services/                     # Firestore API layer (userService, taskService, organizationService, …)
+│   ├── utils/                        # Input sanitization, validation
+│   ├── App.jsx                       # Router, lazy-loaded routes per role, ErrorBoundary
+│   └── index.css
+├── firestore.rules                   # Org-scoped, role-scoped security rules (tested — see tests/)
+├── firestore.indexes.json
+├── storage.rules
+├── firebase.json                     # Real Firebase config (hosting/storage/functions)
+├── firebase.test.json                # Minimal Firestore-only config used by the rules tests
+├── vite.config.js                    # Manual chunking + prod console-log stripping
+└── .env.example
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Frontend Framework**: React 18.2.0
-* **Build Tooling**: Vite 7.2.6 & Rollup
-* **Backend Infrastructure**: Firebase (Auth, Firestore, Cloud Functions, Cloud Storage)
-* **Real-time Notifications**: Firestore Snapshots & Custom Event Listeners
-* **Email System**: EmailJS (@emailjs/browser & @emailjs/nodejs)
-* **Styling**: Tailwind CSS & Radix UI primitives
-* **Security & Sanitization**: DOMPurify & Regular Expression validation
+* **Frontend**: React 19, Vite 7, React Router
+* **Backend**: Firebase Auth + Firestore + Storage (Spark plan — see above)
+* **Charts**: Recharts (reports) + a small hand-rolled CSS/SVG Gantt (no chart library dependency)
+* **Styling**: Tailwind CSS + Radix UI primitives, `framer-motion` for animation
+* **Testing**: Vitest + `@firebase/rules-unit-testing` against the Firestore emulator
+* **Email**: EmailJS (`@emailjs/browser` / `@emailjs/nodejs`)
 
 ---
 
 ## 🚦 Getting Started
 
 ### 1. Prerequisites
-* Node.js (version 18 or higher)
+* Node.js 18+
 * Firebase CLI (`npm install -g firebase-tools`)
+* **JDK 11+** — only needed to run the rules tests locally (the Firestore emulator is a Java process)
 
 ### 2. Installation
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd MagnaFlow
-
-# Install frontend dependencies
 npm install
-
-# Install cloud function dependencies
-cd functions && npm install && cd ..
 ```
 
 ### 3. Environment Setup
-Copy the environment template and populate it with your credentials:
 ```bash
 cp .env.example .env
 ```
-*Note: `.env` is automatically ignored from git tracking.*
+Fill in your Firebase project's config values (`.env` is gitignored). These are build-time Vite variables — a missing one produces `Firebase: Error (auth/invalid-api-key)` at runtime, not a build failure, so double-check them if the deployed app shows a blank screen.
 
 ### 4. Running Locally
 ```bash
-# Run local client
 npm run dev
+```
 
-# Run Firebase emulators
-firebase emulators:start
+### 5. Running Tests
+```bash
+npm run test:rules   # Firestore security-rules tests (needs JDK 11+)
+npm run lint
 ```
 
 ---
 
 ## 📊 Deployment & Operations
 
-### Deployment
-Deploy both the rules, functions, and client files:
-```bash
-# Deploy Backend rules and Cloud Functions
-firebase deploy --only firestore:rules,functions
+### What CI does automatically
+Pushing to `main` triggers `.github/workflows/firebase-hosting-merge.yml`, which builds and deploys **hosting only**. `VITE_FIREBASE_*` values are pulled from GitHub repo **Variables** (not Secrets — they're client-side config, not sensitive) and injected at build time.
 
-# Build and Deploy frontend
-npm run build
-# Deploy output `dist/` directory to hosting
-firebase deploy --only hosting
-```
+`.github/workflows/rules-tests.yml` runs the Firestore rules tests on every push/PR to `main` as a separate check, so a harness problem can't block a hosting deploy, but a genuine rules regression still shows up red on the commit.
 
-### Data Migration
-To transition legacy databases into the multi-tenant layout, run the migration runner:
+### What you must deploy manually
+Firestore rules and indexes are **not** part of the CI workflow:
 ```bash
-# Ensure serviceAccountKey.json is placed in the project root
-node scripts/migrate-to-multitenant.js
+firebase deploy --only firestore:rules,firestore:indexes --project <your-project-id>
 ```
-*Warning: Verify output counts against sandbox emulators before executing against production databases.*
+Do this after any change to `firestore.rules` or `firestore.indexes.json` — CI will not do it for you, and a stale rules deploy is a silent, easy-to-miss gap between what's tested and what's live.
+
+### Backups
+Firestore's managed scheduled exports need the Blaze plan and a Cloud Storage bucket, so this project uses a local alternative:
+```bash
+node scripts/backup-firestore.cjs [--out ./backups] [--key ./service-account.json]
+```
+Dumps every collection (including nested subcollections like `organizations/{id}/departments`) to a timestamped JSON file. `backups/` is gitignored — the dumps contain user data in plain text, so keep them somewhere private. Restore is intentionally not automated; treat overwriting production from a snapshot as a manual, considered act.
 
 ---
 
