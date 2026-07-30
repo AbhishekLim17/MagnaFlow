@@ -5,9 +5,9 @@
   ],
   "rules": {
     "no-unused-vars": "warn",
-    "no-console": "warn",
     "react/prop-types": "off",
-    "react/display-name": "off"
+    "react/display-name": "off",
+    "no-console": ["warn", { "allow": ["error", "warn"] }]
   },
   "parserOptions": {
     "ecmaVersion": 2022,

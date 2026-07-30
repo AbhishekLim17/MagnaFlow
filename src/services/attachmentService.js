@@ -3,7 +3,6 @@ import {
   uploadBytesResumable, 
   getDownloadURL, 
   deleteObject,
-  listAll
 } from 'firebase/storage';
 import { 
   collection, 
