@@ -22,7 +22,7 @@ MagnaFlow is a multi-tenant project and task management system with a 5-tier rol
   * Legacy accounts created before this model existed carry role `admin`, treated everywhere as an alias for `org-admin`.
 * **📊 Project Gantt Chart** — every task has a start date and deadline; org-admins, managers and department heads see their project's tasks rendered as a timeline (completed / in-progress / pending / overdue, with a "today" marker) with no separate charting setup.
 * **💬 Comments & Mention System** — threaded task discussions with inline `@mentions`, in-app and email notifications.
-* **📎 Attachments & File Uploads** — Firebase Storage-backed uploads with progress bars.
+* **📎 Attachments — built but not enabled.** `attachmentService.js` and `AttachmentUploader.jsx` exist and `storage.rules` is written, but **Firebase Storage has never been set up on the project** and the uploader is not wired into any screen. Enable Storage in the Firebase console and mount the uploader before treating this as a feature.
 * **🚨 Critical Alert Pipeline** — a scheduled Cloud Function (`sendDailyCriticalTaskReminders`) emails staff about overdue critical tasks daily at 8 AM IST. This is the one Cloud Function still deployed — see "Firebase Plan" below.
 * **🧯 Error Boundary** — a render-time crash shows a recoverable "Something went wrong" screen instead of a blank page.
 * **📉 Code-Split Bundle** — dashboards are lazy-loaded per role; the main JS bundle is ~262 kB (gzip ~83 kB), down from ~1.4 MB before splitting, since a signed-in user only downloads their own role's dashboard.

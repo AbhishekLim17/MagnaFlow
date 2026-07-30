@@ -1,38 +1,87 @@
 rules_version = '2';
 
-// Firebase Storage Security Rules for Task Attachments
+// Firebase Storage security rules for task attachments.
+//
+// NOTE: Firebase Storage is not currently enabled on this project, so these
+// rules are not deployed and no attachments exist. They are kept correct and
+// ready so that enabling Storage does not silently ship a permissive default.
+//
+// These mirror the organization scoping in firestore.rules. The previous
+// version let any signed-in user read ANY attachment, which would have made
+// one organization's files reachable from another organization's account —
+// bypassing the Firestore isolation entirely. Access is now derived from the
+// owning task's organization.
+//
+// Two things to re-check when Storage is enabled: that the legacy 'admin' role
+// alias is still accepted, and that firestore.get() lookups here stay in sync
+// with the task schema.
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper function: Check if user is authenticated
-    function isAuthenticated() {
+
+    function isSignedIn() {
       return request.auth != null;
     }
-    
-    // Helper function: Check if user is admin
-    function isAdmin() {
-      return isAuthenticated() && 
-             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    function me() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
     }
-    
-    // Task attachments folder
+
+    function myRole() {
+      return me().role;
+    }
+
+    function myOrgId() {
+      return me().get('orgId', null);
+    }
+
+    function isMasterAdmin() {
+      return isSignedIn() && myRole() == 'master-admin';
+    }
+
+    // 'admin' is the legacy alias for 'org-admin'; both must be accepted or
+    // existing administrators silently lose access.
+    function isOrgAdminOf(orgId) {
+      return isSignedIn()
+        && myOrgId() == orgId
+        && myRole() in ['org-admin', 'admin'];
+    }
+
+    function task(taskId) {
+      return firestore.get(/databases/(default)/documents/tasks/$(taskId)).data;
+    }
+
+    function taskExists(taskId) {
+      return firestore.exists(/databases/(default)/documents/tasks/$(taskId));
+    }
+
+    // A user may touch an attachment when they belong to the same organization
+    // as its task. Finer-grained task visibility is enforced by firestore.rules
+    // on the task itself; this is the tenant boundary.
+    function canAccessTask(taskId) {
+      return isSignedIn()
+        && taskExists(taskId)
+        && (isMasterAdmin() || myOrgId() == task(taskId).get('orgId', null));
+    }
+
     match /task-attachments/{taskId}/{fileName} {
-      // Allow authenticated users to read any attachment
-      allow read: if isAuthenticated();
-      
-      // Allow authenticated users to upload files (max 10MB)
-      allow create: if isAuthenticated() && 
-                       request.resource.size <= 10 * 1024 * 1024; // 10MB limit
-      
-      // Only uploader or admin can delete attachments
-      allow delete: if isAuthenticated() && 
-                       (resource.metadata.uploadedBy == request.auth.uid || isAdmin());
-      
-      // No updates allowed (immutable once uploaded)
+      allow read: if canAccessTask(taskId);
+
+      // 10MB cap, and only within your own organization.
+      allow create: if canAccessTask(taskId)
+        && request.resource.size <= 10 * 1024 * 1024;
+
+      // The uploader, that organization's admin, or a master admin.
+      allow delete: if isSignedIn() && (
+        resource.metadata.uploadedBy == request.auth.uid
+        || isMasterAdmin()
+        || (taskExists(taskId) && isOrgAdminOf(task(taskId).get('orgId', null)))
+      );
+
+      // Immutable once uploaded.
       allow update: if false;
     }
-    
-    // Default: deny all access to other paths
+
+    // Default: deny everything else.
     match /{allPaths=**} {
       allow read, write: if false;
     }
