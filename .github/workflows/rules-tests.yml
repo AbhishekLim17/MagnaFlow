@@ -23,10 +23,12 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      # The Firestore emulator is a Java process and needs a JDK 11+.
+      # The Firestore emulator is a Java process. firebase-tools v15+ requires
+      # JDK 21 or above — an older JDK fails with a version error, not a test
+      # failure, which is easy to misread.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - name: Run rules tests
         run: npm run test:rules

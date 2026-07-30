@@ -96,7 +96,7 @@ MagnaFlow/
 ### 1. Prerequisites
 * Node.js 18+
 * Firebase CLI (`npm install -g firebase-tools`)
-* **JDK 11+** — only needed to run the rules tests locally (the Firestore emulator is a Java process)
+* **JDK 21+** — only needed to run the rules tests locally. The Firestore emulator is a Java process and `firebase-tools` v15+ refuses to start on anything older, with a Java-version error that reads like a test failure.
 
 ### 2. Installation
 ```bash
