@@ -109,11 +109,18 @@ export function clearSentryUser() {
  * @param {Object} context - Additional context
  */
 export function captureException(error, context = {}) {
-  Sentry.captureException(error, {
-    contexts: {
-      custom: context
-    }
-  });
+  // Never let error *reporting* throw. This is called from the ErrorBoundary,
+  // which is the last line of defence — an exception here would replace the
+  // recovery screen with a blank page, the exact failure it exists to prevent.
+  try {
+    Sentry.captureException(error, {
+      contexts: {
+        custom: context
+      }
+    });
+  } catch (reportingError) {
+    console.error('Failed to report error to Sentry:', reportingError);
+  }
 }
 
 /**
