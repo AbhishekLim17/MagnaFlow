@@ -30,14 +30,29 @@ function parseArgs(argv) {
   return args;
 }
 
+// Look for the key outside the repo first. A service-account key grants full
+// admin access to production, so the preferred home is a directory that can
+// never be caught by a stray `git add` or an archive of the project folder.
 function findServiceAccountKey(explicit) {
   if (explicit) return path.resolve(explicit);
-  // Fall back to a *-firebase-adminsdk-*.json in the project root.
-  const root = path.resolve(__dirname, '..');
-  const match = fs
-    .readdirSync(root)
-    .find((f) => f.includes('firebase-adminsdk') && f.endsWith('.json'));
-  return match ? path.join(root, match) : null;
+  if (process.env.MAGNAFLOW_SERVICE_ACCOUNT) {
+    return path.resolve(process.env.MAGNAFLOW_SERVICE_ACCOUNT);
+  }
+
+  const home = process.env.USERPROFILE || process.env.HOME || '';
+  const candidates = [
+    home ? path.join(home, '.magnaflow-secrets') : null,
+    path.resolve(__dirname, '..'), // legacy: repo root (gitignored)
+  ].filter(Boolean);
+
+  for (const dir of candidates) {
+    if (!fs.existsSync(dir)) continue;
+    const match = fs
+      .readdirSync(dir)
+      .find((f) => f.includes('firebase-adminsdk') && f.endsWith('.json'));
+    if (match) return path.join(dir, match);
+  }
+  return null;
 }
 
 // Firestore Timestamps / GeoPoints / DocumentReferences aren't plain JSON.
