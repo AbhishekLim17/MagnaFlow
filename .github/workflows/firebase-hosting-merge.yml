@@ -19,6 +19,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Unit and component tests
+        run: npm test
       - name: Firestore security rules tests
         run: npm run test:rules
       - run: npm run build
