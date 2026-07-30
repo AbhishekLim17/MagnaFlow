@@ -8,7 +8,7 @@
     "build": "node tools/generate-llms.js && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-magnaflow --config firebase.test.json \"vitest run tests/firestore.rules.test.js\"",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-magnaflow --config firebase.test.json \"vitest run --config vitest.rules.config.js\"",
     "test": "vitest run",
     "test:watch": "vitest"
   },
