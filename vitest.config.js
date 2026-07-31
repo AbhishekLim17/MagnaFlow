@@ -16,5 +16,19 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.{test,spec}.{js,jsx}'],
     exclude: ['node_modules', 'dist', 'tests/**'],
+    // Placeholder Firebase config. Tests must not talk to a real project, but
+    // a module that merely *imports* src/config/firebase.js runs getAuth() at
+    // import time, which throws auth/invalid-api-key when the values are
+    // missing. Developers have a .env.local so it passes locally and fails
+    // only in CI — a trap that has cost a red build. Pinning dummy values
+    // here makes `npm test` behave identically everywhere.
+    env: {
+      VITE_FIREBASE_API_KEY: 'test-api-key',
+      VITE_FIREBASE_AUTH_DOMAIN: 'demo-magnaflow.firebaseapp.com',
+      VITE_FIREBASE_PROJECT_ID: 'demo-magnaflow',
+      VITE_FIREBASE_STORAGE_BUCKET: 'demo-magnaflow.appspot.com',
+      VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000',
+      VITE_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000000000',
+    },
   },
 });

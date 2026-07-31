@@ -7,6 +7,14 @@ vi.mock('@/config/sentry', () => ({
   captureException: (...args) => captureException(...args),
 }));
 
+// Mocked so the boundary's Firestore reporting stays out of these tests —
+// importing the real service pulls in src/config/firebase.js, which
+// initializes Firebase at import time.
+const logError = vi.fn();
+vi.mock('@/services/errorLogService', () => ({
+  logError: (...args) => logError(...args),
+}));
+
 const Boom = () => {
   throw new Error('kaboom');
 };
@@ -17,6 +25,7 @@ describe('ErrorBoundary', () => {
     // React logs the caught error; keep the test output readable.
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     captureException.mockClear();
+    logError.mockClear();
   });
   afterEach(() => consoleError.mockRestore());
 
@@ -50,11 +59,24 @@ describe('ErrorBoundary', () => {
     expect(captureException.mock.calls[0][0]).toBeInstanceOf(Error);
   });
 
+  test('records the error to Firestore so it is visible in production', () => {
+    render(
+      <ErrorBoundary>
+        <Boom />
+      </ErrorBoundary>
+    );
+    expect(logError).toHaveBeenCalledTimes(1);
+    expect(logError.mock.calls[0][0]).toBeInstanceOf(Error);
+  });
+
   // If reporting could throw, the boundary would fail while handling a failure
   // and the user would get the blank page it exists to prevent.
   test('still renders the recovery screen if error reporting throws', () => {
     captureException.mockImplementationOnce(() => {
       throw new Error('sentry is down');
+    });
+    logError.mockImplementationOnce(() => {
+      throw new Error('firestore is down');
     });
     expect(() =>
       render(
