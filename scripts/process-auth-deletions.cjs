@@ -29,7 +29,22 @@ const admin = require('firebase-admin');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 function initAdmin() {
-  // Prefer explicit env credentials (how CI supplies them).
+  // A whole service-account JSON in one variable. This is the form CI already
+  // has (the same secret the hosting deploy uses), so the cleanup doesn't
+  // depend on a separate set of credentials being configured.
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    let parsed;
+    try {
+      parsed = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    } catch {
+      console.error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON.');
+      process.exit(1);
+    }
+    admin.initializeApp({ credential: admin.credential.cert(parsed) });
+    return;
+  }
+
+  // Three separate values.
   if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -60,10 +75,12 @@ function initAdmin() {
   }
 
   console.error(
-    'No credentials found. Set FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY,\n' +
-    'or place a service-account key in ~/.magnaflow-secrets/.'
+    'No Firebase credentials found. Provide ONE of:\n' +
+    '  - FIREBASE_SERVICE_ACCOUNT_JSON  (the whole service-account JSON; what CI uses)\n' +
+    '  - FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY\n' +
+    '  - a *firebase-adminsdk*.json file in ~/.magnaflow-secrets/ (local runs)'
   );
-  process.exit(1);
+  process.exit(2); // distinct from a processing failure (1)
 }
 
 async function main() {
