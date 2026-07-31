@@ -1,0 +1,43 @@
+# Deletes the Firebase Auth accounts of users removed from the portal.
+#
+# On the Spark plan there are no Cloud Functions, and a browser client cannot
+# delete another user's Auth account — only the Admin SDK can. Without this,
+# every removal in Staff Management left a sign-in behind that had to be
+# deleted by hand in the Firebase console, and kept that email address
+# reserved until someone did.
+#
+# The app queues each removal in `userDeletions`; this drains that queue.
+#
+# Runs hourly, and can be triggered manually (with a dry-run option) from the
+# Actions tab. NOTE: GitHub disables scheduled workflows in repositories with
+# no activity for 60 days — if removals stop being cleaned up, check whether
+# this workflow has been auto-disabled.
+
+name: Firebase Auth cleanup
+
+on:
+  schedule:
+    - cron: '17 * * * *' # hourly, off the hour to avoid contention
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report what would be deleted without deleting it'
+        type: boolean
+        default: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install firebase-admin --no-save
+      - name: Process pending auth deletions
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: |
+          node scripts/process-auth-deletions.cjs ${{ inputs.dry_run && '--dry-run' || '' }}
