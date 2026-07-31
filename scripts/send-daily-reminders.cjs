@@ -1,23 +1,75 @@
 /**
  * GitHub Actions Script: Daily Critical Task Reminders
- * Runs via GitHub Actions cron job daily at 8:00 AM IST
+ * Runs via GitHub Actions cron job daily at 8:00 AM IST.
+ *
+ * NOTE: this file must keep the .cjs extension. package.json sets
+ * "type": "module", so a .js file using require() throws
+ * "require is not defined" before a single line runs.
  */
 
 const admin = require('firebase-admin');
 const emailjs = require('@emailjs/nodejs');
 
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  })
-});
+/**
+ * Accepts either a whole service-account JSON (FIREBASE_SERVICE_ACCOUNT_JSON —
+ * the same secret the hosting deploy uses, so it's known to exist) or the three
+ * separate values. Missing credentials fail loudly and specifically rather than
+ * producing a confusing Firebase error later.
+ */
+function buildCredential() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+      return admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON));
+    } catch {
+      console.error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON.');
+      process.exit(2);
+    }
+  }
+
+  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
+  if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
+    return admin.credential.cert({
+      projectId: FIREBASE_PROJECT_ID,
+      clientEmail: FIREBASE_CLIENT_EMAIL,
+      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    });
+  }
+
+  console.error(
+    'No Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON (preferred), or\n' +
+    'FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY.'
+  );
+  process.exit(2);
+}
+
+// Fail fast on missing email config, naming exactly what's absent — otherwise
+// the job "succeeds" having sent nothing, which is how this went unnoticed.
+const REQUIRED_EMAIL_VARS = [
+  'EMAILJS_SERVICE_ID',
+  'EMAILJS_TEMPLATE_ID',
+  'EMAILJS_PUBLIC_KEY',
+  'EMAILJS_PRIVATE_KEY',
+];
+const missingEmailVars = REQUIRED_EMAIL_VARS.filter((v) => !process.env[v]);
+if (missingEmailVars.length) {
+  console.error(`Missing EmailJS configuration: ${missingEmailVars.join(', ')}`);
+  console.error('Add these as repository secrets; reminders cannot be sent without them.');
+  process.exit(2);
+}
+
+admin.initializeApp({ credential: buildCredential() });
 
 const db = admin.firestore();
 
 const ADMIN_EMAILS = 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in';
+
+function formatDeadline(deadline) {
+  if (!deadline) return 'Not specified';
+  const d = typeof deadline?.toDate === 'function' ? deadline.toDate() : new Date(deadline);
+  return isNaN(d.getTime())
+    ? 'Not specified'
+    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 function calculateDaysPending(createdAt) {
   if (!createdAt) return '0';
@@ -117,7 +169,9 @@ async function main() {
           toName: userData.name || userData.email,
           taskTitle: task.title,
           taskDescription: task.description || 'No description provided',
-          dueDate: task.dueDate || 'Not specified',
+          // The field on a task is `deadline`, not `dueDate`. Reading the wrong
+          // one made every reminder say "Not specified".
+          dueDate: formatDeadline(task.deadline),
           daysPending: calculateDaysPending(task.createdAt)
         });
 
