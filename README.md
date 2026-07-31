@@ -131,6 +131,22 @@ Pushing to `main` triggers `.github/workflows/firebase-hosting-merge.yml`, which
 
 `.github/workflows/rules-tests.yml` runs the Firestore rules tests on every push/PR to `main` as a separate check, so a harness problem can't block a hosting deploy, but a genuine rules regression still shows up red on the commit.
 
+### Staging
+Production ships straight from `main`, so there's a long-lived Hosting preview
+channel to try a build first:
+
+```bash
+npm run deploy:staging
+```
+
+or run the **"Deploy to staging"** workflow from the Actions tab (it runs the
+same test gates as production and accepts a branch name).
+
+**The staging channel talks to the SAME Firestore project as production.** It's
+for checking UI and deploy mechanics before users see them — not a sandbox for
+destructive data experiments. Take a backup first if you're testing anything
+that writes.
+
 ### What you must deploy manually
 Firestore rules and indexes are **not** part of the CI workflow:
 ```bash
