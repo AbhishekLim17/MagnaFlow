@@ -26,16 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useDesignations } from '@/contexts/DesignationsContext';
+import StaffFormDialog from '@/components/admin/StaffFormDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDepartments, getProjects } from '@/services/organizationService';
 import {
@@ -509,228 +502,31 @@ const StaffManagement = () => {
         </div>
       </Card>
 
-      {/* Add Staff Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-        setIsAddDialogOpen(open);
-        if (!open) resetForm();
-      }}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Staff Member</DialogTitle>
-            <DialogDescription>
-              Create a new staff account. They will be able to log in with these credentials.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter full name"
-                className="bg-gray-800/50 border-gray-700"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
-                className="bg-gray-800/50 border-gray-700"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter password"
-                className="bg-gray-800/50 border-gray-700"
-              />
-            </div>
-            <div>
-              <Label htmlFor="designation">Designation</Label>
-              <Select
-                value={formData.designation}
-                onValueChange={(value) => setFormData({ ...formData, designation: value })}
-              >
-                <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                  <SelectValue placeholder="Select designation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {designations.map((designation) => (
-                    <SelectItem key={designation.id} value={designation.name}>
-                      {designation.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="department">Department</Label>
-                <Select
-                  value={formData.departmentId || 'none'}
-                  onValueChange={(v) => setFormData({ ...formData, departmentId: v === 'none' ? '' : v })}
-                >
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                    <SelectValue placeholder="No department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No department</SelectItem>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="project">Project</Label>
-                <Select
-                  value={formData.projectId || 'none'}
-                  onValueChange={(v) => setFormData({ ...formData, projectId: v === 'none' ? '' : v })}
-                >
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                    <SelectValue placeholder="No project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500">
-              Assigning a department or project lets that Department Head / Manager see this person on their dashboard.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsAddDialogOpen(false); resetForm(); }}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddStaff}>Add Staff</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StaffFormDialog
+        mode="add"
+        open={isAddDialogOpen}
+        onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}
+        formData={formData}
+        setFormData={setFormData}
+        designations={designations}
+        departments={departments}
+        projects={projects}
+        onSubmit={handleAddStaff}
+        onCancel={() => { setIsAddDialogOpen(false); resetForm(); }}
+      />
 
-      {/* Edit Staff Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800">
-          <DialogHeader>
-            <DialogTitle>Edit Staff Member</DialogTitle>
-            <DialogDescription>
-              Update staff member information. Email cannot be changed.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Name *</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-gray-800/50 border-gray-700"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                value={formData.email}
-                disabled
-                className="bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-designation">Designation</Label>
-              <Select
-                value={formData.designation}
-                onValueChange={(value) => setFormData({ ...formData, designation: value })}
-              >
-                <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                  <SelectValue placeholder="Select designation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {designations.map((designation) => (
-                    <SelectItem key={designation.id} value={designation.name}>
-                      {designation.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
-              >
-                <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-department">Department</Label>
-                <Select
-                  value={formData.departmentId || 'none'}
-                  onValueChange={(v) => setFormData({ ...formData, departmentId: v === 'none' ? '' : v })}
-                >
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                    <SelectValue placeholder="No department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No department</SelectItem>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="edit-project">Project</Label>
-                <Select
-                  value={formData.projectId || 'none'}
-                  onValueChange={(v) => setFormData({ ...formData, projectId: v === 'none' ? '' : v })}
-                >
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700">
-                    <SelectValue placeholder="No project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500">
-              Assigning a department or project lets that Department Head / Manager see this person on their dashboard.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); resetForm(); }}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditStaff}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StaffFormDialog
+        mode="edit"
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        formData={formData}
+        setFormData={setFormData}
+        designations={designations}
+        departments={departments}
+        projects={projects}
+        onSubmit={handleEditStaff}
+        onCancel={() => { setIsEditDialogOpen(false); resetForm(); }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
