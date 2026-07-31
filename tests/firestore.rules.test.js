@@ -87,6 +87,10 @@ beforeEach(async () => {
       title: 'B task', orgId: ORG_B, departmentId: 'deptB', projectId: 'projB',
       assignedTo: STAFF_B, createdBy: ADMIN_B, status: 'pending',
     });
+
+    await setDoc(doc(db, 'error_logs', 'err1'), {
+      message: 'Boom', stack: '', userId: STAFF_A,
+    });
   });
 });
 
@@ -221,5 +225,41 @@ describe('unauthenticated access', () => {
   test('anonymous cannot read tasks', async () => {
     const anon = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(anon, 'tasks', 'taskA')));
+  });
+});
+
+// Crash reports carry stack traces and URLs that can name another org's data,
+// so anyone may file one but only a master-admin may read them — and nobody
+// may edit or erase a report once written.
+describe('error logs', () => {
+  test('any signed-in user can report an error', async () => {
+    await assertSucceeds(
+      setDoc(doc(asUser(STAFF_A), 'error_logs', 'newErr'), { message: 'Crash', userId: STAFF_A })
+    );
+  });
+
+  test('anonymous cannot report an error', async () => {
+    const anon = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(anon, 'error_logs', 'anonErr'), { message: 'Crash' }));
+  });
+
+  test('master-admin CAN read error logs', async () => {
+    await assertSucceeds(getDoc(doc(asUser(MASTER), 'error_logs', 'err1')));
+  });
+
+  test('org-admin cannot read error logs', async () => {
+    await assertFails(getDoc(doc(asUser(ADMIN_A), 'error_logs', 'err1')));
+  });
+
+  test('staff cannot read even their own error report', async () => {
+    await assertFails(getDoc(doc(asUser(STAFF_A), 'error_logs', 'err1')));
+  });
+
+  test('nobody can edit an error log, not even master-admin', async () => {
+    await assertFails(updateDoc(doc(asUser(MASTER), 'error_logs', 'err1'), { message: 'edited' }));
+  });
+
+  test('nobody can delete an error log, not even master-admin', async () => {
+    await assertFails(deleteDoc(doc(asUser(MASTER), 'error_logs', 'err1')));
   });
 });

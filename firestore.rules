@@ -185,6 +185,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Unhandled UI errors, written by the ErrorBoundary.
+    // Any signed-in user may report one (a crash can happen on any screen), but
+    // only a master-admin may read them: stacks and URLs can reveal other
+    // organizations' data. Append-only — a report cannot be altered or removed,
+    // so nobody can quietly erase evidence of a failure.
+    match /error_logs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isMasterAdmin();
+      allow update, delete: if false;
+    }
+
     // Login attempts — Cloud Functions (Admin SDK) only
     match /login_attempts/{doc} {
       allow read, write: if false;

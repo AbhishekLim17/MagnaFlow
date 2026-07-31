@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   ScrollText,
+  AlertTriangle,
   LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import {
   getAuditLogs,
 } from '@/services/organizationService';
 import { createUser } from '@/services/userService';
+import { getErrorLogs } from '@/services/errorLogService';
 
 const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
   const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '' });
@@ -262,6 +264,7 @@ const MasterAdminDashboard = () => {
   const [organizations, setOrganizations] = useState([]);
   const [usageStats, setUsageStats] = useState({});
   const [auditLogs, setAuditLogs] = useState([]);
+  const [errorLogs, setErrorLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
   const [editOrg, setEditOrg] = useState(null);
@@ -274,9 +277,14 @@ const MasterAdminDashboard = () => {
   const loadAll = async () => {
     try {
       setLoading(true);
-      const [orgs, logs] = await Promise.all([getAllOrganizations(), getAuditLogs()]);
+      const [orgs, logs, errors] = await Promise.all([
+        getAllOrganizations(),
+        getAuditLogs(),
+        getErrorLogs(),
+      ]);
       setOrganizations(orgs);
       setAuditLogs(logs);
+      setErrorLogs(errors);
 
       // Compute usage live (no scheduled function on the Spark plan).
       const statsEntries = await Promise.all(
@@ -349,6 +357,7 @@ const MasterAdminDashboard = () => {
   const menuItems = [
     { id: 'organizations', label: 'Organizations', icon: Building2 },
     { id: 'audit', label: 'Audit Logs', icon: ScrollText },
+    { id: 'errors', label: 'Error Logs', icon: AlertTriangle },
   ];
 
   const headerActions = (
@@ -475,6 +484,47 @@ const MasterAdminDashboard = () => {
                     <span className="text-gray-500">
                       {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : ''}
                     </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Error Logs — unhandled UI errors reported by the ErrorBoundary. */}
+        <Card className={`glass-effect p-6 ${activeTab === 'errors' ? '' : 'hidden'}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <AlertTriangle className="text-purple-300" /> Error Logs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {errorLogs.length === 0 ? (
+              <EmptyState
+                icon={AlertTriangle}
+                title="No errors reported."
+                hint="Crashes in any user's browser are recorded here automatically."
+              />
+            ) : (
+              <div className="space-y-2 max-h-[32rem] overflow-y-auto">
+                {errorLogs.map((log) => (
+                  <div key={log.id} className="text-sm p-3 rounded bg-white/5 border border-white/10">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-red-300 font-medium break-all">{log.message}</span>
+                      <span className="text-gray-500 flex-shrink-0">
+                        {log.createdAt?.toDate ? new Date(log.createdAt.toDate()).toLocaleString() : ''}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1 break-all">
+                      {log.userEmail || 'signed-out user'}
+                      {log.url && ` · ${log.url}`}
+                    </div>
+                    {log.stack && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-gray-500 cursor-pointer">Stack trace</summary>
+                        <pre className="text-[11px] text-gray-400 mt-1 whitespace-pre-wrap break-all">{log.stack}</pre>
+                      </details>
+                    )}
                   </div>
                 ))}
               </div>
