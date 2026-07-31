@@ -1,7 +1,7 @@
 // TasksContext - Firebase Integration for Task Management
 // Manages tasks across the application with real-time updates
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
 import {
@@ -24,10 +24,18 @@ export const useTasks = () => {
   return context;
 };
 
+// How long a loaded task list is considered fresh. Screens call refreshTasks()
+// on mount, but the provider has usually just loaded the same data at login —
+// without this, navigating to Task Management or the staff dashboard refetched
+// the whole list every time, doubling Firestore reads (which are billed per
+// document) for no new information.
+const TASKS_STALE_AFTER_MS = 30_000;
+
 export const TasksProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState(null);
+  const lastLoadedAt = useRef(0);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -59,7 +67,19 @@ export const TasksProvider = ({ children }) => {
   // Load tasks based on user role
   // NOTE: must be defined before the effects below that list it as a dependency,
   // otherwise the dependency array reads it in the temporal dead zone (ReferenceError).
-  const loadTasks = useCallback(async () => {
+  /**
+   * @param {Object} [opts]
+   * @param {boolean} [opts.force] refetch even if the current data is still fresh
+   */
+  const loadTasks = useCallback(async ({ force = false } = {}) => {
+    // Skip a redundant round-trip when a screen remounts and asks for data the
+    // provider already holds. Any actual change (create/update/delete, subtask
+    // completion, a different user) forces a reload, so this can't serve stale
+    // data after a mutation.
+    if (!force && Date.now() - lastLoadedAt.current < TASKS_STALE_AFTER_MS) {
+      return;
+    }
+
     try {
       setLoading(true);
       console.log("📥 Loading tasks for user:", user?.email);
@@ -70,6 +90,7 @@ export const TasksProvider = ({ children }) => {
         setTasks([]);
         setStatistics(null);
         setLoading(false);
+        lastLoadedAt.current = Date.now();
         return;
       }
 
@@ -79,6 +100,7 @@ export const TasksProvider = ({ children }) => {
 
       const stats = await getTaskStatistics(filters);
       setStatistics(stats);
+      lastLoadedAt.current = Date.now();
     } catch (error) {
       console.error("❌ Error loading tasks:", error);
       toast({
@@ -91,14 +113,18 @@ export const TasksProvider = ({ children }) => {
     }
   }, [user, toast]);
 
-  // Load tasks when user logs in
+  // Load tasks when the signed-in user changes. Always forced: a different user
+  // has a different scope, so freshness of the previous user's data is
+  // irrelevant — and serving it would be a data leak between accounts.
   useEffect(() => {
     if (isAuthenticated && user) {
-      loadTasks();
+      lastLoadedAt.current = 0;
+      loadTasks({ force: true });
     } else {
       setTasks([]);
       setStatistics(null);
       setLoading(false);
+      lastLoadedAt.current = 0;
     }
   }, [isAuthenticated, user, loadTasks]);
 
@@ -106,7 +132,7 @@ export const TasksProvider = ({ children }) => {
   useEffect(() => {
     const handler = () => {
       console.log('🔄 Task status updated, reloading tasks...');
-      loadTasks();
+      loadTasks({ force: true });
     };
     window.addEventListener('taskStatusUpdated', handler);
     return () => window.removeEventListener('taskStatusUpdated', handler);
@@ -322,7 +348,10 @@ export const TasksProvider = ({ children }) => {
     updateTask,
     deleteTask,
     updateTaskStatus,
+    // Cheap no-op when the data is still fresh — safe to call on every mount.
     refreshTasks: loadTasks,
+    // Bypasses the freshness window; use after an external change.
+    forceRefreshTasks: () => loadTasks({ force: true }),
     refreshStatistics,
     getFilteredTasks,
   };
