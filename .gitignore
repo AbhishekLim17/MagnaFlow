@@ -64,3 +64,6 @@ ui-debug.log
 
 # Product-tracking tool output (not source)
 .telemetry/
+
+# Firebase CLI deploy cache (build artifact)
+.firebase/
