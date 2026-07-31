@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { reportError } from '@/lib/reportError';
 import {
   getDepartments,
   createDepartment,
@@ -55,8 +56,7 @@ const DepartmentsProjectsManagement = () => {
       setDepartments(depts);
       setProjects(projs);
     } catch (error) {
-      console.error('Error loading departments/projects:', error);
-      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Error loading data' });
     } finally {
       setLoading(false);
     }
@@ -72,8 +72,7 @@ const DepartmentsProjectsManagement = () => {
       setIsDeptDialogOpen(false);
       loadAll();
     } catch (error) {
-      console.error('Error creating department:', error);
-      toast({ title: 'Failed to create department', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to create department' });
     }
   };
 
@@ -83,8 +82,7 @@ const DepartmentsProjectsManagement = () => {
       await deleteDepartment(user.orgId, dept.id);
       loadAll();
     } catch (error) {
-      console.error('Error deleting department:', error);
-      toast({ title: 'Failed to delete department', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to delete department' });
     }
   };
 
@@ -98,8 +96,7 @@ const DepartmentsProjectsManagement = () => {
       setIsProjectDialogOpen(false);
       loadAll();
     } catch (error) {
-      console.error('Error creating project:', error);
-      toast({ title: 'Failed to create project', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to create project' });
     }
   };
 
@@ -109,8 +106,7 @@ const DepartmentsProjectsManagement = () => {
       await deleteProject(user.orgId, project.id);
       loadAll();
     } catch (error) {
-      console.error('Error deleting project:', error);
-      toast({ title: 'Failed to delete project', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to delete project' });
     }
   };
 

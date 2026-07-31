@@ -42,6 +42,7 @@ import {
 } from 'recharts';
 import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
+import { reportError } from '@/lib/reportError';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -68,12 +69,7 @@ const PerformanceReports = () => {
       const filtered = filterTasksByTimeRange(allTasks || [], timeRange);
       setFilteredTasks(filtered);
     } catch (error) {
-      console.error('Error loading data:', error);
-      toast({
-        title: "Error loading data",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Error loading data" });
     }
   };
 
@@ -180,11 +176,7 @@ const PerformanceReports = () => {
         description: `Report downloaded as ${format.toUpperCase()}`,
       });
     } catch (error) {
-      toast({
-        title: "Export Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Export Failed" });
     }
   };
 

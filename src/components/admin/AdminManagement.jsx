@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAllUsers, createUser, updateUser, deleteUser, resetUserPassword } from '@/services/userService';
 import { getDepartments, getProjects } from '@/services/organizationService';
+import { reportError } from '@/lib/reportError';
 
 const ROLE_LABELS = {
   'department-head': 'Department Head',
@@ -284,12 +285,7 @@ const AdminManagement = () => {
       ]);
       setAdmins([...deptHeads, ...managers]);
     } catch (error) {
-      console.error('Error loading department heads/managers:', error);
-      toast({
-        title: "Error loading accounts",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Error loading accounts" });
     } finally {
       setLoading(false);
     }
@@ -328,12 +324,7 @@ const AdminManagement = () => {
       setIsAddDialogOpen(false);
       loadAdmins();
     } catch (error) {
-      console.error('Error creating account:', error);
-      toast({
-        title: "Failed to create account",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Failed to create account" });
     }
   };
 
@@ -354,12 +345,7 @@ const AdminManagement = () => {
       setCurrentAdmin(null);
       loadAdmins();
     } catch (error) {
-      console.error('Error updating account:', error);
-      toast({
-        title: "Failed to update account",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Failed to update account" });
     }
   };
 
@@ -378,12 +364,7 @@ const AdminManagement = () => {
 
       loadAdmins();
     } catch (error) {
-      console.error('Error deleting account:', error);
-      toast({
-        title: "Failed to delete account",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Failed to delete account" });
     }
   };
 
@@ -400,12 +381,7 @@ const AdminManagement = () => {
         description: `${admin.name} will receive an email with instructions to reset their password.`
       });
     } catch (error) {
-      console.error('Error sending reset email:', error);
-      toast({
-        title: "Failed to send reset email",
-        description: error.message,
-        variant: "destructive"
-      });
+      reportError(error, { title: "Failed to send reset email" });
     }
   };
 

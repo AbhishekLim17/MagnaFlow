@@ -34,6 +34,7 @@ import StatCard from '@/components/shared/StatCard';
 import { EmptyState, LoadingState } from '@/components/shared/States';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import TaskManagement from '@/components/admin/TaskManagementNew';
+import { reportError } from '@/lib/reportError';
 
 export const SCOPE_CONFIG = {
   department: {
@@ -84,7 +85,7 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
       onCreated();
     } catch (error) {
       console.error('Error creating staff:', error);
-      toast({ title: 'Failed to create staff', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to create staff' });
     } finally {
       setLoading(false);
     }
@@ -128,7 +129,6 @@ const ScopedDashboard = ({ scope }) => {
   const cfg = SCOPE_CONFIG[scope];
   const { user } = useAuth();
   const { tasks, statistics, loading: tasksLoading } = useTasks();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -157,7 +157,7 @@ const ScopedDashboard = ({ scope }) => {
       setStaff(data);
     } catch (error) {
       console.error('Error loading staff:', error);
-      toast({ title: 'Error loading staff', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Error loading staff' });
     } finally {
       setStaffLoading(false);
     }

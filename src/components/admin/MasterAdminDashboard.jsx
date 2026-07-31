@@ -46,6 +46,7 @@ import {
 } from '@/services/organizationService';
 import { createUser } from '@/services/userService';
 import { getErrorLogs } from '@/services/errorLogService';
+import { reportError } from '@/lib/reportError';
 
 const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
   const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '' });
@@ -80,8 +81,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
       onOpenChange(false);
       onSaved();
     } catch (error) {
-      console.error('Error updating organization:', error);
-      toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to update' });
     } finally {
       setLoading(false);
     }
@@ -186,8 +186,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
       onOpenChange(false);
       onCreated();
     } catch (error) {
-      console.error('Error provisioning organization:', error);
-      toast({ title: 'Failed to provision organization', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to provision organization' });
     } finally {
       setLoading(false);
     }
@@ -295,8 +294,7 @@ const MasterAdminDashboard = () => {
       );
       setUsageStats(Object.fromEntries(statsEntries));
     } catch (error) {
-      console.error('Error loading master admin data:', error);
-      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Error loading data' });
     } finally {
       setLoading(false);
     }
@@ -309,8 +307,7 @@ const MasterAdminDashboard = () => {
       toast({ title: 'Organization suspended', description: `${org.name} has been suspended.` });
       loadAll();
     } catch (error) {
-      console.error('Error suspending organization:', error);
-      toast({ title: 'Failed to suspend', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to suspend' });
     }
   };
 
@@ -320,8 +317,7 @@ const MasterAdminDashboard = () => {
       toast({ title: 'Organization reactivated', description: `${org.name} is active again.` });
       loadAll();
     } catch (error) {
-      console.error('Error reactivating organization:', error);
-      toast({ title: 'Failed to reactivate', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to reactivate' });
     }
   };
 
@@ -341,8 +337,7 @@ const MasterAdminDashboard = () => {
       toast({ title: 'Organization deleted', description: `${org.name} has been removed.` });
       loadAll();
     } catch (error) {
-      console.error('Error deleting organization:', error);
-      toast({ title: 'Failed to delete', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Failed to delete' });
     }
   };
 

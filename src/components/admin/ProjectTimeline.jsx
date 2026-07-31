@@ -11,16 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProjects } from '@/services/organizationService';
 import { getAllTasks } from '@/services/taskService';
 import { getAllUsers } from '@/services/userService';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
+import { reportError } from '@/lib/reportError';
 
 const ProjectTimeline = () => {
   const { currentUser } = useAuth();
-  const { toast } = useToast();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [tasks, setTasks] = useState([]);
@@ -39,8 +38,7 @@ const ProjectTimeline = () => {
         setUsers(allUsers);
         if (projs.length > 0) setSelectedProjectId(projs[0].id);
       } catch (error) {
-        console.error('Error loading timeline data:', error);
-        toast({ title: 'Error loading projects', description: error.message, variant: 'destructive' });
+        reportError(error, { title: 'Error loading projects' });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,8 +54,7 @@ const ProjectTimeline = () => {
         const data = await getAllTasks({ orgId: currentUser.orgId, projectId: selectedProjectId });
         setTasks(data);
       } catch (error) {
-        console.error('Error loading project tasks:', error);
-        toast({ title: 'Error loading tasks', description: error.message, variant: 'destructive' });
+        reportError(error, { title: 'Error loading tasks' });
       } finally {
         setLoadingTasks(false);
       }

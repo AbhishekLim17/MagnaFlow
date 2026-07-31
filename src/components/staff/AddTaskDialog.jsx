@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
+import { reportError } from '@/lib/reportError';
 
 const AddTaskDialog = ({ open, onOpenChange }) => {
   const { user } = useAuth();
@@ -102,12 +103,7 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
       
       onOpenChange(false);
     } catch (error) {
-      console.error('Task creation error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create task. Please try again.",
-        variant: "destructive",
-      });
+      reportError(error, { title: "Error", fallback: "Failed to create task. Please try again." });
     }
   };
 

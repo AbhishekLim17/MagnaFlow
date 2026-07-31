@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { reportError, ERROR_TOAST_DURATION } from '@/lib/reportError';
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -34,18 +35,16 @@ const LoginPage = () => {
     try {
       const result = await login(email, password);
       if (!result.success) {
+        // login() already maps the failure to a user-facing sentence.
         toast({
           title: "Login failed",
           description: result.error,
           variant: "destructive",
+          duration: ERROR_TOAST_DURATION,
         });
       }
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      reportError(error, { title: "Login failed", fallback: "We couldn't sign you in. Please try again." });
     } finally {
       setLoading(false);
     }

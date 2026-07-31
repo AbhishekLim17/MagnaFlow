@@ -31,6 +31,7 @@ import { useDesignations } from '@/contexts/DesignationsContext';
 import StaffFormDialog from '@/components/admin/StaffFormDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDepartments, getProjects } from '@/services/organizationService';
+import { reportError } from '@/lib/reportError';
 import {
   getAllUsers,
   createUser,
@@ -95,7 +96,7 @@ const StaffManagement = () => {
       await markAuthCleanupDone(uid);
       loadPendingCleanups();
     } catch (error) {
-      toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
+      reportError(error, { title: 'Could not update' });
     }
   };
 
@@ -174,11 +175,7 @@ const StaffManagement = () => {
           duration: 5000,
         });
       } else {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to add staff member.",
-          variant: "destructive",
-        });
+        reportError(error, { title: "Error", fallback: "Failed to add staff member." });
       }
     }
   };

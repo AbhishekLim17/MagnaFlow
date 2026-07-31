@@ -12,6 +12,7 @@ import { auth } from "@/config/firebase";
 import { getUserById, clearCallerProfileCache } from "@/services/userService";
 import { getOrganizationById } from "@/services/organizationService";
 import { isValidEmail } from "@/utils/validation";
+import { toUserMessage } from "@/lib/errorMessages";
 
 const AuthContext = createContext();
 
@@ -153,19 +154,13 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: userData };
       
     } catch (error) {
-      let errorMessage = "Login failed. Please try again.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        errorMessage = "Invalid email or password";
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email address format";
-      } else if (error.code === 'auth/user-disabled') {
-        errorMessage = "This account has been disabled";
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = "Too many failed login attempts. Please try again later";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      return { success: false, error: errorMessage };
+      // This list used to be maintained by hand here and had fallen behind the
+      // SDK: it had no case for auth/invalid-credential, which is what recent
+      // Firebase returns for a wrong password, so the final `error.message`
+      // branch showed the user the literal string
+      // "Firebase: Error (auth/invalid-credential)."
+      console.error('❌ Login failed:', error?.code || error);
+      return { success: false, error: toUserMessage(error, 'Login failed. Please try again.') };
     }
   };
 
