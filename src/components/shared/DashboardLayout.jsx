@@ -92,12 +92,18 @@ const DashboardLayout = ({
   const IconRail = () => (
     <TooltipProvider delayDuration={120}>
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center gap-2 border-r border-border bg-card py-6 lg:flex"
+        className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center border-r border-border bg-card pb-6 lg:flex"
         aria-label="Main navigation"
       >
-        <Brandmark className="mb-4 h-10 w-10" />
+        {/* Same h-20 band as the header, with the same bottom border, so the
+            two rules meet as one continuous line across the top of the app and
+            the mark sits on the greeting's centreline. Previously the rail's
+            logo sat 6px low and the header's border stopped dead at the rail. */}
+        <div className="flex h-20 w-full shrink-0 items-center justify-center border-b border-border">
+          <Brandmark className="h-10 w-10" />
+        </div>
 
-        <nav className="flex flex-1 flex-col items-center gap-1">
+        <nav className="flex flex-1 flex-col items-center gap-1 pt-4">
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -106,9 +112,11 @@ const DashboardLayout = ({
                   <button
                     onClick={() => handleNavigate(item.id)}
                     aria-current={isActive ? 'page' : undefined}
+                    // Filled, not tinted: this is now the only place the current
+                    // section is marked, so it has to be unmistakable at a glance.
                     className={`relative grid h-11 w-11 place-items-center rounded-xl transition-all duration-200 ease-premium ${
                       isActive
-                        ? 'bg-primary-soft text-primary'
+                        ? 'bg-primary text-primary-foreground shadow-card'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
@@ -214,8 +222,11 @@ const DashboardLayout = ({
 
       <div className="lg:pl-20">
         {/* Top bar: identity on the left, pill nav centre, actions right. */}
-        <header className="sticky top-0 z-20 border-b border-border bg-background/85">
-          <div className="flex items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+        {/* h-20 on the header itself (border-box) so its rule lands on exactly
+            the same pixel as the rail's, instead of 1px lower. The blur is what
+            makes the translucent bar readable over content scrolling under it. */}
+        <header className="sticky top-0 z-20 h-20 border-b border-border bg-background/85 backdrop-blur-xl">
+          <div className="flex h-full items-center gap-3 px-4 sm:px-6 lg:px-8">
             <Button
               variant="ghost"
               size="icon"
@@ -234,32 +245,14 @@ const DashboardLayout = ({
               <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
             </div>
 
-            {/* Pill nav mirrors the reference. Hidden below xl, where the rail
-                and the drawer already cover navigation. */}
-            <nav className="hidden items-center gap-1 rounded-full bg-muted p-1 xl:flex">
-              {menuItems.slice(0, 5).map((item) => {
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavigate(item.id)}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200 ${
-                      isActive ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.span
-                        layoutId="nav-pill"
-                        className="absolute inset-0 rounded-full bg-primary"
-                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                      />
-                    )}
-                    <span className="relative z-10">{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+            {/* There is deliberately no second navigation here.
+                The reference carries a rail AND a top nav because it has two
+                levels — app modules on the left, section tabs on top. This app
+                has one flat list of eight destinations, so putting it in both
+                places meant the two disagreed: the top bar was capped at five
+                and an active item beyond that (Reports, Timeline, Tasks) lit
+                up in the rail with nothing selected up top. The rail is the
+                one that scales, so it is the only navigation. */}
 
             <div className="flex shrink-0 items-center gap-2">
               {headerActions}
