@@ -59,6 +59,11 @@ const EXPECTED_CODES = new Set([
 
 const GENERIC = 'Something went wrong. Please try again.';
 
+// Firestore/Auth internal assertions arrive as plain Errors — no code, no
+// "Firebase:" prefix — so they need matching on wording. They carry a stack
+// trace in `.message`, which is how one ended up rendered inside a toast.
+const INTERNAL_FAILURE = /INTERNAL ASSERTION|FIRESTORE \(|Unexpected state \(ID:/i;
+
 const getCode = (error) => (typeof error?.code === 'string' ? error.code : '');
 
 /**
@@ -88,10 +93,19 @@ export const toUserMessage = (error, fallback = GENERIC) => {
   const known = MESSAGES[getCode(error)];
   if (known) return known;
 
+  const message = typeof error?.message === 'string' ? error.message.trim() : '';
+
+  // SDK internals. These are plain Errors with no `.code` and no "Firebase:"
+  // prefix, so they slipped through the check below and put a stack trace in a
+  // toast. They also mean the client is wedged until the page is reloaded,
+  // which is the one thing the user can actually do about it.
+  if (INTERNAL_FAILURE.test(message)) {
+    return 'The app lost its connection to the database. Please reload the page.';
+  }
+
   // Errors the app itself threw (`throw new Error("Email is required")`) are
   // already written for a user, so they are shown as-is. Anything carrying a
   // Firebase code or its "Firebase:" prefix is not.
-  const message = typeof error?.message === 'string' ? error.message.trim() : '';
   if (message && !getCode(error) && !message.startsWith('Firebase:')) {
     return message;
   }

@@ -34,7 +34,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { db } from '@/config/firebase';
 import { getAllUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
-import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
   const { tasks } = useTasks();
@@ -92,14 +92,14 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       limit(10)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = safeListen(() => onSnapshot(q, (snapshot) => {
       const activities = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
       }));
       setRecentActivity(activities);
-    });
+    }));
 
     return () => safeUnsubscribe(unsubscribe);
   }, []);

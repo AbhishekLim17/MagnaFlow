@@ -14,7 +14,7 @@ import { getAllUsers } from '@/services/userService';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 const DesignationsContext = createContext();
 
@@ -53,7 +53,7 @@ export const DesignationsProvider = ({ children }) => {
     try {
       const designationsRef = collection(db, 'designations');
       
-      const unsubscribe = onSnapshot(
+      const unsubscribe = safeListen(() => onSnapshot(
         designationsRef,
         (snapshot) => {
           console.log("📡 Designations snapshot received:", snapshot.size, "documents");
@@ -81,7 +81,7 @@ export const DesignationsProvider = ({ children }) => {
           // Fallback to manual load on error
           loadDesignations();
         }
-      );
+      ));
       
       return unsubscribe;
     } catch (error) {

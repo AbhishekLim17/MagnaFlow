@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**
  * Hook to get real-time subtask counts for a task
@@ -23,7 +23,7 @@ export const useSubtaskCount = (taskId) => {
       where('taskId', '==', taskId)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = safeListen(() => onSnapshot(q, (snapshot) => {
       let total = 0;
       let completed = 0;
 
@@ -39,7 +39,7 @@ export const useSubtaskCount = (taskId) => {
     }, (error) => {
       console.error('Error fetching subtask count:', error);
       setCounts({ total: 0, completed: 0 });
-    });
+    }));
 
     return () => safeUnsubscribe(unsubscribe);
   }, [taskId]);

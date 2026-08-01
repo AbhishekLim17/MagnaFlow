@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**
  * Hook to get real-time comment count for a task
@@ -23,12 +23,12 @@ export const useCommentCount = (taskId) => {
       where('deleted', '==', false)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = safeListen(() => onSnapshot(q, (snapshot) => {
       setCommentCount(snapshot.size);
     }, (error) => {
       console.error('Error fetching comment count:', error);
       setCommentCount(0);
-    });
+    }));
 
     return () => safeUnsubscribe(unsubscribe);
   }, [taskId]);

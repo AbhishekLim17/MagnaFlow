@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { recomputeTaskStatus } from './taskStatusUtils';
+import { safeListen } from '@/lib/safeUnsubscribe';
 
 const SUBTASKS_COLLECTION = 'subtasks';
 
@@ -196,7 +197,7 @@ export const subscribeToSubtasks = (taskId, callback) => {
       where('taskId', '==', taskId)
     );
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = safeListen(() => onSnapshot(
       q,
       (querySnapshot) => {
         const subtasks = [];
@@ -222,7 +223,7 @@ export const subscribeToSubtasks = (taskId, callback) => {
         console.error('Error in subtasks subscription:', error);
         callback([]);
       }
-    );
+    ));
 
     return unsubscribe;
   } catch (error) {

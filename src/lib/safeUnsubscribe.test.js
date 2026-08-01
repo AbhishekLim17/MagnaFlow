@@ -1,5 +1,46 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { safeUnsubscribe } from './safeUnsubscribe';
+import { safeListen, safeUnsubscribe } from './safeUnsubscribe';
+
+const FIRESTORE_ASSERTION =
+  'FIRESTORE (12.5.0) INTERNAL ASSERTION FAILED: Unexpected state (ID: b815)';
+
+describe('safeListen', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  test('returns the unsubscribe the listener handed back', () => {
+    const unsubscribe = vi.fn();
+    expect(safeListen(() => unsubscribe)).toBe(unsubscribe);
+  });
+
+  // Once Firestore's queue has failed — which is what a sign-out or an account
+  // switch can leave behind — onSnapshot itself throws, not just teardown.
+  // That throw happens while React is running the effect, so it escaped to the
+  // ErrorBoundary and replaced the dashboard with the crash screen.
+  test('does not rethrow when opening the listener throws', () => {
+    const boom = () => {
+      throw new Error(FIRESTORE_ASSERTION);
+    };
+    expect(() => safeListen(boom)).not.toThrow();
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  // Callers always call the result during cleanup, so a failure must still
+  // hand back something callable.
+  test('returns a callable no-op when the listener could not open', () => {
+    const stop = safeListen(() => {
+      throw new Error(FIRESTORE_ASSERTION);
+    });
+    expect(typeof stop).toBe('function');
+    expect(() => stop()).not.toThrow();
+  });
+
+  test('tolerates a subscribe that returns nothing', () => {
+    const stop = safeListen(() => undefined);
+    expect(() => stop()).not.toThrow();
+  });
+});
 
 describe('safeUnsubscribe', () => {
   beforeEach(() => {

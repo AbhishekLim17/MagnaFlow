@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { sendTaskAssignedEmail } from './emailService';
+import { safeListen } from '@/lib/safeUnsubscribe';
 
 /**
  * Notification Service
@@ -156,7 +157,7 @@ export const subscribeToUnreadNotifications = (userId, callback) => {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = safeListen(() => onSnapshot(q, (snapshot) => {
       const notifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -168,7 +169,7 @@ export const subscribeToUnreadNotifications = (userId, callback) => {
     }, (error) => {
       console.error('❌ Error fetching notifications:', error);
       callback([]);
-    });
+    }));
 
     return unsubscribe;
   } catch (error) {

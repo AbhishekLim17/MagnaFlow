@@ -46,6 +46,19 @@ describe('toUserMessage', () => {
     expect(toUserMessage(undefined)).toBe('Something went wrong. Please try again.');
   });
 
+  // These arrive as plain Errors with no code and no "Firebase:" prefix, so
+  // they passed the "app wrote this for a user" check and put a full stack
+  // trace into a toast on the login screen.
+  test('does not leak a Firestore internal assertion', () => {
+    const error = new Error(
+      'FIRESTORE (12.5.0) INTERNAL ASSERTION FAILED: Unexpected state (ID: b815) CONTEXT: ' +
+        '{"Pc":"Error: ...\\n    at __PRIVATE__fail (firebase_firestore.js:2593:32)"}'
+    );
+    const message = toUserMessage(error);
+    expect(message).toBe('The app lost its connection to the database. Please reload the page.');
+    expect(message).not.toMatch(/ASSERTION|__PRIVATE|firestore\.js/i);
+  });
+
   test('being offline explains that the change was not saved', () => {
     vi.stubGlobal('navigator', { onLine: false });
     expect(toUserMessage(fbError('unavailable'))).toMatch(/offline/i);

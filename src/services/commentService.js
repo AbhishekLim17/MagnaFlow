@@ -11,6 +11,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { safeListen } from '@/lib/safeUnsubscribe';
 
 /**
  * Comment Service
@@ -90,7 +91,7 @@ export const subscribeToComments = (taskId, callback) => {
       where('taskId', '==', taskId)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = safeListen(() => onSnapshot(q, (snapshot) => {
       const comments = snapshot.docs
         .map(doc => ({
           id: doc.id,
@@ -110,7 +111,7 @@ export const subscribeToComments = (taskId, callback) => {
     }, (error) => {
       console.error('❌ Error fetching comments:', error);
       callback([]);
-    });
+    }));
 
     return unsubscribe;
   } catch (error) {

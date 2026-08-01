@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**
  * Hook to track email quota usage in real-time
@@ -29,7 +29,7 @@ export function useEmailQuota() {
       where('status', '==', 'success')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = safeListen(() => onSnapshot(q, (snapshot) => {
       const used = snapshot.size;
       const percentage = (used / 200) * 100;
       
@@ -58,7 +58,7 @@ export function useEmailQuota() {
     }, (error) => {
       console.error('Error fetching email quota:', error);
       setLoading(false);
-    });
+    }));
 
     return () => safeUnsubscribe(unsubscribe);
   }, []);

@@ -12,6 +12,8 @@ build/
 
 # Environment files
 .env*
+# Emulator-only placeholders, no secrets — needed for `npm run dev:emulated`
+!.env.emulated
 .env.local
 .env.development.local
 .env.test.local
