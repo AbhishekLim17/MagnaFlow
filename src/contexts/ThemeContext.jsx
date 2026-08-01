@@ -19,7 +19,7 @@ const getInitialTheme = () => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
   } catch {
-    // Private mode / storage disabled — fall through to the OS preference.
+    // Private mode / storage disabled — fall through to the default.
   }
   // Light is the designed default. Following the OS would mean most people
   // never see the light theme the product was actually designed in, so dark

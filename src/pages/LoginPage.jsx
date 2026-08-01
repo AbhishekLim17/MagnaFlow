@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { LogIn, Mail, Lock, Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/components/ui/use-toast";
 import { reportError, ERROR_TOAST_DURATION } from '@/lib/reportError';
 import Brandmark from '@/components/shared/Brandmark';
@@ -21,6 +22,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const toastedRef = useRef(false);
 
@@ -69,6 +71,16 @@ const LoginPage = () => {
         aria-hidden="true"
         className="pointer-events-none absolute -bottom-48 -right-32 h-[26rem] w-[26rem] rounded-full bg-primary/10 blur-3xl"
       />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleTheme}
+        aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        className="absolute right-4 top-4 sm:right-6 sm:top-6"
+      >
+        {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      </Button>
 
       <motion.div
         initial={{ opacity: 0, y: 14 }}

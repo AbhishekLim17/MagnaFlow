@@ -17,8 +17,8 @@ jobs:
   rules:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: npm
@@ -26,7 +26,7 @@ jobs:
       # The Firestore emulator is a Java process. firebase-tools v15+ requires
       # JDK 21 or above — an older JDK fails with a version error, not a test
       # failure, which is easy to misread.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'

@@ -77,7 +77,7 @@ describe('ProjectGanttChart', () => {
   });
 
   test('orders tasks by start date', () => {
-    const { container } = render(
+    render(
       <ProjectGanttChart
         tasks={[
           task({ id: 'b', title: 'Later', startDate: ts('2026-03-05') }),
@@ -85,7 +85,10 @@ describe('ProjectGanttChart', () => {
         ]}
       />
     );
-    const titles = [...container.querySelectorAll('p.text-sm')].map((n) => n.textContent);
+    // getAllByTestId returns matches in document order, which is what the
+    // assertion is really about — reaching into the container to select by
+    // class coupled the test to styling that has since changed twice.
+    const titles = screen.getAllByTestId('gantt-task-title').map((n) => n.textContent);
     expect(titles.indexOf('Earlier')).toBeLessThan(titles.indexOf('Later'));
   });
 });

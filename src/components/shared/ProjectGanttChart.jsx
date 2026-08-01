@@ -135,7 +135,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
             return (
               <div key={r.id} className="flex items-center h-11 border-b border-border">
                 <div className="w-56 flex-shrink-0 pr-3">
-                  <p className="text-sm text-foreground truncate" title={r.title}>{r.title}</p>
+                  <p data-testid="gantt-task-title" className="text-sm text-foreground truncate" title={r.title}>{r.title}</p>
                   {r.assignee && <p className="text-[11px] text-muted-foreground truncate">{r.assignee}</p>}
                 </div>
                 <div className="relative flex-1 h-full">

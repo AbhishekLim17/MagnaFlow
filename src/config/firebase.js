@@ -4,7 +4,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 
 // Firebase project configuration - Using environment variables
 // These credentials connect your app to your Firebase project
@@ -31,7 +30,6 @@ export const db = getFirestore(app);
 
 // Initialize Firebase Storage
 // Used for file attachment uploads/downloads
-export const storage = getStorage(app);
 
 // Secondary Firebase app for creating users without affecting admin session
 // This allows admins to create staff accounts without being logged out
