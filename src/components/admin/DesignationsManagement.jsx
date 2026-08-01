@@ -32,7 +32,7 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
@@ -57,7 +57,7 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90">
+            <Button type="submit">
               {initialValue ? 'Save Changes' : 'Add Designation'}
             </Button>
           </DialogFooter>
@@ -106,7 +106,6 @@ const DesignationsManagement = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Manage Designations</h2>
           <p className="text-muted-foreground">Add, edit, or remove staff roles and designations.</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -126,7 +125,7 @@ const DesignationsManagement = () => {
         </div>
       </div>
 
-      <Card className="surface p-6">
+      <Card className="p-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Briefcase className="text-primary" />

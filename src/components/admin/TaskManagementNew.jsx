@@ -53,7 +53,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
     >
-      <Card className="surface border-border hover:border-border transition-all duration-300">
+      <Card className="hover:border-border transition-all duration-300">
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -397,12 +397,10 @@ const TaskManagement = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Task Management</h2>
           <p className="text-muted-foreground mt-1">Create and assign tasks to your team</p>
         </div>
         <Button
-          onClick={() => setIsAddDialogOpen(true)}
-          className="bg-success hover:bg-success/90 shadow-card"
+          onClick={() => setIsAddDialogOpen(true)} variant="success"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Task
@@ -410,7 +408,7 @@ const TaskManagement = () => {
       </div>
 
       {/* Filters */}
-      <Card className="surface border-border p-4">
+      <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -422,7 +420,7 @@ const TaskManagement = () => {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted">
               <SelectValue placeholder="Filter by Status" />
             </SelectTrigger>
             <SelectContent>
@@ -433,7 +431,7 @@ const TaskManagement = () => {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted">
               <SelectValue placeholder="Filter by Priority" />
             </SelectTrigger>
             <SelectContent>
@@ -448,7 +446,7 @@ const TaskManagement = () => {
       </Card>
 
       {/* Tasks List */}
-      <Card className="surface border-border">
+      <Card>
         <div className="p-6">
           {loading ? (
             <div className="text-center py-12">
@@ -506,7 +504,7 @@ const TaskManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-background border-border">
+        <AlertDialogContent className="border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -515,7 +513,7 @@ const TaskManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDeleteTask} variant="destructive">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

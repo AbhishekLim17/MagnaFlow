@@ -116,7 +116,7 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-success rounded-xl flex items-center justify-center">
@@ -156,10 +156,10 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
             <div className="space-y-2">
               <Label className="text-foreground">Priority</Label>
               <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
-                <SelectTrigger className="surface border-border text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="surface border-border">
+                <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -195,8 +195,7 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
               Cancel
             </Button>
             <Button
-              type="submit"
-              className="bg-success hover:bg-success/90"
+              type="submit" variant="success"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Task

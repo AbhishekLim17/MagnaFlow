@@ -72,7 +72,7 @@ const AddSubtaskDialog = ({ open, onClose, taskId }) => {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="surface border-border text-foreground">
+      <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-foreground">Add Subtask</DialogTitle>
@@ -115,7 +115,6 @@ const AddSubtaskDialog = ({ open, onClose, taskId }) => {
             <Button
               type="submit"
               disabled={loading || !title.trim()}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {loading ? 'Adding...' : 'Add Subtask'}
             </Button>

@@ -63,7 +63,7 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
@@ -138,13 +138,13 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
           <div className="space-y-2">
             <Label className="text-foreground">Designation</Label>
             <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-              <SelectTrigger className="surface border-border text-foreground">
+              <SelectTrigger>
                 <div className="flex items-center">
                   <Briefcase className="w-4 h-4 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Select a designation" />
                 </div>
               </SelectTrigger>
-              <SelectContent className="surface border-border">
+              <SelectContent>
                 {designations.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
@@ -158,10 +158,10 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
             <div className="space-y-2">
               <Label className="text-foreground">Status</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                <SelectTrigger className="surface border-border text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="surface border-border">
+                <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
@@ -194,7 +194,6 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
             </Button>
             <Button
               type="submit"
-              className="bg-primary hover:bg-primary/90"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Staff Member

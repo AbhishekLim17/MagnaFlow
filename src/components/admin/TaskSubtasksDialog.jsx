@@ -20,7 +20,7 @@ const TaskSubtasksDialog = ({ open, onOpenChange, task }) => {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="surface border-border text-foreground max-w-3xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -33,7 +33,6 @@ const TaskSubtasksDialog = ({ open, onOpenChange, task }) => {
               <Button
                 onClick={() => setShowAddSubtask(true)}
                 size="sm"
-                className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Add Subtask

@@ -93,7 +93,7 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Staff Member</DialogTitle>
         </DialogHeader>
@@ -115,7 +115,7 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Creating...' : 'Create Staff'}
             </Button>
           </DialogFooter>
@@ -185,7 +185,7 @@ const ScopedDashboard = ({ scope }) => {
         <StatCard title="Completed" value={statistics?.completed ?? 0} icon={CheckSquare} color="green" index={3} />
       </div>
 
-      <Card className="surface border-border">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <GanttChartSquare className="text-primary" /> {cfg.noun} Timeline
@@ -203,12 +203,12 @@ const ScopedDashboard = ({ scope }) => {
   );
 
   const StaffRoster = () => (
-    <Card className="surface border-border">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-foreground">
           <Users className="text-primary" /> {cfg.noun} Staff ({staff.length})
         </CardTitle>
-        <Button onClick={() => setIsAddStaffOpen(true)} className="bg-primary hover:bg-primary/90" disabled={!scopeId}>
+        <Button onClick={() => setIsAddStaffOpen(true)} disabled={!scopeId}>
           <Plus className="w-4 h-4 mr-2" /> Add Staff
         </Button>
       </CardHeader>

@@ -66,7 +66,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <DialogTitle className="text-2xl font-bold text-foreground mb-4">
           Task Details
         </DialogTitle>
@@ -134,7 +134,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               value={task.status}
               onValueChange={handleStatusChange}
             >
-              <SelectTrigger className="bg-muted border-border text-foreground">
+              <SelectTrigger className="bg-muted">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

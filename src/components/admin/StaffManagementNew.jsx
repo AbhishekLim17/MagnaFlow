@@ -336,12 +336,10 @@ const StaffManagement = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Staff Management</h2>
           <p className="text-muted-foreground mt-1">Manage your team members and their roles</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-card"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Staff
@@ -352,7 +350,7 @@ const StaffManagement = () => {
           reserved until removed in the console, which otherwise silently blocks
           re-adding that person. */}
       {pendingCleanups.length > 0 && (
-        <Card className="surface border-warning/30 p-4">
+        <Card className="border-warning/30 p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
@@ -387,7 +385,7 @@ const StaffManagement = () => {
       )}
 
       {/* Search */}
-      <Card className="surface border-border p-4">
+      <Card className="p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <Input
@@ -401,7 +399,7 @@ const StaffManagement = () => {
       </Card>
 
       {/* Staff List */}
-      <Card className="surface border-border">
+      <Card>
         <div className="p-6">
           {loading ? (
             <div className="text-center py-12">
@@ -421,7 +419,7 @@ const StaffManagement = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card className="surface border-border hover:border-border transition-all duration-300">
+                  <Card className="hover:border-border transition-all duration-300">
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-3">
@@ -527,7 +525,7 @@ const StaffManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-background border-border">
+        <AlertDialogContent className="border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -536,7 +534,7 @@ const StaffManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setStaffToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteStaff} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDeleteStaff} variant="destructive">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -545,7 +543,7 @@ const StaffManagement = () => {
 
       {/* Firebase Auth Cleanup Guide Dialog */}
       <Dialog open={showCleanupGuide} onOpenChange={setShowCleanupGuide}>
-        <DialogContent className="bg-background border-border max-w-3xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>⚠️ Firebase Auth Cleanup Required</DialogTitle>
             <DialogDescription>

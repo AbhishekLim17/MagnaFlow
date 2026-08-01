@@ -139,7 +139,7 @@ const NotificationBell = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-80 bg-muted border border-border rounded-xl shadow-card overflow-hidden z-50"
+            className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-overlay"
           >
             {/* Header */}
             <div className="p-4 bg-background border-b border-border">

@@ -89,7 +89,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Pencil className="w-5 h-5" /> Edit Organization
@@ -105,7 +105,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
             <div>
               <Label className="text-foreground">Plan</Label>
               <Select value={form.plan} onValueChange={(v) => setForm((p) => ({ ...p, plan: v }))}>
-                <SelectTrigger className="mt-2 surface border-border text-foreground"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -132,7 +132,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -194,7 +194,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building2 className="w-5 h-5" /> Provision New Organization
@@ -210,7 +210,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
             <div>
               <Label className="text-foreground">Plan</Label>
               <Select value={form.plan} onValueChange={(v) => handleChange('plan', v)}>
-                <SelectTrigger className="mt-2 surface border-border text-foreground"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -247,7 +247,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Provisioning...' : 'Provision Organization'}
             </Button>
           </DialogFooter>
@@ -358,7 +358,6 @@ const MasterAdminDashboard = () => {
   const headerActions = (
     <Button
       onClick={() => setIsProvisionOpen(true)}
-      className="bg-primary hover:bg-primary/90 text-primary-foreground"
       size="sm"
     >
       <Plus className="w-4 h-4 sm:mr-2" />

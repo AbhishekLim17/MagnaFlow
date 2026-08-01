@@ -85,7 +85,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
       transition={{ delay: index * 0.05 }}
     >
       <Card 
-        className="surface border-border hover:border-border transition-all duration-300 cursor-pointer"
+        className="hover:border-border transition-all duration-300 cursor-pointer"
         onClick={() => onTaskClick(task)}
       >
         <div className="p-5">
@@ -348,11 +348,8 @@ const StaffDashboard = () => {
       headerActions={headerActions}
     >
       <main className="space-y-6">
-        {/* Welcome Section */}
-        <div>
-          <h2 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h2>
-          <p className="text-muted-foreground">Manage your tasks and track your progress</p>
-        </div>
+        {/* The header already greets the user by name. */}
+        <p className="text-sm text-muted-foreground">Manage your tasks and track your progress</p>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -370,14 +367,13 @@ const StaffDashboard = () => {
         </div>
 
         {/* Task Management Section */}
-        <Card className="surface border-border">
+        <Card>
           <div className="p-6 space-y-4">
             {/* Header with Add Task Button */}
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold">My Tasks</h3>
               <Button
                 onClick={() => setIsAddTaskOpen(true)}
-                className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Personal Task
@@ -396,7 +392,7 @@ const StaffDashboard = () => {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted">
                   <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,7 +403,7 @@ const StaffDashboard = () => {
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted">
                   <SelectValue placeholder="Filter by Priority" />
                 </SelectTrigger>
                 <SelectContent>

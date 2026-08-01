@@ -85,13 +85,12 @@ const ProjectTimeline = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-1">Project Timeline</h2>
           <p className="text-muted-foreground">A Gantt view of a project's tasks, from start date to deadline.</p>
         </div>
         {projects.length > 0 && (
           <div className="w-full sm:w-64">
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="bg-muted border-border text-foreground">
+              <SelectTrigger className="bg-muted">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
               <SelectContent>
@@ -104,7 +103,7 @@ const ProjectTimeline = () => {
         )}
       </div>
 
-      <Card className="surface p-6">
+      <Card className="p-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <GanttChartSquare className="text-primary" />

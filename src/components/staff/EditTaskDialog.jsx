@@ -132,7 +132,7 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
@@ -172,10 +172,10 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
             <div className="space-y-2">
               <Label className="text-foreground">Priority *</Label>
               <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
-                <SelectTrigger className="surface border-border text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="surface border-border">
+                <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -187,10 +187,10 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
             <div className="space-y-2">
               <Label className="text-foreground">Status *</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                <SelectTrigger className="surface border-border text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="surface border-border">
+                <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
@@ -226,7 +226,6 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
             </Button>
             <Button
               type="submit"
-              className="bg-primary hover:bg-primary/90"
             >
               <Edit className="w-4 h-4 mr-2" />
               Update Task

@@ -130,16 +130,15 @@ const DepartmentsProjectsManagement = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-foreground mb-2">Departments & Projects</h2>
         <p className="text-muted-foreground">Create the departments and projects that Department Heads and Managers get assigned to.</p>
       </div>
 
-      <Card className="surface p-6 mb-6">
+      <Card className="p-6 mb-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Building2 className="text-primary" /> Departments ({departments.length})
           </CardTitle>
-          <Button onClick={() => setIsDeptDialogOpen(true)} className="bg-primary hover:bg-primary/90">
+          <Button onClick={() => setIsDeptDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" /> Add Department
           </Button>
         </CardHeader>
@@ -164,12 +163,12 @@ const DepartmentsProjectsManagement = () => {
         </CardContent>
       </Card>
 
-      <Card className="surface p-6">
+      <Card className="p-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <FolderKanban className="text-primary" /> Projects ({projects.length})
           </CardTitle>
-          <Button onClick={() => setIsProjectDialogOpen(true)} className="bg-primary hover:bg-primary/90" disabled={departments.length === 0}>
+          <Button onClick={() => setIsProjectDialogOpen(true)} disabled={departments.length === 0}>
             <Plus className="w-4 h-4 mr-2" /> Add Project
           </Button>
         </CardHeader>
@@ -200,7 +199,7 @@ const DepartmentsProjectsManagement = () => {
       </Card>
 
       <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
-        <DialogContent className="surface border-border text-foreground max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add Department</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateDept} className="space-y-4 py-2">
             <div>
@@ -210,14 +209,14 @@ const DepartmentsProjectsManagement = () => {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsDeptDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">Create</Button>
+              <Button type="submit">Create</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-        <DialogContent className="surface border-border text-foreground max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add Project</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateProject} className="space-y-4 py-2">
             <div>
@@ -228,7 +227,7 @@ const DepartmentsProjectsManagement = () => {
             <div>
               <Label className="text-foreground">Department *</Label>
               <Select value={newProject.departmentId} onValueChange={(v) => setNewProject(p => ({ ...p, departmentId: v }))}>
-                <SelectTrigger className="mt-2 surface border-border text-foreground"><SelectValue placeholder="Select a department" /></SelectTrigger>
+                <SelectTrigger className="mt-2"><SelectValue placeholder="Select a department" /></SelectTrigger>
                 <SelectContent>
                   {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
@@ -236,7 +235,7 @@ const DepartmentsProjectsManagement = () => {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsProjectDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">Create</Button>
+              <Button type="submit">Create</Button>
             </DialogFooter>
           </form>
         </DialogContent>

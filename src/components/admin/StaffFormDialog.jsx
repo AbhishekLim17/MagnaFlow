@@ -55,7 +55,7 @@ const StaffFormDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isAdd ? 'Add New Staff Member' : 'Edit Staff Member'}</DialogTitle>
           <DialogDescription>

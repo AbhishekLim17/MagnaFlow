@@ -331,17 +331,16 @@ const PerformanceReports = () => {
       transition={{ duration: 0.3 }}
     >
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">Performance Reports</h2>
           <p className="text-muted-foreground">Track team productivity and project progress</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-48 surface border-border text-foreground">
+            <SelectTrigger className="w-full sm:w-48">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="surface border-border">
+            <SelectContent>
               <SelectItem value="30">Last 30 days</SelectItem>
               <SelectItem value="180">Last 6 months</SelectItem>
               <SelectItem value="365">Last 1 year</SelectItem>
@@ -371,7 +370,7 @@ const PerformanceReports = () => {
 
       {/* Show empty state if no data */}
       {tasks.length === 0 ? (
-        <Card className="surface border-border p-12 text-center">
+        <Card className="p-12 text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
             <BarChart3 className="w-16 h-16 text-muted-foreground" />
             <h3 className="text-xl font-semibold text-foreground">No Data Available</h3>
@@ -420,7 +419,7 @@ const PerformanceReports = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="surface p-6 interactive">
+            <Card className="p-6 interactive">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">{metric.title}</p>
@@ -442,7 +441,7 @@ const PerformanceReports = () => {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Staff Productivity Chart */}
-        <Card className="surface p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-foreground">Staff Productivity</h3>
             <Badge className="bg-primary-soft text-primary border-primary/30">
@@ -477,7 +476,7 @@ const PerformanceReports = () => {
         </Card>
 
         {/* Task Status Distribution */}
-        <Card className="surface p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-foreground">Task Status Distribution</h3>
             <Badge className="bg-primary-soft text-primary border-primary/30">
@@ -544,7 +543,7 @@ const PerformanceReports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Weekly Progress */}
         <div className="lg:col-span-2">
-          <Card className="surface p-6">
+          <Card className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-foreground">Weekly Progress</h3>
               <Badge className="bg-success-soft text-success border-success/30">
@@ -586,7 +585,7 @@ const PerformanceReports = () => {
         </div>
 
         {/* Top Performers */}
-        <Card className="surface p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-foreground">Top Performers</h3>
             <Award className="w-5 h-5 text-warning" />

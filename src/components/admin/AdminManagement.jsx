@@ -86,7 +86,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="surface border-border text-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
@@ -101,7 +101,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
               <div>
                 <Label className="text-foreground">Role *</Label>
                 <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
-                  <SelectTrigger className="mt-2 surface border-border text-foreground">
+                  <SelectTrigger className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -116,7 +116,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
               <div>
                 <Label className="text-foreground">Department *</Label>
                 <Select value={formData.departmentId} onValueChange={(v) => handleChange('departmentId', v)}>
-                  <SelectTrigger className="mt-2 surface border-border text-foreground">
+                  <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select a department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -132,7 +132,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
               <div>
                 <Label className="text-foreground">Project *</Label>
                 <Select value={formData.projectId} onValueChange={(v) => handleChange('projectId', v)}>
-                  <SelectTrigger className="mt-2 surface border-border text-foreground">
+                  <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -232,7 +232,6 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
             </Button>
             <Button
               type="submit"
-              className="bg-primary hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Account')}
@@ -398,12 +397,10 @@ const AdminManagement = () => {
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Department Heads & Managers</h2>
           <p className="text-muted-foreground">Manage department head and manager accounts within your organization.</p>
         </div>
         <Button
-          onClick={() => setIsAddDialogOpen(true)}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-card w-full sm:w-auto"
+          onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto"
           disabled={departments.length === 0 && projects.length === 0}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -411,7 +408,7 @@ const AdminManagement = () => {
         </Button>
       </div>
 
-      <Card className="surface p-6">
+      <Card className="p-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="text-primary" />

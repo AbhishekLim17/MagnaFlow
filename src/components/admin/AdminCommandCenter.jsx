@@ -33,6 +33,7 @@ import { useEmailQuota } from '@/hooks/useEmailQuota';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getAllUsers } from '@/services/userService';
+import StatCard from '@/components/shared/StatCard';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
   const { tasks } = useTasks();
@@ -147,21 +148,17 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">
-            Command Center
-          </h2>
-          <p className="text-muted-foreground mt-1">Real-time overview of your workspace</p>
-        </div>
-        <div className="flex space-x-2">
-          <Button onClick={onCreateTask} className="bg-primary hover:bg-primary/90">
-            <Plus className="w-4 h-4 mr-2" />
+      {/* Actions. The page title is rendered by DashboardLayout — repeating
+          it here gave the screen two competing headings saying the same thing. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Real-time overview of your workspace</p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={onCreateTask}>
+            <Plus className="h-4 w-4" />
             New Task
           </Button>
-          <Button onClick={onManageStaff} variant="outline" className="border-border">
-            <Users className="w-4 h-4 mr-2" />
+          <Button onClick={onManageStaff} variant="outline">
+            <Users className="h-4 w-4" />
             Manage Staff
           </Button>
         </div>
@@ -171,33 +168,38 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
           title="Completed Today"
+          index={0}
           value={stats.completedToday}
-          icon={<CheckCircle className="w-5 h-5" />}
+          icon={CheckCircle}
           color="green"
         />
         <StatCard
           title="In Progress"
+          index={1}
           value={stats.inProgress}
-          icon={<Clock className="w-5 h-5" />}
+          icon={Clock}
           color="blue"
         />
         <StatCard
           title="Overdue"
+          index={2}
           value={stats.overdue}
-          icon={<AlertTriangle className="w-5 h-5" />}
+          icon={AlertTriangle}
           color="red"
           trend={stats.overdue > 0 ? "Needs attention" : ""}
         />
         <StatCard
           title="Total Tasks"
+          index={3}
           value={stats.total}
-          icon={<BarChart3 className="w-5 h-5" />}
+          icon={BarChart3}
           color="purple"
         />
         <StatCard
           title="Email Quota"
+          index={4}
           value={`${emailQuota.used}/${emailQuota.limit}`}
-          icon={<Mail className="w-5 h-5" />}
+          icon={Mail}
           color={emailQuota.status === 'critical' ? 'red' : emailQuota.status === 'warning' ? 'yellow' : 'green'}
           trend={`${emailQuota.percentage}%`}
         />
@@ -208,7 +210,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         {/* Left Column - Activity Feed */}
         <div className="lg:col-span-1">
           {/* Recent Activity */}
-          <Card className="surface border-border p-5 h-[240px]">
+          <Card className="p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
                 <Activity className="w-4 h-4 mr-2 text-primary" />
@@ -230,7 +232,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
         {/* Right Column - Top Performers */}
         <div className="lg:col-span-1">
-          <Card className="surface border-border p-5 h-[240px]">
+          <Card className="p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
                 <Award className="w-4 h-4 mr-2 text-warning" />
@@ -250,38 +252,6 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         </div>
       </div>
     </div>
-  );
-}
-
-// Stat Card Component
-function StatCard({ title, value, icon, color, trend }) {
-  const colorClasses = {
-    green: 'text-success bg-success-soft border-success/30',
-    blue: 'text-primary bg-primary-soft border-primary/30',
-    red: 'text-destructive bg-destructive-soft border-destructive/30',
-    purple: 'text-primary bg-primary-soft border-primary/30',
-    yellow: 'text-warning bg-warning-soft border-warning/30'
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className={`surface border ${colorClasses[color]} p-5`}>
-        <div className="flex items-center justify-between mb-2">
-          <div className={`p-2 rounded-xl ${colorClasses[color]}`}>
-            {icon}
-          </div>
-          {trend && (
-            <span className="text-xs text-muted-foreground">{trend}</span>
-          )}
-        </div>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm text-muted-foreground">{title}</div>
-      </Card>
-    </motion.div>
   );
 }
 

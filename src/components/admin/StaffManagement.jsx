@@ -149,7 +149,6 @@ const StaffManagement = () => {
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Staff Management</h2>
           <p className="text-muted-foreground">Manage your team members and their roles</p>
         </div>
         <Button
@@ -174,7 +173,7 @@ const StaffManagement = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="surface p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm mb-1">Total Staff</p>
@@ -185,7 +184,7 @@ const StaffManagement = () => {
             </div>
           </div>
         </Card>
-        <Card className="surface p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm mb-1">Active Members</p>
@@ -196,7 +195,7 @@ const StaffManagement = () => {
             </div>
           </div>
         </Card>
-        <Card className="surface p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm mb-1">Inactive Members</p>
@@ -212,7 +211,7 @@ const StaffManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredStaff.map((member, index) => (
           <motion.div key={member.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-            <Card className="surface p-6 interactive flex flex-col h-full">
+            <Card className="p-6 interactive flex flex-col h-full">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center text-foreground font-semibold">

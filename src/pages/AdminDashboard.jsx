@@ -65,7 +65,7 @@ const AdminDashboard = () => {
       />
 
       {statistics && (
-        <Card className="surface border-border">
+        <Card>
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">Task Priority Distribution</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -90,7 +90,7 @@ const AdminDashboard = () => {
         </Card>
       )}
 
-      <Card className="surface border-border">
+      <Card>
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

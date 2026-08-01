@@ -21,7 +21,10 @@ const getInitialTheme = () => {
   } catch {
     // Private mode / storage disabled — fall through to the OS preference.
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // Light is the designed default. Following the OS would mean most people
+  // never see the light theme the product was actually designed in, so dark
+  // is opt-in via the header toggle and then remembered.
+  return 'light';
 };
 
 export const ThemeProvider = ({ children }) => {
@@ -38,23 +41,6 @@ export const ThemeProvider = ({ children }) => {
       // Persisting is a nicety; the theme still applies for this session.
     }
   }, [theme]);
-
-  // Follow the OS only while the user has not made an explicit choice.
-  useEffect(() => {
-    const stored = (() => {
-      try {
-        return window.localStorage.getItem(STORAGE_KEY);
-      } catch {
-        return null;
-      }
-    })();
-    if (stored) return undefined;
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e) => setTheme(e.matches ? 'dark' : 'light');
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
 
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 

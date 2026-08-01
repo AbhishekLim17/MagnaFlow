@@ -76,9 +76,11 @@
   .dark {
     --background: 233 30% 9%;
     --foreground: 220 22% 96%;
-    --card: 233 26% 13%;
+    /* A touch lighter than the canvas so a card reads as a raised surface
+       and not only as a border. */
+    --card: 233 24% 16%;
     --card-foreground: 220 22% 96%;
-    --popover: 233 26% 13%;
+    --popover: 233 24% 16%;
     --popover-foreground: 220 22% 96%;
 
     --primary: 245 84% 68%;
