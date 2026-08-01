@@ -117,8 +117,8 @@ const DepartmentsProjectsManagement = () => {
   // of letting the org-scoped Firestore paths fail cryptically.
   if (!user?.orgId) {
     return (
-      <div className="text-center py-16 text-gray-400 max-w-lg mx-auto">
-        <h2 className="text-xl font-semibold text-gray-300 mb-2">No organization linked</h2>
+      <div className="text-center py-16 text-muted-foreground max-w-lg mx-auto">
+        <h2 className="text-xl font-semibold text-muted-foreground mb-2">No organization linked</h2>
         <p>
           This account isn't part of an organization, so it can't manage departments or projects.
           Sign in with an organization-admin account, or ask a master admin to provision one.
@@ -130,30 +130,30 @@ const DepartmentsProjectsManagement = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Departments & Projects</h2>
-        <p className="text-gray-300">Create the departments and projects that Department Heads and Managers get assigned to.</p>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Departments & Projects</h2>
+        <p className="text-muted-foreground">Create the departments and projects that Department Heads and Managers get assigned to.</p>
       </div>
 
-      <Card className="glass-effect p-6 mb-6">
+      <Card className="surface p-6 mb-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Building2 className="text-purple-300" /> Departments ({departments.length})
+            <Building2 className="text-primary" /> Departments ({departments.length})
           </CardTitle>
-          <Button onClick={() => setIsDeptDialogOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={() => setIsDeptDialogOpen(true)} className="bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" /> Add Department
           </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-gray-400">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : departments.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No departments yet.</p>
+            <p className="text-muted-foreground text-center py-8">No departments yet.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {departments.map((dept) => (
-                <div key={dept.id} className="p-3 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between">
-                  <span className="text-white">{dept.name}</span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20"
+                <div key={dept.id} className="p-3 rounded-xl bg-muted/60 border border-border flex items-center justify-between">
+                  <span className="text-foreground">{dept.name}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft"
                     onClick={() => handleDeleteDept(dept)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -164,31 +164,31 @@ const DepartmentsProjectsManagement = () => {
         </CardContent>
       </Card>
 
-      <Card className="glass-effect p-6">
+      <Card className="surface p-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <FolderKanban className="text-purple-300" /> Projects ({projects.length})
+            <FolderKanban className="text-primary" /> Projects ({projects.length})
           </CardTitle>
-          <Button onClick={() => setIsProjectDialogOpen(true)} className="bg-indigo-600 hover:bg-indigo-700" disabled={departments.length === 0}>
+          <Button onClick={() => setIsProjectDialogOpen(true)} className="bg-primary hover:bg-primary/90" disabled={departments.length === 0}>
             <Plus className="w-4 h-4 mr-2" /> Add Project
           </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-gray-400">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : projects.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">
+            <p className="text-muted-foreground text-center py-8">
               {departments.length === 0 ? 'Create a department first.' : 'No projects yet.'}
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {projects.map((proj) => (
-                <div key={proj.id} className="p-3 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between">
+                <div key={proj.id} className="p-3 rounded-xl bg-muted/60 border border-border flex items-center justify-between">
                   <div>
-                    <p className="text-white">{proj.name}</p>
-                    <p className="text-xs text-gray-400">{departmentName(proj.departmentId)}</p>
+                    <p className="text-foreground">{proj.name}</p>
+                    <p className="text-xs text-muted-foreground">{departmentName(proj.departmentId)}</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20"
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft"
                     onClick={() => handleDeleteProject(proj)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -200,35 +200,35 @@ const DepartmentsProjectsManagement = () => {
       </Card>
 
       <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
-        <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+        <DialogContent className="surface border-border text-foreground max-w-md">
           <DialogHeader><DialogTitle>Add Department</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateDept} className="space-y-4 py-2">
             <div>
-              <Label className="text-gray-200">Department Name *</Label>
+              <Label className="text-foreground">Department Name *</Label>
               <Input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)}
-                className="mt-2 glass-effect border-white/20 text-white" placeholder="e.g. Engineering" required />
+                className="mt-2 surface border-border text-foreground" placeholder="e.g. Engineering" required />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsDeptDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Create</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">Create</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-        <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+        <DialogContent className="surface border-border text-foreground max-w-md">
           <DialogHeader><DialogTitle>Add Project</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateProject} className="space-y-4 py-2">
             <div>
-              <Label className="text-gray-200">Project Name *</Label>
+              <Label className="text-foreground">Project Name *</Label>
               <Input value={newProject.name} onChange={(e) => setNewProject(p => ({ ...p, name: e.target.value }))}
-                className="mt-2 glass-effect border-white/20 text-white" placeholder="e.g. Website Redesign" required />
+                className="mt-2 surface border-border text-foreground" placeholder="e.g. Website Redesign" required />
             </div>
             <div>
-              <Label className="text-gray-200">Department *</Label>
+              <Label className="text-foreground">Department *</Label>
               <Select value={newProject.departmentId} onValueChange={(v) => setNewProject(p => ({ ...p, departmentId: v }))}>
-                <SelectTrigger className="mt-2 glass-effect border-white/20 text-white"><SelectValue placeholder="Select a department" /></SelectTrigger>
+                <SelectTrigger className="mt-2 surface border-border text-foreground"><SelectValue placeholder="Select a department" /></SelectTrigger>
                 <SelectContent>
                   {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
@@ -236,7 +236,7 @@ const DepartmentsProjectsManagement = () => {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsProjectDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Create</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">Create</Button>
             </DialogFooter>
           </form>
         </DialogContent>

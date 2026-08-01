@@ -55,19 +55,19 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
   
   const getPriorityBadge = (priority) => {
     const badges = {
-      critical: 'bg-red-500/10 text-red-400 border-red-500/50',
-      high: 'bg-orange-500/10 text-orange-400 border-orange-500/50',
-      medium: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/50',
-      low: 'bg-green-500/10 text-green-400 border-green-500/50',
+      critical: 'bg-destructive-soft text-destructive border-destructive/30',
+      high: 'bg-warning-soft text-warning border-warning/30',
+      medium: 'bg-warning-soft text-warning border-warning/30',
+      low: 'bg-success-soft text-success border-success/30',
     };
     return badges[priority] || badges.medium;
   };
 
   const getStatusBadge = (status) => {
     const badges = {
-      pending: 'bg-gray-500/10 text-gray-400 border-gray-500/50',
-      'in-progress': 'bg-blue-500/10 text-blue-400 border-blue-500/50',
-      completed: 'bg-green-500/10 text-green-400 border-green-500/50',
+      pending: 'bg-muted text-muted-foreground border-border',
+      'in-progress': 'bg-primary-soft text-primary border-primary/30',
+      completed: 'bg-success-soft text-success border-success/30',
     };
     return badges[status] || badges.pending;
   };
@@ -85,14 +85,14 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
       transition={{ delay: index * 0.05 }}
     >
       <Card 
-        className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300 cursor-pointer"
+        className="surface border-border hover:border-border transition-all duration-300 cursor-pointer"
         onClick={() => onTaskClick(task)}
       >
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
-              <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
             </div>
             <div className="ml-4 space-x-2">
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
@@ -101,8 +101,8 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
             </div>
           </div>
           
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
-            <div className="flex items-center space-x-4 text-sm text-gray-400">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <Clock className="w-4 h-4" />
                 <span>{formatDate(task.deadline)}</span>
@@ -119,7 +119,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
                         e.stopPropagation();
                         onTaskClick(task);
                       }}
-                      className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-all"
+                      className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all"
                     >
                       <ListChecks className="w-4 h-4" />
                       <span className="text-xs font-medium">{subtaskCounts.completed}/{subtaskCounts.total}</span>
@@ -140,7 +140,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
                   e.stopPropagation();
                   onTaskClick(task);
                 }}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition-all"
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span className="text-xs font-medium">{commentCount}</span>
@@ -297,10 +297,10 @@ const StaffDashboard = () => {
   // Priority badge styles
   const getPriorityBadge = (priority) => {
     const styles = {
-      low: 'bg-green-500/20 text-green-400 border-green-500/30',
-      medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      critical: 'bg-red-500/20 text-red-400 border-red-500/30',
+      low: 'bg-success-soft text-success border-success/30',
+      medium: 'bg-warning-soft text-warning border-warning/30',
+      high: 'bg-warning-soft text-warning border-warning/30',
+      critical: 'bg-destructive-soft text-destructive border-destructive/30',
     };
     return styles[priority] || styles.medium;
   };
@@ -308,9 +308,9 @@ const StaffDashboard = () => {
   // Status badge styles
   const getStatusBadge = (status) => {
     const styles = {
-      pending: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-      'in-progress': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      completed: 'bg-green-500/20 text-green-400 border-green-500/30',
+      pending: 'bg-muted text-muted-foreground border-border',
+      'in-progress': 'bg-primary-soft text-primary border-primary/30',
+      completed: 'bg-success-soft text-success border-success/30',
     };
     return styles[status] || styles.pending;
   };
@@ -330,7 +330,7 @@ const StaffDashboard = () => {
     <Button
       variant="outline"
       size="sm"
-      className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+      className="border-primary/30 text-primary hover:bg-primary-soft hover:text-primary"
       onClick={() => setShowChangePassword(true)}
     >
       <KeyRound className="w-4 h-4 sm:mr-2" />
@@ -351,7 +351,7 @@ const StaffDashboard = () => {
         {/* Welcome Section */}
         <div>
           <h2 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h2>
-          <p className="text-gray-400">Manage your tasks and track your progress</p>
+          <p className="text-muted-foreground">Manage your tasks and track your progress</p>
         </div>
 
         {/* Statistics Cards */}
@@ -370,14 +370,14 @@ const StaffDashboard = () => {
         </div>
 
         {/* Task Management Section */}
-        <Card className="glass-effect border-gray-800">
+        <Card className="surface border-border">
           <div className="p-6 space-y-4">
             {/* Header with Add Task Button */}
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold">My Tasks</h3>
               <Button
                 onClick={() => setIsAddTaskOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Personal Task
@@ -387,16 +387,16 @@ const StaffDashboard = () => {
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tasks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-800/50 border-gray-700"
+                  className="pl-10 bg-muted border-border"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-gray-800/50 border-gray-700">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
                   <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,7 +407,7 @@ const StaffDashboard = () => {
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-gray-800/50 border-gray-700">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
                   <SelectValue placeholder="Filter by Priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -423,14 +423,14 @@ const StaffDashboard = () => {
             {/* Tasks List */}
             {loading ? (
               <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                <p className="mt-4 text-gray-400">Loading tasks...</p>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
+                <p className="mt-4 text-muted-foreground">Loading tasks...</p>
               </div>
             ) : filteredTasks.length === 0 ? (
               <div className="text-center py-12">
-                <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">No tasks found</p>
-                <p className="text-sm text-gray-500 mt-2">
+                <CheckSquare className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No tasks found</p>
+                <p className="text-sm text-muted-foreground mt-2">
                   {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' 
                     ? 'Try adjusting your filters' 
                     : 'Create your first task to get started'}

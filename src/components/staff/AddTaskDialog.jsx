@@ -116,11 +116,11 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
-              <Plus className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 bg-success rounded-xl flex items-center justify-center">
+              <Plus className="w-4 h-4 text-foreground" />
             </div>
             <span>Create Personal Task</span>
           </DialogTitle>
@@ -128,25 +128,25 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-gray-200">Task Title *</Label>
+            <Label htmlFor="title" className="text-foreground">Task Title *</Label>
             <Input
               id="title"
               value={formData.title}
               onChange={(e) => handleInputChange('title', e.target.value)}
               placeholder="Enter task title"
-              className="glass-effect border-white/20 text-white placeholder-gray-400"
+              className="surface border-border text-foreground"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-gray-200">Description *</Label>
+            <Label htmlFor="description" className="text-foreground">Description *</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe the task..."
-              className="glass-effect border-white/20 text-white placeholder-gray-400 min-h-[100px]"
+              className="surface border-border text-foreground min-h-[100px]"
               rows={4}
               required
             />
@@ -154,12 +154,12 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-200">Priority</Label>
+              <Label className="text-foreground">Priority</Label>
               <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
-                <SelectTrigger className="glass-effect border-white/20 text-white">
+                <SelectTrigger className="surface border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass-effect border-white/20">
+                <SelectContent className="surface border-border">
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -169,15 +169,15 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dueDate" className="text-gray-200">Deadline *</Label>
+              <Label htmlFor="dueDate" className="text-foreground">Deadline *</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="dueDate"
                   type="date"
                   value={formData.dueDate}
                   onChange={(e) => handleInputChange('dueDate', e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white"
+                  className="pl-10 surface border-border text-foreground"
                   min={new Date().toISOString().split('T')[0]}
                   required
                 />
@@ -190,13 +190,13 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-border text-muted-foreground hover:bg-muted/60"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-teal-600 hover:bg-teal-700"
+              className="bg-success hover:bg-success/90"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Task

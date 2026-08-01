@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const FIELD_CLASS = 'bg-gray-800/50 border-gray-700';
+const FIELD_CLASS = 'bg-muted border-border';
 
 /**
  * @param {'add'|'edit'} mode
@@ -51,7 +51,7 @@ const TaskFormDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-background border-border max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isAdd ? 'Create New Task' : 'Edit Task'}</DialogTitle>
           <DialogDescription>

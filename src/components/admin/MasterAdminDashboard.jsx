@@ -89,7 +89,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-lg">
+      <DialogContent className="surface border-border text-foreground max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Pencil className="w-5 h-5" /> Edit Organization
@@ -97,15 +97,15 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div>
-            <Label className="text-gray-200">Organization Name *</Label>
+            <Label className="text-foreground">Organization Name *</Label>
             <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-gray-200">Plan</Label>
+              <Label className="text-foreground">Plan</Label>
               <Select value={form.plan} onValueChange={(v) => setForm((p) => ({ ...p, plan: v }))}>
-                <SelectTrigger className="mt-2 glass-effect border-white/20 text-white"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-2 surface border-border text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -113,26 +113,26 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
               </Select>
             </div>
             <div>
-              <Label className="text-gray-200">Seat Limit</Label>
+              <Label className="text-foreground">Seat Limit</Label>
               <Input type="number" min="1" value={form.seatLimit} onChange={(e) => setForm((p) => ({ ...p, seatLimit: e.target.value }))}
-                className="mt-2 glass-effect border-white/20 text-white" />
+                className="mt-2 surface border-border text-foreground" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-gray-200">Storage (MB)</Label>
+              <Label className="text-foreground">Storage (MB)</Label>
               <Input type="number" min="0" value={form.storageQuotaMB} onChange={(e) => setForm((p) => ({ ...p, storageQuotaMB: e.target.value }))}
-                className="mt-2 glass-effect border-white/20 text-white" />
+                className="mt-2 surface border-border text-foreground" />
             </div>
             <div>
-              <Label className="text-gray-200">Billing Email</Label>
+              <Label className="text-foreground">Billing Email</Label>
               <Input type="email" value={form.billingEmail} onChange={(e) => setForm((p) => ({ ...p, billingEmail: e.target.value }))}
-                className="mt-2 glass-effect border-white/20 text-white" />
+                className="mt-2 surface border-border text-foreground" />
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -194,7 +194,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="surface border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building2 className="w-5 h-5" /> Provision New Organization
@@ -202,15 +202,15 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div>
-            <Label className="text-gray-200">Organization Name *</Label>
+            <Label className="text-foreground">Organization Name *</Label>
             <Input value={form.name} onChange={(e) => handleChange('name', e.target.value)}
-              className="mt-2 glass-effect border-white/20 text-white" placeholder="Acme Inc." required />
+              className="mt-2 surface border-border text-foreground" placeholder="Acme Inc." required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-gray-200">Plan</Label>
+              <Label className="text-foreground">Plan</Label>
               <Select value={form.plan} onValueChange={(v) => handleChange('plan', v)}>
-                <SelectTrigger className="mt-2 glass-effect border-white/20 text-white"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-2 surface border-border text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -218,36 +218,36 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
               </Select>
             </div>
             <div>
-              <Label className="text-gray-200">Seat Limit</Label>
+              <Label className="text-foreground">Seat Limit</Label>
               <Input type="number" min="1" value={form.seatLimit} onChange={(e) => handleChange('seatLimit', e.target.value)}
-                className="mt-2 glass-effect border-white/20 text-white" />
+                className="mt-2 surface border-border text-foreground" />
             </div>
           </div>
           <div>
-            <Label className="text-gray-200">Billing Email</Label>
+            <Label className="text-foreground">Billing Email</Label>
             <Input type="email" value={form.billingEmail} onChange={(e) => handleChange('billingEmail', e.target.value)}
-              className="mt-2 glass-effect border-white/20 text-white" placeholder="billing@acme.com" />
+              className="mt-2 surface border-border text-foreground" placeholder="billing@acme.com" />
           </div>
-          <hr className="border-white/10" />
-          <p className="text-sm text-gray-300">First Org-Admin Account</p>
+          <hr className="border-border" />
+          <p className="text-sm text-muted-foreground">First Org-Admin Account</p>
           <div>
-            <Label className="text-gray-200">Name *</Label>
+            <Label className="text-foreground">Name *</Label>
             <Input value={form.adminName} onChange={(e) => handleChange('adminName', e.target.value)}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <div>
-            <Label className="text-gray-200">Email *</Label>
+            <Label className="text-foreground">Email *</Label>
             <Input type="email" value={form.adminEmail} onChange={(e) => handleChange('adminEmail', e.target.value)}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <div>
-            <Label className="text-gray-200">Password *</Label>
+            <Label className="text-foreground">Password *</Label>
             <Input type="password" minLength={6} value={form.adminPassword} onChange={(e) => handleChange('adminPassword', e.target.value)}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
               {loading ? 'Provisioning...' : 'Provision Organization'}
             </Button>
           </DialogFooter>
@@ -358,7 +358,7 @@ const MasterAdminDashboard = () => {
   const headerActions = (
     <Button
       onClick={() => setIsProvisionOpen(true)}
-      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+      className="bg-primary hover:bg-primary/90 text-primary-foreground"
       size="sm"
     >
       <Plus className="w-4 h-4 sm:mr-2" />
@@ -380,30 +380,30 @@ const MasterAdminDashboard = () => {
       ) : (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         {/* Organizations */}
-        <Card className={`glass-effect p-6 mb-6 ${activeTab === 'organizations' ? '' : 'hidden'}`}>
+        <Card className={`surface p-6 mb-6 ${activeTab === 'organizations' ? '' : 'hidden'}`}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Building2 className="text-purple-300" /> Organizations ({organizations.length})
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Building2 className="text-primary" /> Organizations ({organizations.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {organizations.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">No organizations yet. Provision the first one above.</p>
+              <p className="text-muted-foreground text-center py-8">No organizations yet. Provision the first one above.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {organizations.map((org) => {
                   const stats = usageStats[org.id];
                   return (
-                    <div key={org.id} className="p-4 rounded-lg bg-white/5 border border-white/10">
+                    <div key={org.id} className="p-4 rounded-xl bg-muted/60 border border-border">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h3 className="font-semibold text-white">{org.name}</h3>
-                          <p className="text-xs text-gray-400 capitalize">{org.plan} · {org.status}</p>
+                          <h3 className="font-semibold text-foreground">{org.name}</h3>
+                          <p className="text-xs text-muted-foreground capitalize">{org.plan} · {org.status}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost" size="icon"
-                            className="h-8 w-8 text-blue-400 hover:bg-blue-500/20"
+                            className="h-8 w-8 text-primary hover:bg-primary-soft"
                             onClick={() => setEditOrg(org)}
                             title="Edit organization"
                           >
@@ -412,7 +412,7 @@ const MasterAdminDashboard = () => {
                           {org.status === 'suspended' ? (
                             <Button
                               variant="ghost" size="icon"
-                              className="h-8 w-8 text-green-400 hover:bg-green-500/20"
+                              className="h-8 w-8 text-success hover:bg-success-soft"
                               onClick={() => handleReactivate(org)}
                               title="Reactivate organization"
                             >
@@ -421,7 +421,7 @@ const MasterAdminDashboard = () => {
                           ) : (
                             <Button
                               variant="ghost" size="icon"
-                              className="h-8 w-8 text-amber-400 hover:bg-amber-500/20"
+                              className="h-8 w-8 text-warning hover:bg-warning-soft"
                               onClick={() => handleSuspend(org)}
                               title="Suspend organization"
                             >
@@ -430,7 +430,7 @@ const MasterAdminDashboard = () => {
                           )}
                           <Button
                             variant="ghost" size="icon"
-                            className="h-8 w-8 text-red-400 hover:bg-red-500/20"
+                            className="h-8 w-8 text-destructive hover:bg-destructive-soft"
                             onClick={() => handleDelete(org)}
                             title="Delete organization"
                           >
@@ -438,7 +438,7 @@ const MasterAdminDashboard = () => {
                           </Button>
                         </div>
                       </div>
-                      <div className="mt-3 text-sm text-gray-300 space-y-1">
+                      <div className="mt-3 text-sm text-muted-foreground space-y-1">
                         <div>Seat limit: {org.seatLimit}</div>
                         {stats ? (
                           <>
@@ -446,7 +446,7 @@ const MasterAdminDashboard = () => {
                             <div>Tasks: {stats.taskCount}</div>
                           </>
                         ) : (
-                          <div className="text-gray-500">Usage unavailable</div>
+                          <div className="text-muted-foreground">Usage unavailable</div>
                         )}
                       </div>
                     </div>
@@ -458,10 +458,10 @@ const MasterAdminDashboard = () => {
         </Card>
 
         {/* Audit Logs */}
-        <Card className={`glass-effect p-6 ${activeTab === 'audit' ? '' : 'hidden'}`}>
+        <Card className={`surface p-6 ${activeTab === 'audit' ? '' : 'hidden'}`}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <ScrollText className="text-purple-300" /> Audit Logs
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <ScrollText className="text-primary" /> Audit Logs
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -470,13 +470,13 @@ const MasterAdminDashboard = () => {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {auditLogs.map((log) => (
-                  <div key={log.id} className="text-sm text-gray-300 p-2 rounded bg-white/5 border border-white/10 flex justify-between">
+                  <div key={log.id} className="text-sm text-muted-foreground p-2 rounded bg-muted/60 border border-border flex justify-between">
                     <span>
-                      <span className="text-white font-medium">{log.action}</span>
+                      <span className="text-foreground font-medium">{log.action}</span>
                       {log.targetOrgId && ` · ${orgName(log.targetOrgId)}`}
                       {log.targetUserId && ` · user ${log.targetUserId}`}
                     </span>
-                    <span className="text-gray-500">
+                    <span className="text-muted-foreground">
                       {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : ''}
                     </span>
                   </div>
@@ -487,10 +487,10 @@ const MasterAdminDashboard = () => {
         </Card>
 
         {/* Error Logs — unhandled UI errors reported by the ErrorBoundary. */}
-        <Card className={`glass-effect p-6 ${activeTab === 'errors' ? '' : 'hidden'}`}>
+        <Card className={`surface p-6 ${activeTab === 'errors' ? '' : 'hidden'}`}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <AlertTriangle className="text-purple-300" /> Error Logs
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <AlertTriangle className="text-primary" /> Error Logs
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -503,21 +503,21 @@ const MasterAdminDashboard = () => {
             ) : (
               <div className="space-y-2 max-h-[32rem] overflow-y-auto">
                 {errorLogs.map((log) => (
-                  <div key={log.id} className="text-sm p-3 rounded bg-white/5 border border-white/10">
+                  <div key={log.id} className="text-sm p-3 rounded bg-muted/60 border border-border">
                     <div className="flex justify-between gap-3">
-                      <span className="text-red-300 font-medium break-all">{log.message}</span>
-                      <span className="text-gray-500 flex-shrink-0">
+                      <span className="text-destructive font-medium break-all">{log.message}</span>
+                      <span className="text-muted-foreground flex-shrink-0">
                         {log.createdAt?.toDate ? new Date(log.createdAt.toDate()).toLocaleString() : ''}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1 break-all">
+                    <div className="text-xs text-muted-foreground mt-1 break-all">
                       {log.userEmail || 'signed-out user'}
                       {log.url && ` · ${log.url}`}
                     </div>
                     {log.stack && (
                       <details className="mt-2">
-                        <summary className="text-xs text-gray-500 cursor-pointer">Stack trace</summary>
-                        <pre className="text-[11px] text-gray-400 mt-1 whitespace-pre-wrap break-all">{log.stack}</pre>
+                        <summary className="text-xs text-muted-foreground cursor-pointer">Stack trace</summary>
+                        <pre className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap break-all">{log.stack}</pre>
                       </details>
                     )}
                   </div>

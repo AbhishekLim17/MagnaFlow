@@ -99,7 +99,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
       parts.push(
         <span 
           key={match.index} 
-          className="text-blue-600 font-semibold bg-blue-50 px-1 rounded"
+          className="text-primary font-semibold bg-primary px-1 rounded"
         >
           {match[0]}
         </span>
@@ -117,10 +117,10 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
   };
 
   return (
-    <div className="flex gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+    <div className="flex gap-3 p-4 bg-card border border-border rounded-xl hover:shadow-sm transition-shadow">
       {/* Avatar */}
       <div className="flex-shrink-0">
-        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-semibold">
+        <div className="w-10 h-10 rounded-full bg-success flex items-center justify-center text-success-foreground font-semibold">
           {getAvatar(comment.userName)}
         </div>
       </div>
@@ -130,14 +130,14 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-900">
+            <span className="font-semibold text-foreground">
               {comment.userName || 'Anonymous'}
             </span>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {formatTime(comment.createdAt)}
             </span>
             {comment.edited && (
-              <span className="text-xs text-gray-400 italic">
+              <span className="text-xs text-muted-foreground italic">
                 (edited)
               </span>
             )}
@@ -149,7 +149,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               {canEdit && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                  className="p-1 text-muted-foreground hover:text-primary transition-colors"
                   title="Edit comment"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -159,7 +159,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               {canDelete && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                  className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                   title="Delete comment"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -175,7 +175,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 bg-muted border border-border text-foreground rounded-xl focus:ring-2 ring-primary focus:border-transparent resize-none"
               rows="3"
               maxLength={5000}
               disabled={loading}
@@ -185,7 +185,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               <button
                 onClick={handleEditSubmit}
                 disabled={loading || !editText.trim()}
-                className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors text-sm"
               >
                 <Check className="w-4 h-4" />
                 Save
@@ -197,7 +197,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
                   setEditText(comment.text);
                 }}
                 disabled={loading}
-                className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:bg-gray-100 transition-colors text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-muted text-foreground rounded hover:bg-muted disabled:bg-muted transition-colors text-sm"
               >
                 <X className="w-4 h-4" />
                 Cancel
@@ -205,7 +205,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
             </div>
           </div>
         ) : (
-          <div className="text-gray-700 whitespace-pre-wrap break-words">
+          <div className="text-foreground whitespace-pre-wrap break-words">
             {renderTextWithMentions(comment.text)}
           </div>
         )}
@@ -216,17 +216,17 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-foreground bg-opacity-50 flex items-center justify-center z-50"
           onClick={() => setShowDeleteConfirm(false)}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-lg p-6 max-w-sm mx-4"
+            className="bg-card rounded-xl p-6 max-w-sm mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-2">Delete Comment?</h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               This action cannot be undone. The comment will be permanently removed.
             </p>
             
@@ -234,7 +234,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={loading}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:bg-gray-100 transition-colors"
+                className="px-4 py-2 bg-muted text-foreground rounded hover:bg-muted disabled:bg-muted transition-colors"
               >
                 Cancel
               </button>
@@ -242,7 +242,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 disabled:bg-muted transition-colors"
               >
                 {loading ? 'Deleting...' : 'Delete'}
               </button>

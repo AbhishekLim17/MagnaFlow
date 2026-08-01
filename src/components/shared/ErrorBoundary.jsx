@@ -46,29 +46,29 @@ class ErrorBoundary extends React.Component {
     if (!error) return this.props.children;
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-900 text-white">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground">
         <div className="max-w-md w-full text-center">
-          <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-7 h-7 text-red-400" />
+          <div className="w-14 h-14 rounded-full bg-destructive-soft border border-destructive/30 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-7 h-7 text-destructive" />
           </div>
           <h1 className="text-xl font-bold mb-2">Something went wrong</h1>
-          <p className="text-gray-400 text-sm mb-6">
+          <p className="text-muted-foreground text-sm mb-6">
             This screen hit an unexpected error. Your data is safe — try again, or reload the page.
           </p>
 
           {import.meta.env.DEV && (
-            <pre className="text-left text-xs text-red-300 bg-red-500/5 border border-red-500/20 rounded p-3 mb-6 overflow-auto max-h-40">
+            <pre className="text-left text-xs text-destructive bg-destructive-soft border border-destructive/30 rounded p-3 mb-6 overflow-auto max-h-40">
               {error.message}
             </pre>
           )}
 
           <div className="flex gap-2 justify-center">
-            <Button onClick={this.handleReset} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={this.handleReset} className="bg-primary hover:bg-primary/90">
               Try again
             </Button>
             <Button
               variant="outline"
-              className="border-white/20 text-white"
+              className="border-border text-foreground"
               onClick={() => window.location.assign('/')}
             >
               Reload app

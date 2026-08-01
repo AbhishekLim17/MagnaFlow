@@ -34,13 +34,24 @@ describe('StatCard', () => {
 
   // Colors must come from a static map — interpolated Tailwind classes are
   // invisible to the JIT compiler and render with no background at all.
-  test('uses a known static class for a valid color and falls back safely', () => {
-    const { container: valid } = render(<StatCard title="A" value={1} color="green" />);
-    expect(valid.querySelector('.border-green-500\\/30')).toBeTruthy();
+  // The tone only paints the icon chip, so an icon is needed to see it.
+  test('uses a known static class for a valid color', () => {
+    render(<StatCard title="A" value={1} color="green" icon={CheckSquare} />);
+    expect(screen.getByTestId('stat-icon')).toHaveClass('bg-success-soft');
+  });
 
-    const { container: bogus } = render(<StatCard title="B" value={1} color="not-a-color" />);
-    // Falls back to blue rather than emitting an undefined class.
-    expect(bogus.querySelector('.border-blue-500\\/30')).toBeTruthy();
+  test('falls back to the primary tone for an unknown color', () => {
+    render(<StatCard title="B" value={1} color="not-a-color" icon={CheckSquare} />);
+    // Falls back rather than emitting an undefined class.
+    expect(screen.getByTestId('stat-icon')).toHaveClass('bg-primary-soft');
+  });
+
+  test('tints a rising trend as success and a falling one as danger', () => {
+    render(<StatCard title="U" value={1} trend="+7% last month" />);
+    expect(screen.getByText('+7% last month')).toHaveClass('text-success');
+
+    render(<StatCard title="D" value={1} trend="-4% last month" />);
+    expect(screen.getByText('-4% last month')).toHaveClass('text-destructive');
   });
 
   test('shows optional description and trend', () => {

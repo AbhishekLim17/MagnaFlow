@@ -64,11 +64,11 @@ const EditStaffDialog = ({ open, onOpenChange, onEditStaff, staffMember }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Edit className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center">
+              <Edit className="w-4 h-4 text-foreground" />
             </div>
             <span>Edit Staff Member</span>
           </DialogTitle>
@@ -76,60 +76,60 @@ const EditStaffDialog = ({ open, onOpenChange, onEditStaff, staffMember }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-gray-200">Full Name</Label>
+            <Label htmlFor="name" className="text-foreground">Full Name</Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter full name"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-200">Email Address</Label>
+            <Label htmlFor="email" className="text-foreground">Email Address</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-gray-200">Phone Number</Label>
+            <Label htmlFor="phone" className="text-foreground">Phone Number</Label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="Enter phone number"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-gray-200">Role</Label>
+            <Label className="text-foreground">Role</Label>
             <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-              <SelectTrigger className="glass-effect border-white/20 text-white">
+              <SelectTrigger className="surface border-border text-foreground">
                 <div className="flex items-center">
-                  <Briefcase className="w-4 h-4 mr-2 text-gray-400" />
+                  <Briefcase className="w-4 h-4 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Select a role" />
                 </div>
               </SelectTrigger>
-              <SelectContent className="glass-effect border-white/20">
+              <SelectContent className="surface border-border">
                 {designations.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
@@ -141,12 +141,12 @@ const EditStaffDialog = ({ open, onOpenChange, onEditStaff, staffMember }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-200">Status</Label>
+              <Label className="text-foreground">Status</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                <SelectTrigger className="glass-effect border-white/20 text-white">
+                <SelectTrigger className="surface border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass-effect border-white/20">
+                <SelectContent className="surface border-border">
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
@@ -154,15 +154,15 @@ const EditStaffDialog = ({ open, onOpenChange, onEditStaff, staffMember }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="joinDate" className="text-gray-200">Join Date</Label>
+              <Label htmlFor="joinDate" className="text-foreground">Join Date</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="joinDate"
                   type="date"
                   value={formData.joinDate}
                   onChange={(e) => handleInputChange('joinDate', e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white"
+                  className="pl-10 surface border-border text-foreground"
                 />
               </div>
             </div>
@@ -173,13 +173,13 @@ const EditStaffDialog = ({ open, onOpenChange, onEditStaff, staffMember }) => {
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-border text-muted-foreground hover:bg-muted/60"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              className="hover: hover:"
             >
               <Edit className="w-4 h-4 mr-2" />
               Save Changes

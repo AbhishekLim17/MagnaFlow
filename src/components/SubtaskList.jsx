@@ -95,12 +95,12 @@ const SubtaskList = ({ taskId, currentUser }) => {
   const completedCount = subtasks.filter(s => s.completed).length;
 
   if (loading) {
-    return <p className="text-sm text-gray-400">Loading subtasks...</p>;
+    return <p className="text-sm text-muted-foreground">Loading subtasks...</p>;
   }
 
   if (subtasks.length === 0) {
     return (
-      <p className="text-sm text-gray-400 italic py-4 text-center">
+      <p className="text-sm text-muted-foreground italic py-4 text-center">
         No subtasks yet. Click "Add Subtask" to create one.
       </p>
     );
@@ -111,7 +111,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
       {/* Progress Bar */}
       <div className="space-y-2">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-300">
+          <span className="text-muted-foreground">
             Progress: {completedCount} / {subtasks.length} completed ({progress}%)
           </span>
         </div>
@@ -126,7 +126,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
           return (
             <div
               key={subtask.id}
-              className="flex items-center gap-2 p-3 bg-gray-800/30 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+              className="flex items-center gap-2 p-3 bg-muted rounded-xl border border-border hover:border-border transition-colors"
             >
               {isEditing ? (
                 <>
@@ -138,7 +138,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                         handleSaveEdit(subtask.id);
                       }
                     }}
-                    className="flex-1 bg-gray-800/50 border-gray-700 text-white"
+                    className="flex-1 bg-muted border-border text-foreground"
                     autoFocus
                   />
                   <Button
@@ -146,7 +146,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                    className="text-success hover:text-success hover:bg-success-soft"
                   >
                     <Save className="w-4 h-4" />
                   </Button>
@@ -155,7 +155,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="text-gray-400 hover:text-gray-300 hover:bg-gray-500/10"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -164,10 +164,10 @@ const SubtaskList = ({ taskId, currentUser }) => {
                 <>
                   <button
                     onClick={() => handleToggleComplete(subtask.id, subtask.completed)}
-                    className="flex-shrink-0 text-gray-400 hover:text-blue-400 transition-colors"
+                    className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
                   >
                     {subtask.completed ? (
-                      <CheckSquare className="w-5 h-5 text-green-400" />
+                      <CheckSquare className="w-5 h-5 text-success" />
                     ) : (
                       <Square className="w-5 h-5" />
                     )}
@@ -175,8 +175,8 @@ const SubtaskList = ({ taskId, currentUser }) => {
                   <span
                     className={`flex-1 ${
                       subtask.completed
-                        ? 'line-through text-gray-500'
-                        : 'text-gray-200'
+                        ? 'line-through text-muted-foreground'
+                        : 'text-foreground'
                     }`}
                   >
                     {subtask.title}
@@ -186,7 +186,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                    className="text-primary hover:text-primary hover:bg-primary-soft"
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -195,7 +195,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    className="text-destructive hover:text-destructive hover:bg-destructive-soft"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

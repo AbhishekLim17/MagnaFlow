@@ -8,7 +8,7 @@ import CommentItem from './CommentItem';
 const CommentsList = ({ comments, currentUserId, taskId }) => {
   if (!comments || comments.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center py-8 text-muted-foreground">
         <p>No comments yet. Be the first to comment!</p>
       </div>
     );

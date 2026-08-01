@@ -93,29 +93,29 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle>Add Staff Member</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div>
-            <Label className="text-gray-200">Name *</Label>
+            <Label className="text-foreground">Name *</Label>
             <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <div>
-            <Label className="text-gray-200">Email *</Label>
+            <Label className="text-foreground">Email *</Label>
             <Input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <div>
-            <Label className="text-gray-200">Password *</Label>
+            <Label className="text-foreground">Password *</Label>
             <Input type="password" minLength={6} value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-              className="mt-2 glass-effect border-white/20 text-white" required />
+              className="mt-2 surface border-border text-foreground" required />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
               {loading ? 'Creating...' : 'Create Staff'}
             </Button>
           </DialogFooter>
@@ -185,10 +185,10 @@ const ScopedDashboard = ({ scope }) => {
         <StatCard title="Completed" value={statistics?.completed ?? 0} icon={CheckSquare} color="green" index={3} />
       </div>
 
-      <Card className="glass-effect border-gray-800">
+      <Card className="surface border-border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <GanttChartSquare className="text-purple-300" /> {cfg.noun} Timeline
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <GanttChartSquare className="text-primary" /> {cfg.noun} Timeline
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -203,12 +203,12 @@ const ScopedDashboard = ({ scope }) => {
   );
 
   const StaffRoster = () => (
-    <Card className="glass-effect border-gray-800">
+    <Card className="surface border-border">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Users className="text-purple-300" /> {cfg.noun} Staff ({staff.length})
+        <CardTitle className="flex items-center gap-2 text-foreground">
+          <Users className="text-primary" /> {cfg.noun} Staff ({staff.length})
         </CardTitle>
-        <Button onClick={() => setIsAddStaffOpen(true)} className="bg-indigo-600 hover:bg-indigo-700" disabled={!scopeId}>
+        <Button onClick={() => setIsAddStaffOpen(true)} className="bg-primary hover:bg-primary/90" disabled={!scopeId}>
           <Plus className="w-4 h-4 mr-2" /> Add Staff
         </Button>
       </CardHeader>
@@ -224,9 +224,9 @@ const ScopedDashboard = ({ scope }) => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {staff.map((s) => (
-              <div key={s.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                <p className="text-white font-medium">{s.name}</p>
-                <p className="text-xs text-gray-400 flex items-center gap-1">
+              <div key={s.id} className="p-3 rounded-xl bg-muted/60 border border-border">
+                <p className="text-foreground font-medium">{s.name}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Mail className="w-3 h-3" />{s.email}
                 </p>
               </div>

@@ -111,7 +111,7 @@ const NotificationBell = () => {
       {/* Bell button */}
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-full transition-colors"
+        className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
         title="Notifications"
       >
         <Bell className="w-6 h-6" />
@@ -123,7 +123,7 @@ const NotificationBell = () => {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center"
+              className="absolute top-0 right-0 w-5 h-5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full flex items-center justify-center"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </motion.div>
@@ -139,15 +139,15 @@ const NotificationBell = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-lg overflow-hidden z-50"
+            className="absolute right-0 mt-2 w-80 bg-muted border border-border rounded-xl shadow-card overflow-hidden z-50"
           >
             {/* Header */}
-            <div className="p-4 bg-gray-900 border-b border-gray-700">
+            <div className="p-4 bg-background border-b border-border">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-white">Notifications</h3>
+                <h3 className="font-semibold text-foreground">Notifications</h3>
                 <button
                   onClick={() => setShowDropdown(false)}
-                  className="text-gray-400 hover:text-gray-200 transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -157,7 +157,7 @@ const NotificationBell = () => {
                 <button
                   onClick={handleMarkAllAsRead}
                   disabled={loading}
-                  className="text-sm text-blue-400 hover:text-blue-300 font-medium disabled:text-gray-600"
+                  className="text-sm text-primary hover:text-primary font-medium disabled:text-muted-foreground"
                 >
                   {loading ? 'Marking...' : 'Mark all as read'}
                 </button>
@@ -167,39 +167,39 @@ const NotificationBell = () => {
             {/* Notification list */}
             <div className="max-h-96 overflow-y-auto">
               {notifications.length === 0 ? (
-                <div className="p-8 text-center text-gray-400">
-                  <Bell className="w-12 h-12 mx-auto mb-2 text-gray-600" />
+                <div className="p-8 text-center text-muted-foreground">
+                  <Bell className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
                   <p>No new notifications</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-700">
+                <div className="divide-y divide-border">
                   {notifications.map((notification) => (
                     <button
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
-                      className="w-full p-4 text-left hover:bg-gray-700 transition-colors"
+                      className="w-full p-4 text-left hover:bg-muted transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         {/* Icon */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-900/50 flex items-center justify-center">
-                          <MessageSquare className="w-5 h-5 text-blue-400" />
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center">
+                          <MessageSquare className="w-5 h-5 text-primary" />
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-200">
+                          <p className="text-sm text-foreground">
                             <span className="font-semibold">{notification.mentionedByName}</span>
                             {' '}mentioned you in a comment
                           </p>
                           
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {formatTime(notification.createdAt)}
                           </p>
                         </div>
 
                         {/* Unread indicator */}
                         <div className="flex-shrink-0">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
                         </div>
                       </div>
                     </button>
@@ -210,13 +210,13 @@ const NotificationBell = () => {
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="p-3 bg-gray-900 border-t border-gray-700 text-center">
+              <div className="p-3 bg-background border-t border-border text-center">
                 <button
                   onClick={() => {
                     navigate('/notifications');
                     setShowDropdown(false);
                   }}
-                  className="text-sm text-blue-400 hover:text-blue-300 font-medium"
+                  className="text-sm text-primary hover:text-primary font-medium"
                 >
                   View all notifications
                 </button>

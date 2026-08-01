@@ -143,7 +143,7 @@ const MentionInput = ({ value, onChange, placeholder, maxLength = 5000, disabled
 
   // Get role badge color
   const getRoleBadgeColor = (role) => {
-    return role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700';
+    return role === 'admin' ? 'bg-destructive text-destructive' : 'bg-primary text-primary';
   };
 
   const remainingChars = maxLength - value.length;
@@ -156,14 +156,14 @@ const MentionInput = ({ value, onChange, placeholder, maxLength = 5000, disabled
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+        className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 ring-success focus:border-transparent resize-none"
         rows="3"
         maxLength={maxLength}
         disabled={disabled}
       />
       
       {/* Character counter */}
-      <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+      <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
         {remainingChars} characters remaining
       </div>
 
@@ -176,9 +176,9 @@ const MentionInput = ({ value, onChange, placeholder, maxLength = 5000, disabled
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 mt-1 w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+            className="absolute z-50 mt-1 w-full max-w-md bg-card border border-border rounded-xl shadow-card overflow-hidden"
           >
-            <div className="p-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 text-sm text-gray-600">
+            <div className="p-2 bg-muted border-b border-border flex items-center gap-2 text-sm text-muted-foreground">
               <AtSign className="w-4 h-4" />
               <span>Select user to mention</span>
             </div>
@@ -188,26 +188,26 @@ const MentionInput = ({ value, onChange, placeholder, maxLength = 5000, disabled
                 <button
                   key={user.id}
                   onClick={() => selectUser(user)}
-                  className={`w-full px-4 py-2 flex items-center gap-3 hover:bg-gray-50 transition-colors ${
-                    index === selectedIndex ? 'bg-green-50' : ''
+                  className={`w-full px-4 py-2 flex items-center gap-3 hover:bg-muted transition-colors ${
+                    index === selectedIndex ? 'bg-success' : ''
                   }`}
                 >
                   {/* Avatar */}
-                  <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-success flex items-center justify-center text-success-foreground font-semibold text-sm flex-shrink-0">
                     {getUserAvatar(user.name)}
                   </div>
                   
                   {/* User info */}
                   <div className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900 truncate">
+                      <span className="font-semibold text-foreground truncate">
                         {user.name}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded ${getRoleBadgeColor(user.role)}`}>
                         {user.role}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-500 truncate">
+                    <div className="text-sm text-muted-foreground truncate">
                       {user.email}
                     </div>
                   </div>

@@ -43,7 +43,7 @@ const CommentSection = ({ taskId, taskTitle }) => {
 
   if (!currentUser) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center py-8 text-muted-foreground">
         Please login to view and post comments
       </div>
     );
@@ -51,7 +51,7 @@ const CommentSection = ({ taskId, taskTitle }) => {
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-500">
+      <div className="text-center py-8 text-destructive">
         Error loading comments: {error}
       </div>
     );
@@ -60,9 +60,9 @@ const CommentSection = ({ taskId, taskTitle }) => {
   return (
     <div className="space-y-4">
       {/* Header with comment count */}
-      <div className="flex items-center gap-2 border-b border-gray-700 pb-3">
-        <MessageSquare className="w-5 h-5 text-gray-400" />
-        <span className="font-semibold text-gray-200">
+      <div className="flex items-center gap-2 border-b border-border pb-3">
+        <MessageSquare className="w-5 h-5 text-muted-foreground" />
+        <span className="font-semibold text-foreground">
           Comments ({commentCount})
         </span>
       </div>
@@ -71,7 +71,7 @@ const CommentSection = ({ taskId, taskTitle }) => {
       <div className="space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-success/30"></div>
           </div>
         ) : (
           <CommentsList 

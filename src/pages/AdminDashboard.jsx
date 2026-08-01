@@ -65,32 +65,32 @@ const AdminDashboard = () => {
       />
 
       {statistics && (
-        <Card className="glass-effect border-gray-800">
+        <Card className="surface border-border">
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">Task Priority Distribution</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                <p className="text-2xl font-bold text-red-400">{statistics.byPriority?.critical || 0}</p>
-                <p className="text-sm text-gray-400 mt-1">Critical</p>
+              <div className="text-center p-4 bg-muted rounded-xl">
+                <p className="text-2xl font-bold text-destructive">{statistics.byPriority?.critical || 0}</p>
+                <p className="text-sm text-muted-foreground mt-1">Critical</p>
               </div>
-              <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                <p className="text-2xl font-bold text-orange-400">{statistics.byPriority?.high || 0}</p>
-                <p className="text-sm text-gray-400 mt-1">High</p>
+              <div className="text-center p-4 bg-muted rounded-xl">
+                <p className="text-2xl font-bold text-warning">{statistics.byPriority?.high || 0}</p>
+                <p className="text-sm text-muted-foreground mt-1">High</p>
               </div>
-              <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                <p className="text-2xl font-bold text-yellow-400">{statistics.byPriority?.medium || 0}</p>
-                <p className="text-sm text-gray-400 mt-1">Medium</p>
+              <div className="text-center p-4 bg-muted rounded-xl">
+                <p className="text-2xl font-bold text-warning">{statistics.byPriority?.medium || 0}</p>
+                <p className="text-sm text-muted-foreground mt-1">Medium</p>
               </div>
-              <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                <p className="text-2xl font-bold text-green-400">{statistics.byPriority?.low || 0}</p>
-                <p className="text-sm text-gray-400 mt-1">Low</p>
+              <div className="text-center p-4 bg-muted rounded-xl">
+                <p className="text-2xl font-bold text-success">{statistics.byPriority?.low || 0}</p>
+                <p className="text-sm text-muted-foreground mt-1">Low</p>
               </div>
             </div>
           </div>
         </Card>
       )}
 
-      <Card className="glass-effect border-gray-800">
+      <Card className="surface border-border">
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

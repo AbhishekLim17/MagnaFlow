@@ -150,17 +150,17 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold">
             Command Center
           </h2>
-          <p className="text-gray-400 mt-1">Real-time overview of your workspace</p>
+          <p className="text-muted-foreground mt-1">Real-time overview of your workspace</p>
         </div>
         <div className="flex space-x-2">
-          <Button onClick={onCreateTask} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={onCreateTask} className="bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
             New Task
           </Button>
-          <Button onClick={onManageStaff} variant="outline" className="border-gray-700">
+          <Button onClick={onManageStaff} variant="outline" className="border-border">
             <Users className="w-4 h-4 mr-2" />
             Manage Staff
           </Button>
@@ -208,17 +208,17 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         {/* Left Column - Activity Feed */}
         <div className="lg:col-span-1">
           {/* Recent Activity */}
-          <Card className="glass-effect border-gray-800 p-5 h-[240px]">
+          <Card className="surface border-border p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
-                <Activity className="w-4 h-4 mr-2 text-blue-400" />
+                <Activity className="w-4 h-4 mr-2 text-primary" />
                 Recent Activity
               </h3>
-              <Badge variant="outline" className="border-gray-700">Live</Badge>
+              <Badge variant="outline" className="border-border">Live</Badge>
             </div>
             <div className="space-y-3 overflow-y-auto max-h-[170px]">
               {recentActivity.length === 0 ? (
-                <p className="text-sm text-gray-500">No recent activity</p>
+                <p className="text-sm text-muted-foreground">No recent activity</p>
               ) : (
                 recentActivity.map((activity) => (
                   <ActivityItem key={activity.id} activity={activity} />
@@ -230,16 +230,16 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
         {/* Right Column - Top Performers */}
         <div className="lg:col-span-1">
-          <Card className="glass-effect border-gray-800 p-5 h-[240px]">
+          <Card className="surface border-border p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center">
-                <Award className="w-4 h-4 mr-2 text-yellow-400" />
+                <Award className="w-4 h-4 mr-2 text-warning" />
                 Top Performers
               </h3>
             </div>
             <div className="space-y-3">
               {staffStats.length === 0 ? (
-                <p className="text-sm text-gray-500">No performance data yet</p>
+                <p className="text-sm text-muted-foreground">No performance data yet</p>
               ) : (
                 staffStats.map((staff, index) => (
                   <PerformerCard key={staff.staffId} staff={staff} rank={index + 1} />
@@ -256,11 +256,11 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 // Stat Card Component
 function StatCard({ title, value, icon, color, trend }) {
   const colorClasses = {
-    green: 'text-green-400 bg-green-500/10 border-green-500/30',
-    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-    red: 'text-red-400 bg-red-500/10 border-red-500/30',
-    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
-    yellow: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30'
+    green: 'text-success bg-success-soft border-success/30',
+    blue: 'text-primary bg-primary-soft border-primary/30',
+    red: 'text-destructive bg-destructive-soft border-destructive/30',
+    purple: 'text-primary bg-primary-soft border-primary/30',
+    yellow: 'text-warning bg-warning-soft border-warning/30'
   };
 
   return (
@@ -269,17 +269,17 @@ function StatCard({ title, value, icon, color, trend }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className={`glass-effect border ${colorClasses[color]} p-5`}>
+      <Card className={`surface border ${colorClasses[color]} p-5`}>
         <div className="flex items-center justify-between mb-2">
-          <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
+          <div className={`p-2 rounded-xl ${colorClasses[color]}`}>
             {icon}
           </div>
           {trend && (
-            <span className="text-xs text-gray-400">{trend}</span>
+            <span className="text-xs text-muted-foreground">{trend}</span>
           )}
         </div>
         <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm text-gray-400">{title}</div>
+        <div className="text-sm text-muted-foreground">{title}</div>
       </Card>
     </motion.div>
   );
@@ -296,17 +296,17 @@ function ActivityItem({ activity }) {
   };
 
   const getStatusColor = (status) => {
-    if (status === 'completed') return 'text-green-400';
-    if (status === 'in-progress') return 'text-blue-400';
-    return 'text-gray-400';
+    if (status === 'completed') return 'text-success';
+    if (status === 'in-progress') return 'text-primary';
+    return 'text-muted-foreground';
   };
 
   return (
     <div className="flex items-start space-x-3 text-sm">
       <div className={`w-2 h-2 rounded-full mt-1.5 ${getStatusColor(activity.status)}`} />
       <div className="flex-1 min-w-0">
-        <p className="text-gray-300 truncate">{activity.title}</p>
-        <p className="text-xs text-gray-500">{getTimeAgo(activity.updatedAt)}</p>
+        <p className="text-muted-foreground truncate">{activity.title}</p>
+        <p className="text-xs text-muted-foreground">{getTimeAgo(activity.updatedAt)}</p>
       </div>
     </div>
   );
@@ -317,13 +317,13 @@ function PerformerCard({ staff, rank }) {
   const medals = ['🥇', '🥈', '🥉'];
   
   return (
-    <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-800/50">
+    <div className="flex items-center gap-2 p-2 rounded-xl bg-muted">
       <span className="text-xl">{medals[rank - 1]}</span>
       <span className="font-semibold text-sm">{staff.staffName}</span>
-      <div className="flex items-center gap-2 text-xs text-gray-400 ml-auto">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
         <span>✅ {staff.completed}</span>
         <span>⏳ {staff.inProgress}</span>
-        {staff.overdue > 0 && <span className="text-red-400">🔴 {staff.overdue}</span>}
+        {staff.overdue > 0 && <span className="text-destructive">🔴 {staff.overdue}</span>}
       </div>
     </div>
   );

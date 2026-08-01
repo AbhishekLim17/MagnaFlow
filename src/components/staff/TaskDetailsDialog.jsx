@@ -41,19 +41,19 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
 
   const getPriorityColor = (priority) => {
     const colors = {
-      low: 'bg-green-500/20 text-green-400 border-green-500/30',
-      medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      critical: 'bg-red-500/20 text-red-400 border-red-500/30',
+      low: 'bg-success-soft text-success border-success/30',
+      medium: 'bg-warning-soft text-warning border-warning/30',
+      high: 'bg-warning-soft text-warning border-warning/30',
+      critical: 'bg-destructive-soft text-destructive border-destructive/30',
     };
     return colors[priority] || colors.medium;
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-      'in-progress': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      completed: 'bg-green-500/20 text-green-400 border-green-500/30',
+      pending: 'bg-muted text-muted-foreground border-border',
+      'in-progress': 'bg-primary-soft text-primary border-primary/30',
+      completed: 'bg-success-soft text-success border-success/30',
     };
     return colors[status] || colors.pending;
   };
@@ -66,8 +66,8 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="text-2xl font-bold gradient-text mb-4">
+      <DialogContent className="surface border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogTitle className="text-2xl font-bold text-foreground mb-4">
           Task Details
         </DialogTitle>
 
@@ -88,9 +88,9 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
           {/* Description */}
           {task.description && (
             <div className="space-y-2">
-              <Label className="text-gray-300">Description</Label>
-              <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                <p className="text-gray-300 whitespace-pre-wrap">{task.description}</p>
+              <Label className="text-muted-foreground">Description</Label>
+              <div className="p-4 bg-muted rounded-xl border border-border">
+                <p className="text-muted-foreground whitespace-pre-wrap">{task.description}</p>
               </div>
             </div>
           )}
@@ -98,32 +98,32 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
           {/* Task Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Deadline */}
-            <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-              <div className="flex items-center space-x-2 text-gray-400 mb-2">
+            <div className="p-4 bg-muted rounded-xl border border-border">
+              <div className="flex items-center space-x-2 text-muted-foreground mb-2">
                 <Calendar className="w-4 h-4" />
                 <Label className="text-sm">Deadline</Label>
               </div>
-              <p className="text-white font-medium">{formatDate(task.deadline)}</p>
+              <p className="text-foreground font-medium">{formatDate(task.deadline)}</p>
             </div>
 
             {/* Created Date */}
-            <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-              <div className="flex items-center space-x-2 text-gray-400 mb-2">
+            <div className="p-4 bg-muted rounded-xl border border-border">
+              <div className="flex items-center space-x-2 text-muted-foreground mb-2">
                 <AlertCircle className="w-4 h-4" />
                 <Label className="text-sm">Created On</Label>
               </div>
-              <p className="text-white font-medium">{formatDate(task.createdAt)}</p>
+              <p className="text-foreground font-medium">{formatDate(task.createdAt)}</p>
             </div>
           </div>
 
           {/* Completed Date */}
           {task.completedAt && (
-            <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
-              <div className="flex items-center space-x-2 text-green-400 mb-2">
+            <div className="p-4 bg-success-soft rounded-xl border border-success/30">
+              <div className="flex items-center space-x-2 text-success mb-2">
                 <CheckCircle className="w-4 h-4" />
                 <Label className="text-sm">Completed On</Label>
               </div>
-              <p className="text-white font-medium">{formatDate(task.completedAt)}</p>
+              <p className="text-foreground font-medium">{formatDate(task.completedAt)}</p>
             </div>
           )}
 
@@ -134,7 +134,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               value={task.status}
               onValueChange={handleStatusChange}
             >
-              <SelectTrigger className="bg-gray-800/50 border-gray-700 text-white">
+              <SelectTrigger className="bg-muted border-border text-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -143,7 +143,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Change the status to reflect your progress on this task
             </p>
           </div>
@@ -152,26 +152,26 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <ListChecks className="w-5 h-5 text-blue-400" />
+                <ListChecks className="w-5 h-5 text-primary" />
                 <Label className="text-lg">Subtasks</Label>
               </div>
               <Button
                 onClick={() => setShowAddSubtask(true)}
                 variant="outline"
                 size="sm"
-                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                className="border-primary/30 text-primary hover:bg-primary-soft"
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Add Subtask
               </Button>
             </div>
-            <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div className="p-4 bg-muted rounded-xl border border-border">
               <SubtaskList taskId={task.id} currentUser={currentUser} />
             </div>
           </div>
 
           {/* Close Button */}
-          <div className="flex justify-between items-center pt-4 border-t border-gray-800">
+          <div className="flex justify-between items-center pt-4 border-t border-border">
             <div className="flex space-x-2">
               {task.status !== 'completed' && (
                 <>
@@ -181,7 +181,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                       if (onEdit) onEdit(task);
                     }}
                     variant="outline"
-                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                    className="border-primary/30 text-primary hover:bg-primary-soft"
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     Edit Task
@@ -194,7 +194,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                       }
                     }}
                     variant="outline"
-                    className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                    className="border-destructive/30 text-destructive hover:bg-destructive-soft"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete Task
@@ -210,7 +210,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                     }
                   }}
                   variant="outline"
-                  className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                  className="border-destructive/30 text-destructive hover:bg-destructive-soft"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Task
@@ -220,14 +220,14 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
             <Button
               onClick={() => onOpenChange(false)}
               variant="outline"
-              className="border-gray-700 text-gray-300 hover:bg-gray-800/50"
+              className="border-border text-muted-foreground hover:bg-muted"
             >
               Close
             </Button>
           </div>
 
           {/* Comments Section */}
-          <div className="mt-6 pt-6 border-t border-gray-700">
+          <div className="mt-6 pt-6 border-t border-border">
             <CommentSection taskId={task.id} taskTitle={task.title} />
           </div>
         </div>

@@ -333,15 +333,15 @@ const PerformanceReports = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Performance Reports</h2>
-          <p className="text-gray-300">Track team productivity and project progress</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Performance Reports</h2>
+          <p className="text-muted-foreground">Track team productivity and project progress</p>
         </div>
         <div className="flex items-center space-x-4">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-48 glass-effect border-white/20 text-white">
+            <SelectTrigger className="w-48 surface border-border text-foreground">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="glass-effect border-white/20">
+            <SelectContent className="surface border-border">
               <SelectItem value="30">Last 30 days</SelectItem>
               <SelectItem value="180">Last 6 months</SelectItem>
               <SelectItem value="365">Last 1 year</SelectItem>
@@ -352,7 +352,7 @@ const PerformanceReports = () => {
             <Button
               onClick={() => handleExportReport('pdf')}
               variant="outline"
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-border text-muted-foreground hover:bg-muted/60"
             >
               <Download className="w-4 h-4 mr-2" />
               Export PDF
@@ -360,7 +360,7 @@ const PerformanceReports = () => {
             <Button
               onClick={() => handleExportReport('excel')}
               variant="outline"
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-border text-muted-foreground hover:bg-muted/60"
             >
               <Download className="w-4 h-4 mr-2" />
               Export Excel
@@ -371,11 +371,11 @@ const PerformanceReports = () => {
 
       {/* Show empty state if no data */}
       {tasks.length === 0 ? (
-        <Card className="glass-effect border-white/20 p-12 text-center">
+        <Card className="surface border-border p-12 text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
-            <BarChart3 className="w-16 h-16 text-gray-400" />
-            <h3 className="text-xl font-semibold text-white">No Data Available</h3>
-            <p className="text-gray-400 max-w-md">
+            <BarChart3 className="w-16 h-16 text-muted-foreground" />
+            <h3 className="text-xl font-semibold text-foreground">No Data Available</h3>
+            <p className="text-muted-foreground max-w-md">
               There are no tasks in the system yet. Create tasks and assign them to staff members to see performance analytics and reports.
             </p>
           </div>
@@ -420,18 +420,18 @@ const PerformanceReports = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="glass-effect p-6 card-hover">
+            <Card className="surface p-6 interactive">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">{metric.title}</p>
-                  <p className="text-2xl font-bold text-white">{metric.value}</p>
-                  <p className="text-green-400 text-sm flex items-center mt-1">
+                  <p className="text-muted-foreground text-sm mb-1">{metric.title}</p>
+                  <p className="text-2xl font-bold text-foreground">{metric.value}</p>
+                  <p className="text-success text-sm flex items-center mt-1">
                     <TrendingUp className="w-3 h-3 mr-1" />
                     {metric.trend}
                   </p>
                 </div>
-                <div className={`w-12 h-12 bg-${metric.color} rounded-lg flex items-center justify-center shadow-lg`}>
-                  <metric.icon className="w-6 h-6 text-white" />
+                <div className={`w-12 h-12 bg-${metric.color} rounded-xl flex items-center justify-center shadow-card`}>
+                  <metric.icon className="w-6 h-6 text-foreground" />
                 </div>
               </div>
             </Card>
@@ -442,10 +442,10 @@ const PerformanceReports = () => {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Staff Productivity Chart */}
-        <Card className="glass-effect p-6">
+        <Card className="surface p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">Staff Productivity</h3>
-            <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+            <h3 className="text-xl font-semibold text-foreground">Staff Productivity</h3>
+            <Badge className="bg-primary-soft text-primary border-primary/30">
               Tasks Completed
             </Badge>
           </div>
@@ -477,10 +477,10 @@ const PerformanceReports = () => {
         </Card>
 
         {/* Task Status Distribution */}
-        <Card className="glass-effect p-6">
+        <Card className="surface p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">Task Status Distribution</h3>
-            <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+            <h3 className="text-xl font-semibold text-foreground">Task Status Distribution</h3>
+            <Badge className="bg-primary-soft text-primary border-primary/30">
               Current Status
             </Badge>
           </div>
@@ -544,10 +544,10 @@ const PerformanceReports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Weekly Progress */}
         <div className="lg:col-span-2">
-          <Card className="glass-effect p-6">
+          <Card className="surface p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-white">Weekly Progress</h3>
-              <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+              <h3 className="text-xl font-semibold text-foreground">Weekly Progress</h3>
+              <Badge className="bg-success-soft text-success border-success/30">
                 Tasks vs Goals
               </Badge>
             </div>
@@ -586,10 +586,10 @@ const PerformanceReports = () => {
         </div>
 
         {/* Top Performers */}
-        <Card className="glass-effect p-6">
+        <Card className="surface p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">Top Performers</h3>
-            <Award className="w-5 h-5 text-yellow-400" />
+            <h3 className="text-xl font-semibold text-foreground">Top Performers</h3>
+            <Award className="w-5 h-5 text-warning" />
           </div>
           <div className="space-y-4">
             {topPerformers.map((performer, index) => (
@@ -598,24 +598,24 @@ const PerformanceReports = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                className="flex items-center justify-between p-3 rounded-xl bg-muted/60 hover:bg-muted/60 transition-colors"
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg ${
-                    index === 0 ? 'bg-yellow-500' :
-                    index === 1 ? 'bg-slate-400' :
-                    'bg-orange-500'
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-warning-foreground font-semibold text-sm shadow-card ${
+                    index === 0 ? 'bg-warning' :
+                    index === 1 ? 'bg-muted-foreground' :
+                    'bg-warning'
                   }`}>
                     {index + 1}
                   </div>
                   <div>
-                    <p className="text-white font-medium">{performer.name}</p>
-                    <p className="text-xs text-gray-400">{performer.completed} completed</p>
+                    <p className="text-foreground font-medium">{performer.name}</p>
+                    <p className="text-xs text-muted-foreground">{performer.completed} completed</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-green-400 font-semibold">{performer.productivity}%</p>
-                  <p className="text-xs text-gray-400">efficiency</p>
+                  <p className="text-success font-semibold">{performer.productivity}%</p>
+                  <p className="text-xs text-muted-foreground">efficiency</p>
                 </div>
               </motion.div>
             ))}

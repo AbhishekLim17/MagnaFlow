@@ -2,17 +2,21 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { toast, useToast } from './use-toast';
 import { renderHook, act } from '@testing-library/react';
 
-// The store is module-level, so each test renders one subscriber and drains
-// anything a previous test left behind.
+// The store is module-level, so each test subscribes once and drains anything
+// a previous test left behind.
 let result;
 const titles = () => result.current.toasts.map((t) => t.title);
 
-beforeEach(() => {
-  vi.useFakeTimers();
+const setup = () => {
   ({ result } = renderHook(() => useToast()));
   act(() => {
     result.current.toasts.forEach((t) => t.dismiss());
   });
+};
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  setup();
 });
 
 afterEach(() => {

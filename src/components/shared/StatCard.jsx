@@ -9,15 +9,27 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 
+// Semantic tones. The old palette names (green/blue/red/...) are kept as
+// aliases so the ~40 existing call sites keep working while every tile now
+// draws from the design tokens instead of raw Tailwind colours.
+const TONES = {
+  primary: 'text-primary bg-primary-soft',
+  success: 'text-success bg-success-soft',
+  warning: 'text-warning-foreground bg-warning-soft',
+  danger: 'text-destructive bg-destructive-soft',
+  neutral: 'text-muted-foreground bg-muted',
+};
+
 const COLOR_CLASSES = {
-  green: 'text-green-400 bg-green-500/10 border-green-500/30',
-  blue: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-  red: 'text-red-400 bg-red-500/10 border-red-500/30',
-  purple: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
-  yellow: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
-  slate: 'text-slate-300 bg-slate-500/10 border-slate-500/30',
-  teal: 'text-teal-400 bg-teal-500/10 border-teal-500/30',
-  indigo: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30',
+  ...TONES,
+  green: TONES.success,
+  blue: TONES.primary,
+  indigo: TONES.primary,
+  purple: TONES.primary,
+  teal: TONES.success,
+  red: TONES.danger,
+  yellow: TONES.warning,
+  slate: TONES.neutral,
 };
 
 /**
@@ -25,12 +37,12 @@ const COLOR_CLASSES = {
  * @param {string|number} value
  * @param {ReactNode|Function} icon  a rendered node (<Icon />) or a component ref (Icon)
  * @param {string} color             key of COLOR_CLASSES
- * @param {string} [trend]           small note top-right
+ * @param {string} [trend]           small note beside the value
  * @param {string} [description]     small note under the title
  * @param {number} [index]           stagger index for entry animation
  */
-const StatCard = ({ title, value, icon, color = 'blue', trend, description, index = 0 }) => {
-  const classes = COLOR_CLASSES[color] || COLOR_CLASSES.blue;
+const StatCard = ({ title, value, icon, color = 'primary', trend, description, index = 0 }) => {
+  const classes = COLOR_CLASSES[color] || COLOR_CLASSES.primary;
 
   // Accept both an already-rendered node (<Icon />) and a bare component
   // reference (Icon). Note lucide-react icons are forwardRef *objects*, not
@@ -40,23 +52,48 @@ const StatCard = ({ title, value, icon, color = 'blue', trend, description, inde
   if (React.isValidElement(icon)) {
     iconNode = icon;
   } else if (icon) {
-    iconNode = React.createElement(icon, { className: 'w-5 h-5' });
+    iconNode = React.createElement(icon, { className: 'w-4 h-4' });
   }
+
+  // A rising number is good news in most of these tiles, so a leading "+" is
+  // tinted success and a "-" destructive. Anything else stays neutral rather
+  // than guessing.
+  const trendTone = /^\+/.test(String(trend ?? ''))
+    ? 'text-success'
+    : /^-/.test(String(trend ?? ''))
+      ? 'text-destructive'
+      : 'text-muted-foreground';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      transition={{ duration: 0.35, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
+      className="h-full"
     >
-      <Card className={`glass-effect border ${classes} p-5 h-full`}>
-        <div className="flex items-center justify-between mb-2">
-          {iconNode && <div className={`p-2 rounded-lg ${classes}`}>{iconNode}</div>}
-          {trend && <span className="text-xs text-gray-400">{trend}</span>}
+      <Card className="h-full p-5">
+        <div className="mb-4 flex items-center gap-2">
+          {iconNode && (
+            <span
+              data-testid="stat-icon"
+              className={`grid h-7 w-7 place-items-center rounded-full ${classes}`}
+            >
+              {iconNode}
+            </span>
+          )}
+          <span className="truncate text-sm font-medium text-muted-foreground">{title}</span>
         </div>
-        <div className="text-2xl font-bold text-white">{value}</div>
-        <div className="text-sm text-gray-400">{title}</div>
-        {description && <div className="text-xs text-gray-500 mt-1">{description}</div>}
+
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="tabular text-[28px] font-bold leading-none tracking-tight text-foreground">
+            {value}
+          </span>
+          {trend && <span className={`text-xs font-semibold ${trendTone}`}>{trend}</span>}
+        </div>
+
+        {description && (
+          <p className="mt-2 text-xs text-muted-foreground">{description}</p>
+        )}
       </Card>
     </motion.div>
   );

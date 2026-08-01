@@ -20,20 +20,20 @@ const TaskSubtasksDialog = ({ open, onOpenChange, task }) => {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="glass-effect border-white/20 text-white max-w-3xl">
+        <DialogContent className="surface border-border text-foreground max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <ListChecks className="w-6 h-6 text-blue-400" />
+                <ListChecks className="w-6 h-6 text-primary" />
                 <div>
-                  <h2 className="text-xl gradient-text">Subtasks</h2>
-                  <p className="text-sm text-gray-400 font-normal">{task.title}</p>
+                  <h2 className="text-xl text-foreground">Subtasks</h2>
+                  <p className="text-sm text-muted-foreground font-normal">{task.title}</p>
                 </div>
               </div>
               <Button
                 onClick={() => setShowAddSubtask(true)}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Add Subtask

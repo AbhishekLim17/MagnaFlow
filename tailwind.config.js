@@ -16,6 +16,18 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          "Urbanist",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "sans-serif",
+        ],
+      },
+      // Every colour resolves to a token in index.css, so light/dark and any
+      // future rebrand stay a single-file change.
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -25,6 +37,7 @@ module.exports = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          soft: "hsl(var(--primary-soft))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -33,6 +46,26 @@ module.exports = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          soft: "hsl(var(--destructive-soft))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+          soft: "hsl(var(--success-soft))",
+          // The exact brand #51b206. Large decorative fills only — it is not
+          // legible as text or as a small control.
+          accent: "hsl(var(--success-accent))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+          soft: "hsl(var(--warning-soft))",
+          accent: "hsl(var(--warning-accent))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+          soft: "hsl(var(--info-soft))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -53,8 +86,24 @@ module.exports = {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
+        "2xl": "1.25rem",
+        "3xl": "1.75rem",
+      },
+      // 8px grid. Named steps so screens stop inventing one-off paddings.
+      spacing: {
+        gutter: "1.5rem",
+        section: "2rem",
+      },
+      // Soft, low-opacity elevation tinted with the brand hue rather than pure
+      // black — that tint is what stops light surfaces reading as grey.
+      boxShadow: {
+        card: "0 1px 2px 0 hsl(245 40% 30% / 0.04), 0 4px 16px -2px hsl(245 40% 30% / 0.06)",
+        float:
+          "0 2px 4px -1px hsl(245 40% 30% / 0.06), 0 12px 32px -4px hsl(245 40% 30% / 0.12)",
+        overlay:
+          "0 8px 16px -4px hsl(245 40% 30% / 0.10), 0 24px 48px -12px hsl(245 40% 30% / 0.22)",
       },
       keyframes: {
         "accordion-down": {
@@ -65,15 +114,24 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
-        "pulse-slow": {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.5" },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "pulse-slow": "pulse-slow 4s ease-in-out infinite",
+        "fade-in": "fade-in 0.2s ease-out both",
+        "fade-up": "fade-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both",
+      },
+      transitionTimingFunction: {
+        // One easing curve for the whole app: quick out, gentle settle.
+        premium: "cubic-bezier(0.22, 1, 0.36, 1)",
       },
     },
   },

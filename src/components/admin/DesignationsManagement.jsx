@@ -32,10 +32,10 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
               {initialValue ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             </div>
             <span>{initialValue ? 'Edit Designation' : 'Add New Designation'}</span>
@@ -43,21 +43,21 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="py-4">
-            <Label htmlFor="designation-name" className="text-gray-200">
+            <Label htmlFor="designation-name" className="text-foreground">
               Designation Name
             </Label>
             <Input
               id="designation-name"
               value={designation}
               onChange={(e) => setDesignation(e.target.value)}
-              className="mt-2 glass-effect border-white/20 text-white placeholder-gray-400"
+              className="mt-2 surface border-border text-foreground"
               placeholder="e.g., Lead Developer"
               required
             />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="bg-primary hover:bg-primary/90">
               {initialValue ? 'Save Changes' : 'Add Designation'}
             </Button>
           </DialogFooter>
@@ -106,39 +106,39 @@ const DesignationsManagement = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-white mb-2">Manage Designations</h2>
-          <p className="text-gray-300">Add, edit, or remove staff roles and designations.</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Manage Designations</h2>
+          <p className="text-muted-foreground">Add, edit, or remove staff roles and designations.</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button 
             onClick={handleRefresh} 
             variant="outline"
-            className="border-gray-700 hover:bg-gray-800"
+            className="border-border hover:bg-muted"
             disabled={isRefreshing}
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 shadow-lg flex-1 sm:flex-none">
+          <Button onClick={() => setIsAddDialogOpen(true)} className="bg-primary hover:bg-primary/90 shadow-card flex-1 sm:flex-none">
             <Plus className="w-4 h-4 mr-2" />
             Add Designation
           </Button>
         </div>
       </div>
 
-      <Card className="glass-effect p-6">
+      <Card className="surface p-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Briefcase className="text-blue-300" />
+            <Briefcase className="text-primary" />
             <span>Available Designations ({designations.length})</span>
-            {loading && <span className="text-sm text-gray-400 ml-2">(Loading...)</span>}
+            {loading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
-              <span className="ml-3 text-gray-400">Loading designations...</span>
+              <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">Loading designations...</span>
             </div>
           ) : designations.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -148,19 +148,19 @@ const DesignationsManagement = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: designations.indexOf(designation) * 0.05 }}
-                  className="flex items-center justify-between p-4 rounded-lg bg-white/5"
+                  className="flex items-center justify-between p-4 rounded-xl bg-muted/60"
                 >
                   <div className="flex-1">
-                    <span className="font-medium text-white">{designation.name}</span>
+                    <span className="font-medium text-foreground">{designation.name}</span>
                     {designation.description && (
-                      <p className="text-sm text-gray-400 mt-1">{designation.description}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{designation.description}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300" onClick={() => openEditDialog(designation)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary-soft hover:text-primary" onClick={() => openEditDialog(designation)}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/20 hover:text-red-300" onClick={() => removeDesignation(designation.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive" onClick={() => removeDesignation(designation.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -168,9 +168,9 @@ const DesignationsManagement = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-muted-foreground">
               <Briefcase className="w-16 h-16 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">No designations found.</h3>
+              <h3 className="text-xl font-semibold text-muted-foreground mb-2">No designations found.</h3>
               <p>Click "Add Designation" to create your first one.</p>
             </div>
           )}

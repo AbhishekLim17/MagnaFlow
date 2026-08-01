@@ -19,11 +19,12 @@ const toDate = (v) => {
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 const STATUS_STYLES = {
-  completed: { bar: 'bg-emerald-500', label: 'Completed' },
-  'in-progress': { bar: 'bg-blue-500', label: 'In Progress' },
-  pending: { bar: 'bg-slate-400', label: 'Pending' },
-  cancelled: { bar: 'bg-gray-600', label: 'Cancelled' },
-  overdue: { bar: 'bg-red-500', label: 'Overdue' },
+    // Large decorative fill, so this one can carry the exact brand green.
+  completed: { bar: 'bg-success-accent', label: 'Completed' },
+  'in-progress': { bar: 'bg-primary', label: 'In Progress' },
+  pending: { bar: 'bg-muted-foreground', label: 'Pending' },
+  cancelled: { bar: 'bg-muted', label: 'Cancelled' },
+  overdue: { bar: 'bg-destructive', label: 'Overdue' },
 };
 
 const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -88,7 +89,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
 
   if (!model) {
     return (
-      <div className="text-center py-12 text-gray-400">
+      <div className="text-center py-12 text-muted-foreground">
         No tasks with dates yet. Add tasks with a start date and deadline to see the timeline.
       </div>
     );
@@ -102,11 +103,11 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
         {/* Timeline header */}
         <div className="flex">
           <div className="w-56 flex-shrink-0" />
-          <div className="relative flex-1 h-6 border-b border-white/10">
+          <div className="relative flex-1 h-6 border-b border-border">
             {ticks.map((t, i) => (
               <div
                 key={i}
-                className="absolute top-0 text-[10px] text-gray-400 -translate-x-1/2"
+                className="absolute top-0 text-[10px] text-muted-foreground -translate-x-1/2"
                 style={{ left: `${t.left}%` }}
               >
                 {fmt(t.date)}
@@ -123,7 +124,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
               className="absolute top-0 bottom-0 z-10 pointer-events-none"
               style={{ left: `calc(14rem + (100% - 14rem) * ${todayPct} / 100)` }}
             >
-              <div className="w-px h-full bg-amber-400/70" />
+              <div className="w-px h-full bg-warning-soft" />
             </div>
           )}
 
@@ -132,10 +133,10 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
             const width = Math.max(pct(r.end) - left, 1.5);
             const style = STATUS_STYLES[r.statusKey] || STATUS_STYLES.pending;
             return (
-              <div key={r.id} className="flex items-center h-11 border-b border-white/5">
+              <div key={r.id} className="flex items-center h-11 border-b border-border">
                 <div className="w-56 flex-shrink-0 pr-3">
-                  <p className="text-sm text-white truncate" title={r.title}>{r.title}</p>
-                  {r.assignee && <p className="text-[11px] text-gray-400 truncate">{r.assignee}</p>}
+                  <p className="text-sm text-foreground truncate" title={r.title}>{r.title}</p>
+                  {r.assignee && <p className="text-[11px] text-muted-foreground truncate">{r.assignee}</p>}
                 </div>
                 <div className="relative flex-1 h-full">
                   {/* Status is conveyed by an accessible label as well as by
@@ -147,7 +148,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                     role="img"
                     aria-label={`${r.title}: ${style.label}, ${fmt(r.start)} to ${fmt(r.end)}`}
                   >
-                    {r.isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" aria-hidden="true" />}
+                    {r.isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-foreground flex-shrink-0" aria-hidden="true" />}
                   </div>
                 </div>
               </div>
@@ -156,7 +157,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-4 mt-4 text-xs text-gray-300">
+        <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
           {['completed', 'in-progress', 'pending', 'overdue'].map((k) => (
             <div key={k} className="flex items-center gap-1.5">
               <span className={`inline-block w-3 h-3 rounded ${STATUS_STYLES[k].bar}`} />
@@ -164,7 +165,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
             </div>
           ))}
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-px h-3 bg-amber-400" /> Today
+            <span className="inline-block w-px h-3 bg-warning" /> Today
           </div>
         </div>
       </div>

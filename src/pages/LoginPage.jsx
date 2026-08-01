@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { LogIn, User, Lock, Briefcase } from "lucide-react";
+import { LogIn, Mail, Lock, Eye, EyeOff, ShieldCheck, GitBranch, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { reportError, ERROR_TOAST_DURATION } from '@/lib/reportError';
+import Brandmark from '@/components/shared/Brandmark';
+
+const HIGHLIGHTS = [
+  { icon: GitBranch, title: 'One flow, five roles', body: 'Org, department, project and staff views stay in step automatically.' },
+  { icon: BarChart3, title: 'Progress you can see', body: 'Timelines and workload roll up without anyone chasing a status update.' },
+  { icon: ShieldCheck, title: 'Scoped by design', body: 'People see their own organisation and nothing else.' },
+];
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const { toast } = useToast();
@@ -23,7 +30,7 @@ const LoginPage = () => {
       toastedRef.current = true;
       toast({
         title: "Welcome back!",
-        description: `Logged in as ${user.role}`,
+        description: `Signed in as ${user.role}`,
       });
     }
   }, [isAuthenticated, user, toast]);
@@ -51,94 +58,141 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-float"></div>
-      </div>
+    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[1.05fr_1fr]">
+      {/* Brand panel. Hidden below lg — on a phone it would push the form,
+          the only thing the user came for, below the fold. */}
+      <aside className="relative hidden overflow-hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-primary-foreground/10 blur-3xl"
+        />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md relative z-10"
-      >
-        <Card className="glass-effect p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4 shadow-lg"
-            >
-              <Briefcase className="w-8 h-8 text-white" />
-            </motion.div>
-            <h1 className="text-3xl font-bold gradient-text mb-2">
-              MagnaFlow
-            </h1>
-            <p className="text-gray-300">Role-Based Task Management System</p>
+        <div className="relative flex items-center gap-3">
+          <Brandmark className="h-11 w-11 bg-primary-foreground/15 shadow-none" />
+          <span className="text-xl font-bold tracking-tight">MagnaFlow</span>
+        </div>
+
+        <div className="relative max-w-md">
+          <h2 className="text-[34px] font-bold leading-[1.15] tracking-tight">
+            Every team&rsquo;s work, in one place.
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-primary-foreground/80">
+            Role-based task management for organisations that outgrew a shared spreadsheet.
+          </p>
+
+          <ul className="mt-10 space-y-6">
+            {HIGHLIGHTS.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex gap-4">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-foreground/15">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-semibold">{title}</p>
+                  <p className="mt-0.5 text-sm text-primary-foreground/75">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="relative text-sm text-primary-foreground/60">
+          &copy; {new Date().getFullYear()} MagnaFlow
+        </p>
+      </aside>
+
+      {/* Form panel */}
+      <main className="flex min-h-screen items-center justify-center p-6 sm:p-10 lg:min-h-0">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-[400px]"
+        >
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <Brandmark className="h-11 w-11" />
+            <span className="text-xl font-bold tracking-tight">MagnaFlow</span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">Sign in</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Welcome back. Enter your details to continue.
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-200">
-                Email
-              </Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail
+                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
-                  placeholder="Enter your email"
+                  className="pl-11"
+                  placeholder="you@company.com"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-200">
-                Password
-              </Label>
+              <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock
+                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                  className="pl-11 pr-11"
                   placeholder="Enter your password"
                   required
                 />
+                {/* Typing a password blind is the most common cause of a failed
+                    sign-in, and this form has no "forgot password" escape. */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
-            >
+            <Button type="submit" size="lg" disabled={loading} className="w-full">
               {loading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                />
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
+                  Signing in…
+                </>
               ) : (
                 <>
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Sign In
+                  <LogIn className="h-4 w-4" />
+                  Sign in
                 </>
               )}
             </Button>
           </form>
-        </Card>
-      </motion.div>
+
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            Trouble signing in? Contact your organisation administrator.
+          </p>
+        </motion.div>
+      </main>
     </div>
   );
 };

@@ -63,11 +63,11 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <UserPlus className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-foreground" />
             </div>
             <span>Add Staff Member</span>
           </DialogTitle>
@@ -75,76 +75,76 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-gray-200">Full Name</Label>
+            <Label htmlFor="name" className="text-foreground">Full Name</Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter full name"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-200">Email Address (Login)</Label>
+            <Label htmlFor="email" className="text-foreground">Email Address (Login)</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
                 required
               />
             </div>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-gray-200">Password</Label>
+            <Label htmlFor="password" className="text-foreground">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
                 placeholder="Set an initial password"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-gray-200">Phone Number</Label>
+            <Label htmlFor="phone" className="text-foreground">Phone Number</Label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="Enter phone number"
-                className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="pl-10 surface border-border text-foreground"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-gray-200">Designation</Label>
+            <Label className="text-foreground">Designation</Label>
             <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-              <SelectTrigger className="glass-effect border-white/20 text-white">
+              <SelectTrigger className="surface border-border text-foreground">
                 <div className="flex items-center">
-                  <Briefcase className="w-4 h-4 mr-2 text-gray-400" />
+                  <Briefcase className="w-4 h-4 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Select a designation" />
                 </div>
               </SelectTrigger>
-              <SelectContent className="glass-effect border-white/20">
+              <SelectContent className="surface border-border">
                 {designations.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
@@ -156,12 +156,12 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-200">Status</Label>
+              <Label className="text-foreground">Status</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                <SelectTrigger className="glass-effect border-white/20 text-white">
+                <SelectTrigger className="surface border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass-effect border-white/20">
+                <SelectContent className="surface border-border">
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
@@ -169,15 +169,15 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="joinDate" className="text-gray-200">Join Date</Label>
+              <Label htmlFor="joinDate" className="text-foreground">Join Date</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="joinDate"
                   type="date"
                   value={formData.joinDate}
                   onChange={(e) => handleInputChange('joinDate', e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white"
+                  className="pl-10 surface border-border text-foreground"
                 />
               </div>
             </div>
@@ -188,13 +188,13 @@ const AddStaffDialog = ({ open, onOpenChange, onAddStaff }) => {
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-border text-muted-foreground hover:bg-muted/60"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-primary hover:bg-primary/90"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Staff Member

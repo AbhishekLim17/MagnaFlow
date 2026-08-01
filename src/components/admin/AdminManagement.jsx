@@ -86,10 +86,10 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
               {initialData ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             </div>
             <span>{initialData ? 'Edit Account' : 'Add Department Head / Manager'}</span>
@@ -99,9 +99,9 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
           <div className="space-y-4 py-4">
             {!initialData && (
               <div>
-                <Label className="text-gray-200">Role *</Label>
+                <Label className="text-foreground">Role *</Label>
                 <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
-                  <SelectTrigger className="mt-2 glass-effect border-white/20 text-white">
+                  <SelectTrigger className="mt-2 surface border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -114,9 +114,9 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 
             {!initialData && formData.role === 'department-head' && (
               <div>
-                <Label className="text-gray-200">Department *</Label>
+                <Label className="text-foreground">Department *</Label>
                 <Select value={formData.departmentId} onValueChange={(v) => handleChange('departmentId', v)}>
-                  <SelectTrigger className="mt-2 glass-effect border-white/20 text-white">
+                  <SelectTrigger className="mt-2 surface border-border text-foreground">
                     <SelectValue placeholder="Select a department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -130,9 +130,9 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 
             {!initialData && formData.role === 'manager' && (
               <div>
-                <Label className="text-gray-200">Project *</Label>
+                <Label className="text-foreground">Project *</Label>
                 <Select value={formData.projectId} onValueChange={(v) => handleChange('projectId', v)}>
-                  <SelectTrigger className="mt-2 glass-effect border-white/20 text-white">
+                  <SelectTrigger className="mt-2 surface border-border text-foreground">
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -145,16 +145,16 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
             )}
 
             <div>
-              <Label htmlFor="admin-name" className="text-gray-200">
+              <Label htmlFor="admin-name" className="text-foreground">
                 Full Name *
               </Label>
               <div className="relative mt-2">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="admin-name"
                   value={formData.name}
                   onChange={(e) => handleChange('name', e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                  className="pl-10 surface border-border text-foreground"
                   placeholder="e.g., John Doe"
                   required
                 />
@@ -162,40 +162,40 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
             </div>
 
             <div>
-              <Label htmlFor="admin-email" className="text-gray-200">
+              <Label htmlFor="admin-email" className="text-foreground">
                 Email Address *
               </Label>
               <div className="relative mt-2">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="admin-email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                  className="pl-10 surface border-border text-foreground"
                   placeholder="admin@example.com"
                   required
                   disabled={!!initialData}
                 />
               </div>
               {initialData && (
-                <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+                <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
               )}
             </div>
 
             {!initialData && (
               <div>
-                <Label htmlFor="admin-password" className="text-gray-200">
+                <Label htmlFor="admin-password" className="text-foreground">
                   Password *
                 </Label>
                 <div className="relative mt-2">
-                  <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="admin-password"
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handleChange('password', e.target.value)}
-                    className="pl-10 pr-10 glass-effect border-white/20 text-white placeholder-gray-400"
+                    className="pl-10 pr-10 surface border-border text-foreground"
                     placeholder="Enter strong password"
                     required={!initialData}
                     minLength={6}
@@ -203,17 +203,17 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Minimum 6 characters</p>
+                <p className="text-xs text-muted-foreground mt-1">Minimum 6 characters</p>
               </div>
             )}
 
             <div>
-              <Label htmlFor="admin-phone" className="text-gray-200">
+              <Label htmlFor="admin-phone" className="text-foreground">
                 Phone Number
               </Label>
               <Input
@@ -221,7 +221,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
-                className="mt-2 glass-effect border-white/20 text-white placeholder-gray-400"
+                className="mt-2 surface border-border text-foreground"
                 placeholder="+1 (555) 000-0000"
               />
             </div>
@@ -232,7 +232,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
             </Button>
             <Button
               type="submit"
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-primary hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Account')}
@@ -398,12 +398,12 @@ const AdminManagement = () => {
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-white mb-2">Department Heads & Managers</h2>
-          <p className="text-gray-300">Manage department head and manager accounts within your organization.</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Department Heads & Managers</h2>
+          <p className="text-muted-foreground">Manage department head and manager accounts within your organization.</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg w-full sm:w-auto"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-card w-full sm:w-auto"
           disabled={departments.length === 0 && projects.length === 0}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -411,17 +411,17 @@ const AdminManagement = () => {
         </Button>
       </div>
 
-      <Card className="glass-effect p-6">
+      <Card className="surface p-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="text-purple-300" />
+            <Shield className="text-primary" />
             <span>Accounts ({admins.length})</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-12 text-gray-400">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary/30 mx-auto mb-4"></div>
               <p>Loading accounts...</p>
             </div>
           ) : admins.length > 0 ? (
@@ -432,31 +432,31 @@ const AdminManagement = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: admins.indexOf(admin) * 0.05 }}
-                  className="p-4 rounded-lg bg-white/5 border border-white/10"
+                  className="p-4 rounded-xl bg-muted/60 border border-border"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-                          <Shield className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center shadow-card">
+                          <Shield className="w-5 h-5 text-foreground" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-white">{admin.name}</h3>
-                          <p className="text-xs text-gray-400">{ROLE_LABELS[admin.role] || admin.role}</p>
+                          <h3 className="font-semibold text-foreground">{admin.name}</h3>
+                          <p className="text-xs text-muted-foreground">{ROLE_LABELS[admin.role] || admin.role}</p>
                         </div>
                       </div>
                       <div className="space-y-1 ml-12">
-                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Mail className="w-3 h-3" />
                           <span>{admin.email}</span>
                         </div>
                         {admin.phone && (
-                          <div className="flex items-center gap-2 text-sm text-gray-300">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span>📱</span>
                             <span>{admin.phone}</span>
                           </div>
                         )}
-                        <div className="text-xs text-gray-500 mt-2">
+                        <div className="text-xs text-muted-foreground mt-2">
                           Created: {admin.createdAt?.toDate ? new Date(admin.createdAt.toDate()).toLocaleDateString() : 'N/A'}
                         </div>
                       </div>
@@ -465,7 +465,7 @@ const AdminManagement = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                        className="h-8 w-8 text-primary hover:bg-primary-soft hover:text-primary"
                         onClick={() => openEditDialog(admin)}
                         title="Edit"
                       >
@@ -474,7 +474,7 @@ const AdminManagement = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300"
+                        className="h-8 w-8 text-warning hover:bg-warning-soft hover:text-warning"
                         onClick={() => handleResetPassword(admin)}
                         title="Reset Password"
                       >
@@ -483,7 +483,7 @@ const AdminManagement = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                        className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
                         onClick={() => handleDelete(admin)}
                         title="Delete"
                       >
@@ -495,9 +495,9 @@ const AdminManagement = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-400">
-              <Shield className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">No accounts found.</h3>
+            <div className="text-center py-12 text-muted-foreground">
+              <Shield className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold text-muted-foreground mb-2">No accounts found.</h3>
               <p>
                 {departments.length === 0 && projects.length === 0
                   ? 'Create a department or project first, then add a Department Head or Manager here.'

@@ -72,10 +72,10 @@ const AddSubtaskDialog = ({ open, onClose, taskId }) => {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="glass-effect border-white/20 text-white">
+      <DialogContent className="surface border-border text-foreground">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="gradient-text">Add Subtask</DialogTitle>
+            <DialogTitle className="text-foreground">Add Subtask</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
@@ -89,14 +89,14 @@ const AddSubtaskDialog = ({ open, onClose, taskId }) => {
                   setError('');
                 }}
                 placeholder="Enter subtask description"
-                className="bg-gray-800/50 border-gray-700 text-white min-h-[80px]"
+                className="bg-muted border-border text-foreground min-h-[80px]"
                 disabled={loading}
                 required
               />
               {error && (
-                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-sm text-destructive">{error}</p>
               )}
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {title.length}/200 characters
               </p>
             </div>
@@ -108,14 +108,14 @@ const AddSubtaskDialog = ({ open, onClose, taskId }) => {
               onClick={handleClose}
               disabled={loading}
               variant="outline"
-              className="border-gray-700 text-gray-300 hover:bg-gray-800/50"
+              className="border-border text-muted-foreground hover:bg-muted"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={loading || !title.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {loading ? 'Adding...' : 'Add Subtask'}
             </Button>

@@ -8,6 +8,7 @@ import {
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { DesignationsProvider } from "@/contexts/DesignationsContext";
 import { TasksProvider } from "@/contexts/TasksContext";
 import {
@@ -26,10 +27,14 @@ import LoginPage from "@/pages/LoginPage";
 // own role, instead of all five plus their charting/PDF dependencies up front.
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 const StaffDashboard = lazy(() => import("@/pages/StaffDashboard"));
-const MasterAdminDashboard = lazy(() => import("@/components/admin/MasterAdminDashboard"));
+const MasterAdminDashboard = lazy(
+  () => import("@/components/admin/MasterAdminDashboard"),
+);
 const ScopedDashboard = lazy(() => import("@/pages/ScopedDashboard"));
 
-const FullPageLoader = () => <LoadingSpinner size="large" className="min-h-screen" />;
+const FullPageLoader = () => (
+  <LoadingSpinner size="large" className="min-h-screen" />
+);
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -140,33 +145,37 @@ function App() {
   return (
     <ErrorBoundary>
       <HelmetProvider>
-        <AuthProvider>
-          <TasksProvider>
-            <DesignationsProvider>
-              <Router>
-                <Helmet>
-                  <title>MagnaFlow - Role-Based Project & Task Management</title>
-                  <meta
-                    name="description"
-                    content="Streamline your project management with role-based access, task tracking, and performance analytics."
-                  />
-                  <meta
-                    property="og:title"
-                    content="MagnaFlow - Role-Based Project & Task Management"
-                  />
-                  <meta
-                    property="og:description"
-                    content="Streamline your project management with role-based access, task tracking, and performance analytics."
-                  />
-                </Helmet>
-                <div className="min-h-screen">
-                  <AppRoutes />
-                  <Toaster />
-                </div>
-              </Router>
-            </DesignationsProvider>
-          </TasksProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <TasksProvider>
+              <DesignationsProvider>
+                <Router>
+                  <Helmet>
+                    <title>
+                      MagnaFlow - Role-Based Project & Task Management
+                    </title>
+                    <meta
+                      name="description"
+                      content="Streamline your project management with role-based access, task tracking, and performance analytics."
+                    />
+                    <meta
+                      property="og:title"
+                      content="MagnaFlow - Role-Based Project & Task Management"
+                    />
+                    <meta
+                      property="og:description"
+                      content="Streamline your project management with role-based access, task tracking, and performance analytics."
+                    />
+                  </Helmet>
+                  <div className="min-h-screen">
+                    <AppRoutes />
+                    <Toaster />
+                  </div>
+                </Router>
+              </DesignationsProvider>
+            </TasksProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </HelmetProvider>
     </ErrorBoundary>
   );

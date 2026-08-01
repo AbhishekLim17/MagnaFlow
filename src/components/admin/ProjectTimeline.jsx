@@ -74,8 +74,8 @@ const ProjectTimeline = () => {
   // Legacy admins without an org can't have projects to chart.
   if (!currentUser?.orgId) {
     return (
-      <div className="text-center py-16 text-gray-400 max-w-lg mx-auto">
-        <h2 className="text-xl font-semibold text-gray-300 mb-2">No organization linked</h2>
+      <div className="text-center py-16 text-muted-foreground max-w-lg mx-auto">
+        <h2 className="text-xl font-semibold text-muted-foreground mb-2">No organization linked</h2>
         <p>This account isn't part of an organization, so there are no projects to chart. Sign in with an organization-admin account.</p>
       </div>
     );
@@ -85,13 +85,13 @@ const ProjectTimeline = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-1">Project Timeline</h2>
-          <p className="text-gray-300">A Gantt view of a project's tasks, from start date to deadline.</p>
+          <h2 className="text-2xl font-bold text-foreground mb-1">Project Timeline</h2>
+          <p className="text-muted-foreground">A Gantt view of a project's tasks, from start date to deadline.</p>
         </div>
         {projects.length > 0 && (
           <div className="w-full sm:w-64">
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="bg-gray-800/50 border-gray-700 text-white">
+              <SelectTrigger className="bg-muted border-border text-foreground">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
               <SelectContent>
@@ -104,20 +104,20 @@ const ProjectTimeline = () => {
         )}
       </div>
 
-      <Card className="glass-effect p-6">
+      <Card className="surface p-6">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <GanttChartSquare className="text-purple-300" />
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <GanttChartSquare className="text-primary" />
             {selectedProject ? selectedProject.name : 'Timeline'}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {projects.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-muted-foreground">
               No projects yet. Create one under "Departments &amp; Projects", then assign tasks to it.
             </div>
           ) : loadingTasks ? (
-            <div className="text-center py-12 text-gray-400">Loading timeline...</div>
+            <div className="text-center py-12 text-muted-foreground">Loading timeline...</div>
           ) : (
             <ProjectGanttChart tasks={tasks} getStaffName={getStaffName} />
           )}

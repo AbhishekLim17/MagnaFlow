@@ -137,8 +137,8 @@ const StaffManagement = () => {
 
   const getStatusColor = (status) => {
     return status === 'active' 
-      ? 'bg-green-500/20 text-green-300 border-green-500/30'
-      : 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+      ? 'bg-success-soft text-success border-success/30'
+      : 'bg-muted text-muted-foreground border-border';
   };
 
   return (
@@ -149,12 +149,12 @@ const StaffManagement = () => {
     >
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-white mb-2">Staff Management</h2>
-          <p className="text-gray-300">Manage your team members and their roles</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Staff Management</h2>
+          <p className="text-muted-foreground">Manage your team members and their roles</p>
         </div>
         <Button
           onClick={() => setShowAddStaff(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 w-full sm:w-auto"
+          className="hover: hover: w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Staff Member
@@ -163,47 +163,47 @@ const StaffManagement = () => {
 
       <div className="mb-6">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search staff members..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 glass-effect border-white/20 text-white placeholder-gray-400"
+            className="pl-10 surface border-border text-foreground"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="glass-effect p-6">
+        <Card className="surface p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-1">Total Staff</p>
-              <p className="text-2xl font-bold text-white">{staff.length}</p>
+              <p className="text-muted-foreground text-sm mb-1">Total Staff</p>
+              <p className="text-2xl font-bold text-foreground">{staff.length}</p>
             </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6 text-foreground" />
             </div>
           </div>
         </Card>
-        <Card className="glass-effect p-6">
+        <Card className="surface p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-1">Active Members</p>
-              <p className="text-2xl font-bold text-white">{staff.filter(m => m.status === 'active').length}</p>
+              <p className="text-muted-foreground text-sm mb-1">Active Members</p>
+              <p className="text-2xl font-bold text-foreground">{staff.filter(m => m.status === 'active').length}</p>
             </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-              <UserCheck className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center">
+              <UserCheck className="w-6 h-6 text-foreground" />
             </div>
           </div>
         </Card>
-        <Card className="glass-effect p-6">
+        <Card className="surface p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-1">Inactive Members</p>
-              <p className="text-2xl font-bold text-white">{staff.filter(m => m.status === 'inactive').length}</p>
+              <p className="text-muted-foreground text-sm mb-1">Inactive Members</p>
+              <p className="text-2xl font-bold text-foreground">{staff.filter(m => m.status === 'inactive').length}</p>
             </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-slate-500 rounded-lg flex items-center justify-center">
-              <UserX className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center">
+              <UserX className="w-6 h-6 text-foreground" />
             </div>
           </div>
         </Card>
@@ -212,15 +212,15 @@ const StaffManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredStaff.map((member, index) => (
           <motion.div key={member.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-            <Card className="glass-effect p-6 card-hover flex flex-col h-full">
+            <Card className="surface p-6 interactive flex flex-col h-full">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-foreground font-semibold">
                     {member.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{member.name}</h3>
-                    <p className="text-gray-400 text-sm">{member.role}</p>
+                    <h3 className="text-lg font-semibold text-foreground">{member.name}</h3>
+                    <p className="text-muted-foreground text-sm">{member.role}</p>
                   </div>
                 </div>
                 <Badge className={`${getStatusColor(member.status)} border`}>
@@ -229,39 +229,39 @@ const StaffManagement = () => {
               </div>
 
               <div className="space-y-2 mb-4 flex-grow">
-                <div className="flex items-center text-sm text-gray-300 break-all">
-                  <Mail className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
+                <div className="flex items-center text-sm text-muted-foreground break-all">
+                  <Mail className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                   <span>{member.email}</span>
                 </div>
-                <div className="flex items-center text-sm text-gray-300">
-                  <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Phone className="w-4 h-4 mr-2 text-muted-foreground" />
                   {member.phone}
                 </div>
-                <div className="flex items-center text-sm text-gray-300">
-                  <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
                   Joined {new Date(member.joinDate).toLocaleDateString()}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-400">{member.tasksCompleted}</p>
-                  <p className="text-xs text-gray-400">Completed</p>
+                  <p className="text-2xl font-bold text-success">{member.tasksCompleted}</p>
+                  <p className="text-xs text-muted-foreground">Completed</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-400">{member.tasksInProgress}</p>
-                  <p className="text-xs text-gray-400">In Progress</p>
+                  <p className="text-2xl font-bold text-primary">{member.tasksInProgress}</p>
+                  <p className="text-xs text-muted-foreground">In Progress</p>
                 </div>
               </div>
 
               <div className="flex space-x-2 mt-auto">
-                <Button size="sm" variant="outline" onClick={() => handleToggleStatus(member.id)} className="flex-1 border-white/20 text-gray-300 hover:bg-white/10 text-xs">
+                <Button size="sm" variant="outline" onClick={() => handleToggleStatus(member.id)} className="flex-1 border-border text-muted-foreground hover:bg-muted/60 text-xs">
                   {member.status === 'active' ? <><UserX className="w-4 h-4 mr-1" />Deactivate</> : <><UserCheck className="w-4 h-4 mr-1" />Activate</>}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setEditingStaff(member)} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20">
+                <Button size="sm" variant="outline" onClick={() => setEditingStaff(member)} className="border-primary/30 text-primary hover:bg-primary-soft">
                   <Edit className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleRemoveStaff(member.id)} className="border-red-500/30 text-red-400 hover:bg-red-500/20">
+                <Button size="sm" variant="outline" onClick={() => handleRemoveStaff(member.id)} className="border-destructive/30 text-destructive hover:bg-destructive-soft">
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -272,9 +272,9 @@ const StaffManagement = () => {
 
       {filteredStaff.length === 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-300 mb-2">No staff members found</h3>
-          <p className="text-gray-400">
+          <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-muted-foreground mb-2">No staff members found</h3>
+          <p className="text-muted-foreground">
             {searchTerm ? 'Try adjusting your search criteria' : 'Add your first staff member to get started'}
           </p>
         </motion.div>

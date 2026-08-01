@@ -53,12 +53,12 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
     >
-      <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
+      <Card className="surface border-border hover:border-border transition-all duration-300">
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
-              <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
             </div>
             <div className="ml-4 flex space-x-2">
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
@@ -70,8 +70,8 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
             </div>
           </div>
           
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
-            <div className="flex items-center space-x-4 text-sm text-gray-400">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <User className="w-4 h-4" />
                 <span>{getStaffName(task.assignedTo)}</span>
@@ -92,7 +92,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
                         e.stopPropagation();
                         onCommentClick(task);
                       }}
-                      className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-all"
+                      className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all"
                     >
                       <ListChecks className="w-4 h-4" />
                       <span className="text-xs font-medium">{subtaskCounts.completed}/{subtaskCounts.total}</span>
@@ -110,7 +110,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onCommentClick(task)}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition-all"
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span className="text-xs font-medium">{commentCount}</span>
@@ -127,7 +127,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
               <Button
                 size="sm"
                 variant="outline"
-                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                className="border-primary/30 text-primary hover:bg-primary-soft"
                 onClick={() => onEdit(task)}
               >
                 <Edit className="w-4 h-4 mr-1" />
@@ -136,7 +136,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
               <Button
                 size="sm"
                 variant="outline"
-                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                className="border-destructive/30 text-destructive hover:bg-destructive-soft"
                 onClick={() => onDelete(task)}
               >
                 <Trash2 className="w-4 h-4" />
@@ -366,19 +366,19 @@ const TaskManagement = () => {
 
   const getPriorityBadge = (priority) => {
     const styles = {
-      low: 'bg-green-500/20 text-green-400 border-green-500/30',
-      medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      critical: 'bg-red-500/20 text-red-400 border-red-500/30',
+      low: 'bg-success-soft text-success border-success/30',
+      medium: 'bg-warning-soft text-warning border-warning/30',
+      high: 'bg-warning-soft text-warning border-warning/30',
+      critical: 'bg-destructive-soft text-destructive border-destructive/30',
     };
     return styles[priority] || styles.medium;
   };
 
   const getStatusBadge = (status) => {
     const styles = {
-      pending: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-      'in-progress': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      completed: 'bg-green-500/20 text-green-400 border-green-500/30',
+      pending: 'bg-muted text-muted-foreground border-border',
+      'in-progress': 'bg-primary-soft text-primary border-primary/30',
+      completed: 'bg-success-soft text-success border-success/30',
     };
     return styles[status] || styles.pending;
   };
@@ -398,11 +398,11 @@ const TaskManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Task Management</h2>
-          <p className="text-gray-400 mt-1">Create and assign tasks to your team</p>
+          <p className="text-muted-foreground mt-1">Create and assign tasks to your team</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-teal-600 hover:bg-teal-700 shadow-lg"
+          className="bg-success hover:bg-success/90 shadow-card"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Task
@@ -410,19 +410,19 @@ const TaskManagement = () => {
       </div>
 
       {/* Filters */}
-      <Card className="glass-effect border-gray-800 p-4">
+      <Card className="surface border-border p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-800/50 border-gray-700"
+              className="pl-10 bg-muted border-border"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-gray-800/50 border-gray-700">
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
               <SelectValue placeholder="Filter by Status" />
             </SelectTrigger>
             <SelectContent>
@@ -433,7 +433,7 @@ const TaskManagement = () => {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-gray-800/50 border-gray-700">
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border">
               <SelectValue placeholder="Filter by Priority" />
             </SelectTrigger>
             <SelectContent>
@@ -448,16 +448,16 @@ const TaskManagement = () => {
       </Card>
 
       {/* Tasks List */}
-      <Card className="glass-effect border-gray-800">
+      <Card className="surface border-border">
         <div className="p-6">
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="mt-4 text-gray-400">Loading tasks...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
+              <p className="mt-4 text-muted-foreground">Loading tasks...</p>
             </div>
           ) : filteredTasks.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-400">No tasks found</p>
+              <p className="text-muted-foreground">No tasks found</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -506,7 +506,7 @@ const TaskManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-gray-900 border-gray-800">
+        <AlertDialogContent className="bg-background border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -515,7 +515,7 @@ const TaskManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTask} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

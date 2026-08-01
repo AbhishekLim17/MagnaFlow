@@ -337,11 +337,11 @@ const StaffManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Staff Management</h2>
-          <p className="text-gray-400 mt-1">Manage your team members and their roles</p>
+          <p className="text-muted-foreground mt-1">Manage your team members and their roles</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-card"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Staff
@@ -352,28 +352,28 @@ const StaffManagement = () => {
           reserved until removed in the console, which otherwise silently blocks
           re-adding that person. */}
       {pendingCleanups.length > 0 && (
-        <Card className="glass-effect border-amber-500/40 p-4">
+        <Card className="surface border-warning/30 p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-amber-300">
+              <h3 className="font-semibold text-warning">
                 {pendingCleanups.length} removed {pendingCleanups.length === 1 ? 'account still has' : 'accounts still have'} a Firebase sign-in
               </h3>
-              <p className="text-xs text-gray-400 mt-1 mb-3">
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
                 Their email addresses stay reserved until deleted in Firebase Console → Authentication.
                 Mark each one done once you have removed it.
               </p>
               <ul className="space-y-2">
                 {pendingCleanups.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between gap-3 text-sm bg-white/5 border border-white/10 rounded px-3 py-2">
+                  <li key={c.id} className="flex items-center justify-between gap-3 text-sm bg-muted/60 border border-border rounded px-3 py-2">
                     <span className="truncate">
-                      <span className="text-white">{c.name || 'Unnamed'}</span>
-                      <span className="text-gray-400"> · {c.email}</span>
+                      <span className="text-foreground">{c.name || 'Unnamed'}</span>
+                      <span className="text-muted-foreground"> · {c.email}</span>
                     </span>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-white/20 text-white flex-shrink-0"
+                      className="border-border text-foreground flex-shrink-0"
                       onClick={() => handleMarkCleanupDone(c.id)}
                     >
                       Mark done
@@ -387,30 +387,30 @@ const StaffManagement = () => {
       )}
 
       {/* Search */}
-      <Card className="glass-effect border-gray-800 p-4">
+      <Card className="surface border-border p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <Input
             placeholder="Search staff by name, email, or designation..."
             aria-label="Search staff"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-gray-800/50 border-gray-700"
+            className="pl-10 bg-muted border-border"
           />
         </div>
       </Card>
 
       {/* Staff List */}
-      <Card className="glass-effect border-gray-800">
+      <Card className="surface border-border">
         <div className="p-6">
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="mt-4 text-gray-400">Loading staff...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
+              <p className="mt-4 text-muted-foreground">Loading staff...</p>
             </div>
           ) : filteredStaff.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-400">No staff members found</p>
+              <p className="text-muted-foreground">No staff members found</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -421,26 +421,26 @@ const StaffManagement = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card className="glass-effect border-gray-800 hover:border-gray-700 transition-all duration-300">
+                  <Card className="surface border-border hover:border-border transition-all duration-300">
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold shadow-card">
                             {member.name.charAt(0)}
                           </div>
                           <div>
                             <h4 className="font-semibold">{member.name}</h4>
-                            <p className="text-sm text-gray-400">{member.email}</p>
+                            <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
-                        <Badge className={member.status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}>
+                        <Badge className={member.status === 'active' ? 'bg-success-soft text-success border-success/30' : 'bg-destructive-soft text-destructive border-destructive/30'}>
                           {member.status || 'active'}
                         </Badge>
                       </div>
                       
                       {member.designation && (
                         <div className="mb-4">
-                          <Badge variant="outline" className="border-gray-700 text-gray-300">
+                          <Badge variant="outline" className="border-border text-muted-foreground">
                             {member.designation}
                           </Badge>
                         </div>
@@ -451,7 +451,7 @@ const StaffManagement = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1 border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                            className="flex-1 border-primary/30 text-primary hover:bg-primary-soft"
                             onClick={() => openEditDialog(member)}
                           >
                             <Edit className="w-4 h-4 mr-1" />
@@ -460,7 +460,7 @@ const StaffManagement = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                            className="border-destructive/30 text-destructive hover:bg-destructive-soft"
                             onClick={() => openDeleteDialog(member)}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -470,7 +470,7 @@ const StaffManagement = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className={`flex-1 ${member.status === 'active' ? 'border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10' : 'border-green-500/50 text-green-400 hover:bg-green-500/10'}`}
+                            className={`flex-1 ${member.status === 'active' ? 'border-warning/30 text-warning hover:bg-warning-soft' : 'border-success/30 text-success hover:bg-success-soft'}`}
                             onClick={() => handleToggleStatus(member)}
                           >
                             {member.status === 'active' ? (
@@ -482,7 +482,7 @@ const StaffManagement = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1 border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                            className="flex-1 border-primary/30 text-primary hover:bg-primary-soft"
                             onClick={() => handleResetPassword(member)}
                           >
                             <KeyRound className="w-4 h-4 mr-1" />
@@ -527,7 +527,7 @@ const StaffManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-gray-900 border-gray-800">
+        <AlertDialogContent className="bg-background border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -536,7 +536,7 @@ const StaffManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setStaffToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteStaff} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteStaff} className="bg-destructive hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -545,7 +545,7 @@ const StaffManagement = () => {
 
       {/* Firebase Auth Cleanup Guide Dialog */}
       <Dialog open={showCleanupGuide} onOpenChange={setShowCleanupGuide}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-3xl">
+        <DialogContent className="bg-background border-border max-w-3xl">
           <DialogHeader>
             <DialogTitle>⚠️ Firebase Auth Cleanup Required</DialogTitle>
             <DialogDescription>
@@ -554,13 +554,13 @@ const StaffManagement = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-muted-foreground">
               Please follow these steps to complete the deletion:
             </p>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
+            <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
               <li>Go to Firebase Console</li>
               <li>Navigate to Authentication</li>
-              <li>Find and delete user: <code className="text-orange-400">{deletedUserEmail}</code></li>
+              <li>Find and delete user: <code className="text-warning">{deletedUserEmail}</code></li>
             </ol>
           </div>
           

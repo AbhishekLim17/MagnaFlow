@@ -136,15 +136,15 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-effect border-white/20 text-white max-w-md">
+      <DialogContent className="surface border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Lock className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
+              <Lock className="w-4 h-4 text-foreground" />
             </div>
             <span>Change Password</span>
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Update your password to keep your account secure.
           </DialogDescription>
         </DialogHeader>
@@ -152,7 +152,7 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Current Password */}
           <div className="space-y-2">
-            <Label htmlFor="currentPassword" className="text-gray-200">
+            <Label htmlFor="currentPassword" className="text-foreground">
               Current Password *
             </Label>
             <div className="relative">
@@ -162,14 +162,14 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
                 value={formData.currentPassword}
                 onChange={(e) => handleInputChange('currentPassword', e.target.value)}
                 placeholder="Enter current password"
-                className="glass-effect border-white/20 text-white placeholder-gray-400 pr-10"
+                className="surface border-border text-foreground pr-10"
                 required
                 disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -178,7 +178,7 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
 
           {/* New Password */}
           <div className="space-y-2">
-            <Label htmlFor="newPassword" className="text-gray-200">
+            <Label htmlFor="newPassword" className="text-foreground">
               New Password *
             </Label>
             <div className="relative">
@@ -188,7 +188,7 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
                 value={formData.newPassword}
                 onChange={(e) => handleInputChange('newPassword', e.target.value)}
                 placeholder="Enter new password (min 6 characters)"
-                className="glass-effect border-white/20 text-white placeholder-gray-400 pr-10"
+                className="surface border-border text-foreground pr-10"
                 required
                 minLength={6}
                 disabled={loading}
@@ -196,7 +196,7 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -205,7 +205,7 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
 
           {/* Confirm New Password */}
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-gray-200">
+            <Label htmlFor="confirmPassword" className="text-foreground">
               Confirm New Password *
             </Label>
             <div className="relative">
@@ -215,14 +215,14 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                 placeholder="Confirm new password"
-                className="glass-effect border-white/20 text-white placeholder-gray-400 pr-10"
+                className="surface border-border text-foreground pr-10"
                 required
                 disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -230,8 +230,8 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
           </div>
 
           {/* Password Requirements */}
-          <div className="text-xs text-gray-400 space-y-1 bg-gray-800/30 p-3 rounded-lg">
-            <p className="font-semibold text-gray-300">Password Requirements:</p>
+          <div className="text-xs text-muted-foreground space-y-1 bg-muted p-3 rounded-xl">
+            <p className="font-semibold text-muted-foreground">Password Requirements:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>Minimum 6 characters</li>
               <li>Different from current password</li>
@@ -247,19 +247,19 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
                 onOpenChange(false);
                 setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
               }}
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-border text-muted-foreground hover:bg-muted/60"
               disabled={loading}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-primary hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-border mr-2"></div>
                   Updating...
                 </>
               ) : (
