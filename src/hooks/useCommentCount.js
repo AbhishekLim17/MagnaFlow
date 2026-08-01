@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**
  * Hook to get real-time comment count for a task
@@ -29,7 +30,7 @@ export const useCommentCount = (taskId) => {
       setCommentCount(0);
     });
 
-    return () => unsubscribe();
+    return () => safeUnsubscribe(unsubscribe);
   }, [taskId]);
 
   return commentCount;

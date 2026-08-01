@@ -4,6 +4,7 @@ import { subscribeToUnreadNotifications, markAsRead, markAllAsRead } from '../..
 import { Bell, Check, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**
  * NotificationBell Component
@@ -35,7 +36,7 @@ const NotificationBell = () => {
 
     return () => {
       if (unsubscribe) {
-        unsubscribe();
+        safeUnsubscribe(unsubscribe);
       }
     };
   }, [userId]);

@@ -5,6 +5,7 @@ import CommentsList from './CommentsList';
 import CommentInput from './CommentInput';
 import { MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**
  * CommentSection Component
@@ -36,7 +37,7 @@ const CommentSection = ({ taskId, taskTitle }) => {
     // Cleanup subscription on unmount
     return () => {
       if (unsubscribe) {
-        unsubscribe();
+        safeUnsubscribe(unsubscribe);
       }
     };
   }, [taskId]);

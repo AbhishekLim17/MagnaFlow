@@ -14,6 +14,7 @@ import { getAllUsers } from '@/services/userService';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 const DesignationsContext = createContext();
 
@@ -42,7 +43,7 @@ export const DesignationsProvider = ({ children }) => {
 
     return () => {
       console.log("🔌 Cleaning up designations listener");
-      if (unsubscribe) unsubscribe();
+      safeUnsubscribe(unsubscribe);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);

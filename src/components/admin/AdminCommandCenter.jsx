@@ -34,6 +34,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { db } from '@/config/firebase';
 import { getAllUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
   const { tasks } = useTasks();
@@ -100,7 +101,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       setRecentActivity(activities);
     });
 
-    return () => unsubscribe();
+    return () => safeUnsubscribe(unsubscribe);
   }, []);
 
   // Calculate staff performance

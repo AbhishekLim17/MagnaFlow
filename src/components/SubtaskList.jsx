@@ -3,6 +3,7 @@ import { Trash2, Edit, Save, X, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import {
   subscribeToSubtasks,
   toggleSubtaskCompletion,
@@ -26,7 +27,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => safeUnsubscribe(unsubscribe);
   }, [taskId]);
 
   const handleToggleComplete = async (subtaskId, currentStatus) => {

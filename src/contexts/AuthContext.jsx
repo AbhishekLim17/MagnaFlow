@@ -13,6 +13,7 @@ import { getUserById, clearCallerProfileCache } from "@/services/userService";
 import { getOrganizationById } from "@/services/organizationService";
 import { isValidEmail } from "@/utils/validation";
 import { toUserMessage } from "@/lib/errorMessages";
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 const AuthContext = createContext();
 
@@ -91,7 +92,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     // Cleanup subscription on unmount
-    return () => unsubscribe();
+    return () => safeUnsubscribe(unsubscribe);
   }, []);
 
   /**
