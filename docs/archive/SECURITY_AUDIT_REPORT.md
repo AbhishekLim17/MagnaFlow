@@ -59,7 +59,7 @@ export const EMAIL_CONFIG = {
   TEMPLATE_ID: 'template_mwmmgmi',
   PUBLIC_KEY: 'sLvBE12fOqa4zsra-',
   // Private key exposed in public HTML!
-  PRIVATE_KEY: '69niIwGWTQOzw0jwCVj3L'  // public/cron-trigger.html:107
+  PRIVATE_KEY: '<set EMAILJS_PRIVATE_KEY as a repository secret>'  // public/cron-trigger.html:107
 };
 ```
 
@@ -87,7 +87,7 @@ export const EMAIL_CONFIG = {
 
 ```javascript
 // EXPOSED SECURITY TOKEN
-const SECURITY_TOKEN = 'MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA';
+const SECURITY_TOKEN = '<set CRON_SECURITY_TOKEN as a repository secret>';
 ```
 
 **Impact:**

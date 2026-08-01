@@ -51,7 +51,7 @@ After the 8:00 AM cron execution, verify:
 
 3. **Review System Health**
    ```
-   https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true
+   https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&health=true
    ```
 
 ---
@@ -81,7 +81,7 @@ After the 8:00 AM cron execution, verify:
 
 ### Health Check
 ```
-URL: https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true
+URL: https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&health=true
 
 Returns:
 {
@@ -98,7 +98,7 @@ Returns:
 
 ### Manual Test (Bypass Daily Limit)
 ```
-URL: https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&bypass=true
+URL: https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&bypass=true
 
 ⚠️ USE SPARINGLY - Sends real emails and counts toward quota
 ```
@@ -290,7 +290,7 @@ This provides:
 ## Security
 
 ### Token Protection
-- **Token**: MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+- **Token**: <set CRON_SECURITY_TOKEN as a repository secret>
 - **Location**: URL parameter only
 - **Validation**: Application level (not Firestore rules)
 - **Rotation**: Manual (document procedure)

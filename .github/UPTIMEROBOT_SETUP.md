@@ -31,7 +31,7 @@ Set up free monitoring and alerts to ensure MagnaFlow reminder system stays heal
 3. **Friendly Name**: MagnaFlow Reminder Health Check
 4. **URL**: 
    ```
-   https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true
+   https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&health=true
    ```
 5. **Monitoring Interval**: 5 minutes (free tier)
 6. Click "Create Monitor"
@@ -252,7 +252,7 @@ UptimeRobot setup is successful when:
 
 ### Health Check URL
 ```
-https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true
+https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&health=true
 ```
 
 ### UptimeRobot Dashboard

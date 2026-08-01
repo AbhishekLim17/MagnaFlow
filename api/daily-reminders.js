@@ -21,14 +21,16 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // EmailJS config
+// Environment only. The literals that used to sit here as fallbacks included
+// the EmailJS private key, and this file is in a public repository.
 const EMAILJS_CONFIG = {
-  serviceId: process.env.EMAILJS_SERVICE_ID || 'service_itwo1ee',
-  templateId: process.env.EMAILJS_TEMPLATE_ID || 'template_mwmmgmi',
-  publicKey: process.env.EMAILJS_PUBLIC_KEY || 'sLvBE12fOqa4zsra-',
-  privateKey: process.env.EMAILJS_PRIVATE_KEY || '69niIwGWTQOzw0jwCVj3L',
+  serviceId: process.env.EMAILJS_SERVICE_ID,
+  templateId: process.env.EMAILJS_TEMPLATE_ID,
+  publicKey: process.env.EMAILJS_PUBLIC_KEY,
+  privateKey: process.env.EMAILJS_PRIVATE_KEY,
 };
 
-const ADMIN_EMAILS = 'pankaj@magnetar.in, dhaval@magnetar.in, tejas@magnetar.in';
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS || '';
 
 function calculateDaysPending(createdAt) {
   if (!createdAt) return '0';

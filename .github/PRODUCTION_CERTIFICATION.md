@@ -62,7 +62,7 @@
 
 ### 6. Security ✅
 - **Token Protection**: URL parameter validation
-- **Token**: MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+- **Token**: <set CRON_SECURITY_TOKEN as a repository secret>
 - **Firestore Rules**: Read-only public access to necessary collections
 - **No Secrets Exposed**: EmailJS keys in code (acceptable for frontend)
 - **Rate Limiting**: EmailJS monthly quota (200 emails)
@@ -292,7 +292,7 @@ See `.github/ROLLBACK_PROCEDURE.md`
 
 ### Health Check
 ```
-https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true
+https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&health=true
 ```
 
 ### Emergency

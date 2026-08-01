@@ -9,7 +9,7 @@
    🔑 SECRET SECURITY TOKEN
 ═══════════════════════════════════════════════════════════════════
 
-Token: MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+Token: <set CRON_SECURITY_TOKEN as a repository secret>
 
 ⚠️ KEEP THIS SECRET! Do not share this token with anyone.
 
@@ -17,7 +17,7 @@ Token: MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
    🌐 SECURE CRON URL (Use this in cron-job.org)
 ═══════════════════════════════════════════════════════════════════
 
-https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>
 
 ═══════════════════════════════════════════════════════════════════
    ⚙️ CRON-JOB.ORG CONFIGURATION
@@ -30,7 +30,7 @@ https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6c
 3. Click "EDIT" button
 
 4. Update the URL field to:
-   https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+   https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>
 
 5. Keep other settings:
    - Schedule: Daily at 08:00
@@ -74,7 +74,7 @@ https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6c
 ═══════════════════════════════════════════════════════════════════
 
 Test with token (✅ Should work):
-https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>
 
 Test without token (❌ Should be blocked):
 https://magnaflow-07sep25.web.app/cron-trigger.html
@@ -135,7 +135,7 @@ After (Secure):
 
 Status: LIVE & SECURED
 URL: https://magnaflow-07sep25.web.app
-Token: MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA
+Token: <set CRON_SECURITY_TOKEN as a repository secret>
 
 Next Step: Update your cron-job.org URL with the token parameter
 

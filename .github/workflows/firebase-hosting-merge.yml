@@ -19,6 +19,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # Cheap and first: a leaked credential should stop the deploy before
+      # anything else runs. Needs .env.local to compare against, which CI does
+      # not have, so this is a no-op there and a real gate locally — the
+      # pre-push habit it enforces is the point.
+      - name: Secret scan
+        run: npm run check:secrets
+
       - name: Unit and component tests
         run: npm test
       - name: Firestore security rules tests

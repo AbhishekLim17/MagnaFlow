@@ -42,7 +42,7 @@ firebase deploy --only hosting
 
 7. **Test immediately**:
 ```
-https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&bypass=true
+https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&bypass=true
 ```
 
 **Result**: System returns to Critical-only reminders (proven stable)
@@ -154,7 +154,7 @@ If rollback fails:
 After rollback, verify system health:
 
 ```
-https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&health=true
+https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&health=true
 ```
 
 Should show:

@@ -117,7 +117,7 @@ This rollback takes 30 seconds, reverts to Critical-only reminders (original beh
 To test Low priority detection:
 1. Create test Low priority task in Firestore
 2. Set dueDate to 10 days ago (for Tier 1), 20 days ago (Tier 2), or 40 days ago (Tier 3)
-3. Access: `https://magnaflow-07sep25.web.app/cron-trigger.html?token=MgF-7x9K2pL4qR8vN3mB6cT1yE5wH0zA&bypass=true`
+3. Access: `https://magnaflow-07sep25.web.app/cron-trigger.html?token=<set CRON_SECURITY_TOKEN as a repository secret>&bypass=true`
 4. Verify correct tier detection and email formatting
 
 ## Example Scenarios
