@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { LogIn, Mail, Lock, Eye, EyeOff, ShieldCheck, GitBranch, BarChart3 } from "lucide-react";
+import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,11 +10,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { reportError, ERROR_TOAST_DURATION } from '@/lib/reportError';
 import Brandmark from '@/components/shared/Brandmark';
 
-const HIGHLIGHTS = [
-  { icon: GitBranch, title: 'One flow, five roles', body: 'Org, department, project and staff views stay in step automatically.' },
-  { icon: BarChart3, title: 'Progress you can see', body: 'Timelines and workload roll up without anyone chasing a status update.' },
-  { icon: ShieldCheck, title: 'Scoped by design', body: 'People see their own organisation and nothing else.' },
-];
+// A single centred card rather than a marketing split. Nobody arrives here to
+// be sold anything — MagnaFlow has no public signup, so every visitor is an
+// existing user trying to get to work. The pitch column was just something to
+// scroll past on a phone before reaching the only control that matters.
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -58,71 +58,36 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[1.05fr_1fr]">
-      {/* Brand panel. Hidden below lg — on a phone it would push the form,
-          the only thing the user came for, below the fold. */}
-      <aside className="relative hidden overflow-hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-primary-foreground/10 blur-3xl"
-        />
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background px-6 py-12">
+      {/* Two soft brand washes. Purely atmospheric, so they are hidden from
+          assistive tech and sit behind everything. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-48 -right-32 h-[26rem] w-[26rem] rounded-full bg-primary/10 blur-3xl"
+      />
 
-        <div className="relative flex items-center gap-3">
-          <Brandmark className="h-11 w-11 bg-primary-foreground/15 shadow-none" />
-          <span className="text-xl font-bold tracking-tight">MagnaFlow</span>
-        </div>
-
-        <div className="relative max-w-md">
-          <h2 className="text-[34px] font-bold leading-[1.15] tracking-tight">
-            Every team&rsquo;s work, in one place.
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-primary-foreground/80">
-            Role-based task management for organisations that outgrew a shared spreadsheet.
-          </p>
-
-          <ul className="mt-10 space-y-6">
-            {HIGHLIGHTS.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="flex gap-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-foreground/15">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-semibold">{title}</p>
-                  <p className="mt-0.5 text-sm text-primary-foreground/75">{body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="relative text-sm text-primary-foreground/60">
-          &copy; {new Date().getFullYear()} MagnaFlow
-        </p>
-      </aside>
-
-      {/* Form panel */}
-      <main className="flex min-h-screen items-center justify-center p-6 sm:p-10 lg:min-h-0">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[400px]"
-        >
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <Brandmark className="h-11 w-11" />
-            <span className="text-xl font-bold tracking-tight">MagnaFlow</span>
-          </div>
-
-          <h1 className="text-[28px] font-bold leading-tight tracking-tight">Sign in</h1>
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="relative w-full max-w-[420px]"
+      >
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Brandmark className="h-14 w-14" />
+          <h1 className="mt-5 text-[26px] font-bold leading-tight tracking-tight">
+            Sign in to MagnaFlow
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Welcome back. Enter your details to continue.
+            Enter your details to continue.
           </p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <Card className="p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -134,8 +99,10 @@ const LoginPage = () => {
                   id="email"
                   type="email"
                   autoComplete="email"
+                  autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                   className="pl-11"
                   placeholder="you@company.com"
                   required
@@ -156,7 +123,8 @@ const LoginPage = () => {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-11 pr-11"
+                  disabled={loading}
+                  className="pl-11 pr-12"
                   placeholder="Enter your password"
                   required
                 />
@@ -166,7 +134,8 @@ const LoginPage = () => {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-pressed={showPassword}
+                  className="absolute right-1.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -176,7 +145,10 @@ const LoginPage = () => {
             <Button type="submit" size="lg" disabled={loading} className="w-full">
               {loading ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground"
+                    aria-hidden="true"
+                  />
                   Signing in…
                 </>
               ) : (
@@ -187,12 +159,12 @@ const LoginPage = () => {
               )}
             </Button>
           </form>
+        </Card>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
-            Trouble signing in? Contact your organisation administrator.
-          </p>
-        </motion.div>
-      </main>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Trouble signing in? Contact your organisation administrator.
+        </p>
+      </motion.div>
     </div>
   );
 };
