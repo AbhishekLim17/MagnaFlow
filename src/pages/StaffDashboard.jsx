@@ -370,7 +370,7 @@ const StaffDashboard = () => {
         <Card>
           <div className="p-6 space-y-4">
             {/* Header with Add Task Button */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-xl font-semibold">My Tasks</h3>
               <Button
                 onClick={() => setIsAddTaskOpen(true)}

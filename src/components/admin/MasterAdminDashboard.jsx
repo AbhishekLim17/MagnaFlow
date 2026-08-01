@@ -469,11 +469,11 @@ const MasterAdminDashboard = () => {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {auditLogs.map((log) => (
-                  <div key={log.id} className="text-sm text-muted-foreground p-2 rounded bg-muted/60 border border-border flex justify-between">
+                  <div key={log.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1 rounded-xl border border-border bg-muted/60 p-2 text-sm text-muted-foreground">
                     <span>
                       <span className="text-foreground font-medium">{log.action}</span>
                       {log.targetOrgId && ` · ${orgName(log.targetOrgId)}`}
-                      {log.targetUserId && ` · user ${log.targetUserId}`}
+                      {log.targetUserId && <span className="break-all"> · user {log.targetUserId}</span>}
                     </span>
                     <span className="text-muted-foreground">
                       {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : ''}
