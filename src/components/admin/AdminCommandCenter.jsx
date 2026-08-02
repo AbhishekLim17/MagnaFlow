@@ -11,26 +11,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  TrendingUp,
-  Users,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Mail,
-  Calendar,
-  Award,
-  Activity,
-  Plus,
-  BarChart3
-} from 'lucide-react';
+import { Users, CheckCircle, Clock, AlertTriangle, Mail, Award, Activity, Plus, BarChart3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTasks } from '@/contexts/TasksContext';
 import { useEmailQuota } from '@/hooks/useEmailQuota';
-import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getAllUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';

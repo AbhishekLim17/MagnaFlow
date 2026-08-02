@@ -93,14 +93,6 @@ const markRemindersSentToday = async (results) => {
 /**
  * Check current time and see if it's within reminder window (8 AM - 9 AM IST)
  */
-const isWithinReminderWindow = () => {
-  const now = new Date();
-  const hour = now.getHours();
-  
-  // Check if between 8 AM and 9 AM (1 hour window)
-  // Adjust this if you want different timing
-  return hour >= 8 && hour < 9;
-};
 
 /**
  * Send daily reminders for critical incomplete tasks

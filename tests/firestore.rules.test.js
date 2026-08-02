@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { beforeAll, afterAll, beforeEach, describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -325,5 +325,43 @@ describe('outgoing email queue', () => {
     });
     await assertFails(updateDoc(doc(asUser(MASTER), 'mail_queue', 'existing2'), { status: 'sent' }));
     await assertFails(deleteDoc(doc(asUser(MASTER), 'mail_queue', 'existing2')));
+  });
+});
+
+// A list query binds no document id, so a rule that tests the wildcard sees
+// null and errors rather than denying. That made departments and projects
+// unlistable for exactly the roles that needed them most.
+describe('listing departments and projects', () => {
+  const deptsOf = (db, org) => collection(db, 'organizations', org, 'departments');
+  const projsOf = (db, org) => collection(db, 'organizations', org, 'projects');
+
+  test('a department head CAN list departments in their org', async () => {
+    await assertSucceeds(getDocs(deptsOf(asUser(HEAD_A), ORG_A)));
+  });
+
+  test('a manager CAN list projects in their org', async () => {
+    await assertSucceeds(getDocs(projsOf(asUser(MGR_A), ORG_A)));
+  });
+
+  test("staff CAN list their own org's departments", async () => {
+    await assertSucceeds(getDocs(deptsOf(asUser(STAFF_A), ORG_A)));
+  });
+
+  test('an org-admin CAN list projects in their org', async () => {
+    await assertSucceeds(getDocs(projsOf(asUser(ADMIN_A), ORG_A)));
+  });
+
+  // The part that must not regress.
+  test("a member of another org cannot list this org's departments", async () => {
+    await assertFails(getDocs(deptsOf(asUser(STAFF_B), ORG_A)));
+  });
+
+  test("a member of another org cannot list this org's projects", async () => {
+    await assertFails(getDocs(projsOf(asUser(ADMIN_B), ORG_A)));
+  });
+
+  test('anonymous cannot list departments', async () => {
+    const anon = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDocs(deptsOf(anon, ORG_A)));
   });
 });

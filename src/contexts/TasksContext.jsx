@@ -4,15 +4,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
-import {
-  getAllTasks,
-  createTask as createTaskService,
-  updateTask as updateTaskService,
-  deleteTask as deleteTaskService,
-  getTaskStatistics,
-} from '@/services/taskService';
+import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, getTaskStatistics } from '@/services/taskService';
 import { getUserById } from '@/services/userService';
-import { sendTaskAssignedEmail, sendCriticalTaskAlert, sendTaskStatusChangedEmail, sendTaskCompletedEmail } from '@/services/emailService';
+import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
 
 const TasksContext = createContext();
 

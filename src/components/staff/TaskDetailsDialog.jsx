@@ -2,25 +2,14 @@
 // Staff member can see complete task information, change status, edit or delete
 
 import React, { useState } from 'react';
-import { Calendar, User, AlertCircle, CheckCircle, Edit, Trash2, ListChecks, Plus } from 'lucide-react';
+import { Calendar, AlertCircle, CheckCircle, Edit, Trash2, ListChecks, Plus } from 'lucide-react';
 import SubtaskList from '../SubtaskList';
 import AddSubtaskDialog from '../AddSubtaskDialog';
 import CommentSection from '../tasks/CommentSection';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
 const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, onDelete, currentUser }) => {

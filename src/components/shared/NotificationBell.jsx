@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToUnreadNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
-import { Bell, Check, MessageSquare, X } from 'lucide-react';
+import { Bell, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';

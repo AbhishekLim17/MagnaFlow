@@ -3,31 +3,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  CheckSquare, 
-  LogOut, 
-  Plus,
-  Search,
-  Filter,
-  Clock,
-  TrendingUp,
-  Target,
-  AlertCircle,
-  KeyRound,
-  MessageSquare,
-  ListChecks
-} from 'lucide-react';
+import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, KeyRound, MessageSquare, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -37,16 +18,9 @@ import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import StatCard from '@/components/shared/StatCard';
-import { useCommentCountStatic } from '@/hooks/useCommentCountStatic';
-import { useSubtaskCountStatic } from '@/hooks/useSubtaskCountStatic';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
@@ -175,7 +149,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
 };
 
 const StaffDashboard = () => {
-  const { user, currentUser, logout } = useAuth();
+  const { user, currentUser } = useAuth();
   const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,22 +166,6 @@ const StaffDashboard = () => {
     }
   }, [user]);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast({
-        title: "Logged out successfully",
-        description: "See you next time!",
-      });
-    } catch (error) {
-      console.error('Logout failed:', error);
-      toast({
-        title: "Logout failed",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
@@ -295,36 +253,10 @@ const StaffDashboard = () => {
   ];
 
   // Priority badge styles
-  const getPriorityBadge = (priority) => {
-    const styles = {
-      low: 'bg-success-soft text-success border-success/30',
-      medium: 'bg-warning-soft text-warning border-warning/30',
-      high: 'bg-warning-soft text-warning border-warning/30',
-      critical: 'bg-destructive-soft text-destructive border-destructive/30',
-    };
-    return styles[priority] || styles.medium;
-  };
 
   // Status badge styles
-  const getStatusBadge = (status) => {
-    const styles = {
-      pending: 'bg-muted text-muted-foreground border-border',
-      'in-progress': 'bg-primary-soft text-primary border-primary/30',
-      completed: 'bg-success-soft text-success border-success/30',
-    };
-    return styles[status] || styles.pending;
-  };
 
   // Format date
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'No deadline';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
 
   const headerActions = (
     <Button

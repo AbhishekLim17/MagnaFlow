@@ -15,7 +15,7 @@
       ]
     },
     {
-      "collectionGroup": "users", 
+      "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -30,7 +30,7 @@
     },
     {
       "collectionGroup": "users",
-      "queryScope": "COLLECTION", 
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "companyId",
@@ -51,7 +51,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt", 
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -86,7 +86,7 @@
     },
     {
       "collectionGroup": "performanceReports",
-      "queryScope": "COLLECTION", 
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "companyId",
@@ -121,7 +121,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "companyId", 
+          "fieldPath": "companyId",
           "order": "ASCENDING"
         },
         {
@@ -277,6 +277,20 @@
         {
           "fieldPath": "projectIds",
           "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mail_queue",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "requestedAt",
+          "order": "ASCENDING"
         }
       ]
     }

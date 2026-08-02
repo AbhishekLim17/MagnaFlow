@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { subscribeToComments, getCommentCount } from '../../services/commentService';
+import { subscribeToComments } from '../../services/commentService';
 import CommentsList from './CommentsList';
 import CommentInput from './CommentInput';
 import { MessageSquare } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 /**

@@ -1,45 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  CheckSquare, 
-  Calendar,
-  Download,
-  Filter,
-  Award,
-  Target,
-  Clock
-} from 'lucide-react';
+import { BarChart3, TrendingUp, Download, Award, Target, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  Area,
-  AreaChart
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
 import { reportError } from '@/lib/reportError';
@@ -116,12 +83,6 @@ const PerformanceReports = () => {
   ];
 
   // Priority distribution
-  const priorityData = [
-    { name: 'Critical', value: tasks.filter(t => t.priority === 'critical').length, color: '#DC2626' },
-    { name: 'High', value: tasks.filter(t => t.priority === 'high').length, color: '#EF4444' },
-    { name: 'Medium', value: tasks.filter(t => t.priority === 'medium').length, color: '#F97316' },
-    { name: 'Low', value: tasks.filter(t => t.priority === 'low').length, color: '#6B7280' }
-  ].filter(p => p.value > 0); // Only show priorities that have tasks
 
   // Calculate weekly progress from actual task data
   const getWeeklyProgress = () => {

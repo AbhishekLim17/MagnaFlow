@@ -28,12 +28,16 @@ CardHeader.displayName = 'CardHeader';
 
 // A panel heading, not a page heading — the old 2xl was competing with the
 // page title and flattened the hierarchy.
-const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
+const CardTitle = React.forwardRef(({ className, children, ...props }, ref) => (
+  // children is named rather than left in ...props so it is visible to the
+  // a11y lint rule that checks a heading is never rendered empty.
   <h3
     ref={ref}
     className={cn('text-base font-bold leading-tight tracking-tight text-foreground', className)}
     {...props}
-  />
+  >
+    {children}
+  </h3>
 ));
 CardTitle.displayName = 'CardTitle';
 

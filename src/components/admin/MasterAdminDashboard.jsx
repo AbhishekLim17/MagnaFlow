@@ -5,45 +5,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Building2,
-  Plus,
-  Ban,
-  Play,
-  Pencil,
-  Trash2,
-  ScrollText,
-  AlertTriangle,
-  LogOut,
-} from 'lucide-react';
+import { Building2, Plus, Ban, Play, Pencil, Trash2, ScrollText, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import { EmptyState, LoadingState } from '@/components/shared/States';
-import {
-  getAllOrganizations,
-  generateOrgId,
-  provisionOrganization,
-  updateOrganization,
-  deleteOrganization,
-  getOrgMemberCount,
-  suspendOrganization,
-  reactivateOrganization,
-  computeOrgUsage,
-  getAuditLogs,
-} from '@/services/organizationService';
+import { getAllOrganizations, generateOrgId, provisionOrganization, updateOrganization, deleteOrganization, getOrgMemberCount, suspendOrganization, reactivateOrganization, computeOrgUsage, getAuditLogs } from '@/services/organizationService';
 import { createUser } from '@/services/userService';
 import { getErrorLogs } from '@/services/errorLogService';
 import { reportError } from '@/lib/reportError';
@@ -258,7 +230,6 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 };
 
 const MasterAdminDashboard = () => {
-  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [organizations, setOrganizations] = useState([]);
   const [usageStats, setUsageStats] = useState({});
@@ -341,9 +312,6 @@ const MasterAdminDashboard = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-  };
 
   // Map an org id to its name for the audit log; orgs deleted since the entry
   // was written won't be found, so show a friendly label instead of a raw id.

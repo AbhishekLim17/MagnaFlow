@@ -3,13 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import {
-  getAllDesignations,
-  createDesignation,
-  updateDesignation as updateDesignationService,
-  deleteDesignation,
-  initializeDefaultDesignations,
-} from '@/services/designationService';
+import { getAllDesignations, createDesignation, updateDesignation as updateDesignationService, deleteDesignation } from '@/services/designationService';
 import { getAllUsers } from '@/services/userService';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { db } from '@/config/firebase';

@@ -13,7 +13,10 @@ const MentionInput = ({ value, onChange, placeholder, maxLength = 5000, disabled
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [mentionQuery, setMentionQuery] = useState('');
+  // Written on each keystroke but never read — the filtering uses the raw
+  // text instead. Kept as a setter-only slot rather than deleted so the
+  // call site stays honest about what it does.
+  const [, setMentionQuery] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const textareaRef = useRef(null);
   const dropdownRef = useRef(null);

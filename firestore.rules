@@ -26,12 +26,25 @@ service cloud.firestore {
       allow read: if isOrgMember(orgId) || isMasterAdmin();
       allow write: if isMasterAdmin();
 
+      // Reading is scoped to the organization, not to the individual
+      // department or project.
+      //
+      // These used to test `deptId in myDeptIds()`. On a list query there is no
+      // document id to bind the wildcard to, so that comparison evaluated
+      // `null in [...]` and raised "Null value error" — which surfaces as
+      // permission-denied. A department head or manager therefore could not
+      // enumerate departments or projects at all, and every dropdown that
+      // needed them came back empty.
+      //
+      // Both collections hold names only. What actually needs scoping is the
+      // tasks and users inside them, and that is enforced on those collections.
+      // Cross-organization isolation is unchanged: isOrgMember still gates it.
       match /departments/{deptId} {
-        allow read: if isDeptMember(orgId, deptId) || isOrgAdmin(orgId) || isMasterAdmin();
+        allow read: if isOrgMember(orgId) || isMasterAdmin();
         allow write: if isOrgAdmin(orgId) || isMasterAdmin();
       }
       match /projects/{projId} {
-        allow read: if isProjectMember(orgId, projId) || isOrgAdmin(orgId) || isMasterAdmin();
+        allow read: if isOrgMember(orgId) || isMasterAdmin();
         allow write: if isOrgAdmin(orgId) || isMasterAdmin();
       }
     }

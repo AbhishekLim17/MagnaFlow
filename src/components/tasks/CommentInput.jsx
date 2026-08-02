@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createComment, extractMentions, getUserIdsByUsernames } from '../../services/commentService';
-import { createNotificationsForMentions, sendEmailNotification } from '../../services/notificationService';
+import { createNotificationsForMentions } from '../../services/notificationService';
 import { getAllUsers } from '../../services/userService';
 import { Send, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
