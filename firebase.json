@@ -25,7 +25,7 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -38,7 +38,7 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "max-age=31536000, immutable"
           }
         ]
       },
@@ -47,7 +47,7 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "max-age=31536000, immutable"
           }
         ]
       }
