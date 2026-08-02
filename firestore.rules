@@ -196,6 +196,34 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Outgoing email queue.
+    //
+    // The browser cannot send email, so it appends a request here and a
+    // scheduled job delivers it through Gmail. That makes this collection the
+    // one place a signed-in user can cause mail to leave the system, so the
+    // shape is pinned down rather than trusted:
+    //  - the request must be attributable to the caller (requestedBy == uid),
+    //    so a queued email can never be blamed on someone else
+    //  - it must start unsent, so nobody can pre-mark their own request
+    //    delivered and skip the record of it
+    //  - a recipient and a subject line are required, so an empty or
+    //    malformed job cannot sit in the queue failing forever
+    //  - nobody may read the queue: payloads carry names, task titles and
+    //    addresses from whichever org queued them
+    // Only the drain job (Admin SDK, which bypasses rules) marks them sent.
+    match /mail_queue/{mailId} {
+      allow create: if isSignedIn()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.attempts == 0
+        && request.resource.data.to_email is string
+        && request.resource.data.to_email.size() > 3
+        && request.resource.data.to_email.size() < 200
+        && request.resource.data.title is string
+        && request.resource.data.notification_type is string;
+      allow read, update, delete: if false;
+    }
+
     // Login attempts — Cloud Functions (Admin SDK) only
     match /login_attempts/{doc} {
       allow read, write: if false;

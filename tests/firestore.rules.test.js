@@ -263,3 +263,67 @@ describe('error logs', () => {
     await assertFails(deleteDoc(doc(asUser(MASTER), 'error_logs', 'err1')));
   });
 });
+
+// The browser cannot send email; it appends a request here and a scheduled job
+// delivers it. That makes this the one collection where a signed-in user can
+// cause mail to leave the system, so the shape is pinned down rather than
+// trusted.
+describe('outgoing email queue', () => {
+  const validMail = (uid) => ({
+    requestedBy: uid,
+    status: 'pending',
+    attempts: 0,
+    to_email: 'someone@example.com',
+    title: 'A task was assigned',
+    notification_type: 'Task Assignment',
+  });
+
+  test('a signed-in user can queue an email', async () => {
+    await assertSucceeds(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm1'), validMail(STAFF_A)));
+  });
+
+  test('anonymous cannot queue an email', async () => {
+    const anon = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(anon, 'mail_queue', 'm2'), validMail(STAFF_A)));
+  });
+
+  test('cannot queue an email attributed to somebody else', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm3'), validMail(ADMIN_A)));
+  });
+
+  // Otherwise a request could be pre-marked delivered and skip the record of it.
+  test('cannot queue an email that claims to be already sent', async () => {
+    await assertFails(
+      setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm4'), { ...validMail(STAFF_A), status: 'sent' })
+    );
+  });
+
+  test('cannot queue an email with no recipient', async () => {
+    await assertFails(
+      setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm5'), { ...validMail(STAFF_A), to_email: '' })
+    );
+  });
+
+  test('cannot queue an email with a pre-inflated attempt count', async () => {
+    await assertFails(
+      setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm6'), { ...validMail(STAFF_A), attempts: 9 })
+    );
+  });
+
+  // Payloads carry names, task titles and addresses from whoever queued them.
+  test('nobody can read the queue, not even a master-admin', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'mail_queue', 'existing'), validMail(STAFF_A));
+    });
+    await assertFails(getDoc(doc(asUser(MASTER), 'mail_queue', 'existing')));
+    await assertFails(getDoc(doc(asUser(ADMIN_A), 'mail_queue', 'existing')));
+  });
+
+  test('nobody can edit or delete a queued email from the client', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'mail_queue', 'existing2'), validMail(STAFF_A));
+    });
+    await assertFails(updateDoc(doc(asUser(MASTER), 'mail_queue', 'existing2'), { status: 'sent' }));
+    await assertFails(deleteDoc(doc(asUser(MASTER), 'mail_queue', 'existing2')));
+  });
+});

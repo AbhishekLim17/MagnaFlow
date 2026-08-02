@@ -8,7 +8,7 @@
  */
 
 const admin = require('firebase-admin');
-const emailjs = require('@emailjs/nodejs');
+const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 
 /**
  * Accepts either a whole service-account JSON (FIREBASE_SERVICE_ACCOUNT_JSON —
@@ -44,18 +44,8 @@ function buildCredential() {
 
 // Fail fast on missing email config, naming exactly what's absent — otherwise
 // the job "succeeds" having sent nothing, which is how this went unnoticed.
-const REQUIRED_EMAIL_VARS = [
-  'EMAILJS_SERVICE_ID',
-  'EMAILJS_TEMPLATE_ID',
-  'EMAILJS_PUBLIC_KEY',
-  'EMAILJS_PRIVATE_KEY',
-];
-const missingEmailVars = REQUIRED_EMAIL_VARS.filter((v) => !process.env[v]);
-if (missingEmailVars.length) {
-  console.error(`Missing EmailJS configuration: ${missingEmailVars.join(', ')}`);
-  console.error('Add these as repository secrets; reminders cannot be sent without them.');
-  process.exit(2);
-}
+// createTransport() performs that check and exits 2 naming the variable.
+const transport = createTransport();
 
 admin.initializeApp({ credential: buildCredential() });
 
@@ -107,15 +97,7 @@ async function sendCriticalTaskReminder(params) {
     footer_text: '⚠️ This is a daily reminder for your critical task. Please complete it as soon as possible.'
   };
 
-  return await emailjs.send(
-    process.env.EMAILJS_SERVICE_ID,
-    process.env.EMAILJS_TEMPLATE_ID,
-    emailData,
-    {
-      publicKey: process.env.EMAILJS_PUBLIC_KEY,
-      privateKey: process.env.EMAILJS_PRIVATE_KEY,
-    }
-  );
+  return await sendNotification(transport, emailData);
 }
 
 async function main() {

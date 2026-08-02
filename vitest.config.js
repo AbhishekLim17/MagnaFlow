@@ -14,7 +14,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.js'],
-    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    include: ['src/**/*.{test,spec}.{js,jsx}', 'scripts/**/*.{test,spec}.js'],
     exclude: ['node_modules', 'dist', 'tests/**'],
     // Placeholder Firebase config. Tests must not talk to a real project, but
     // a module that merely *imports* src/config/firebase.js runs getAuth() at

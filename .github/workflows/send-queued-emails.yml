@@ -1,0 +1,46 @@
+# Delivers the mail_queue collection through Gmail.
+#
+# The app cannot send email from the browser, so it queues requests in
+# Firestore and this job delivers them. Fifteen minutes is the compromise
+# between "notifications feel prompt" and "GitHub schedules free-tier cron
+# loosely and will skip runs under load" — treat the interval as a ceiling on
+# latency, not a guarantee.
+#
+# NOTE: GitHub disables scheduled workflows after 60 days without repository
+# activity. If notifications stop arriving, check that first.
+
+name: Send queued emails
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List what would be sent without sending it'
+        type: boolean
+        default: false
+
+# Two overlapping runs would deliver the same queued rows twice.
+concurrency:
+  group: send-queued-emails
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install firebase-admin nodemailer --no-save
+
+      - name: Drain the queue
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAGNAFLOW_07SEP25 }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: node scripts/send-queued-emails.cjs ${{ inputs.dry_run && '--dry-run' || '' }}

@@ -34,7 +34,6 @@ export default defineConfig(({ mode }) => ({
           "vendor-firebase-storage": ["firebase/storage"],
           "vendor-firebase-functions": ["firebase/functions"],
           // Heavy third-party libs
-          "vendor-emailjs": ["@emailjs/browser"],
           "vendor-animation": ["framer-motion"],
           "vendor-charts": ["recharts"],
           "vendor-pdf": ["html2canvas", "jspdf"],
