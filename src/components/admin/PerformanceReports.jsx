@@ -43,9 +43,6 @@ import {
 import { useTasks } from '@/contexts/TasksContext';
 import { getAllUsers } from '@/services/userService';
 import { reportError } from '@/lib/reportError';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import ExcelJS from 'exceljs';
 
 const PerformanceReports = () => {
   const { tasks: allTasks } = useTasks();
@@ -164,12 +161,15 @@ const PerformanceReports = () => {
 
   const weeklyProgress = getWeeklyProgress();
 
-  const handleExportReport = (format = 'pdf') => {
+  const [exporting, setExporting] = useState(null);
+
+  const handleExportReport = async (format = 'pdf') => {
+    setExporting(format);
     try {
       if (format === 'pdf') {
-        exportToPDF();
+        await exportToPDF();
       } else {
-        exportToExcel();
+        await exportToExcel();
       }
       toast({
         title: "Report Exported",
@@ -177,10 +177,16 @@ const PerformanceReports = () => {
       });
     } catch (error) {
       reportError(error, { title: "Export Failed" });
+    } finally {
+      setExporting(null);
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const [{ default: jsPDF }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF();
     
     // Add title
@@ -228,7 +234,7 @@ const PerformanceReports = () => {
   };
 
   const exportToExcel = async () => {
-    // Create workbook
+    const { default: ExcelJS } = await import('exceljs');
     const workbook = new ExcelJS.Workbook();
     
     // Summary sheet
@@ -350,19 +356,21 @@ const PerformanceReports = () => {
           <div className="flex gap-2">
             <Button
               onClick={() => handleExportReport('pdf')}
+              disabled={exporting !== null}
               variant="outline"
               className="border-border text-muted-foreground hover:bg-muted/60"
             >
               <Download className="w-4 h-4 mr-2" />
-              Export PDF
+              {exporting === 'pdf' ? 'Exporting…' : 'Export PDF'}
             </Button>
             <Button
               onClick={() => handleExportReport('excel')}
+              disabled={exporting !== null}
               variant="outline"
               className="border-border text-muted-foreground hover:bg-muted/60"
             >
               <Download className="w-4 h-4 mr-2" />
-              Export Excel
+              {exporting === 'excel' ? 'Exporting…' : 'Export Excel'}
             </Button>
           </div>
         </div>

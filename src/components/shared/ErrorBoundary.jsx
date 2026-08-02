@@ -8,7 +8,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { captureException } from '@/config/sentry';
 import { logError } from '@/services/errorLogService';
 
 class ErrorBoundary extends React.Component {
@@ -23,14 +22,10 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('❌ Unhandled UI error:', error, errorInfo?.componentStack);
-    // Forward to error tracking. Does nothing unless a Sentry DSN is
-    // configured. Guarded because this is the last line of defence: if
-    // reporting threw here, React would unmount the tree and the user would
-    // get the blank page this component exists to prevent.
+    // Guarded because this is the last line of defence: if reporting threw
+    // here, React would unmount the tree and the user would get the blank
+    // page this component exists to prevent.
     try {
-      // Sentry if a DSN is configured; the Firestore log is the always-on
-      // fallback so production errors are visible without a third party.
-      captureException(error, { componentStack: errorInfo?.componentStack });
       logError(error, { componentStack: errorInfo?.componentStack });
     } catch (reportingError) {
       console.error('Error reporting failed:', reportingError);

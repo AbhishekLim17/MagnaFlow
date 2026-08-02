@@ -31,13 +31,10 @@ export default defineConfig(({ mode }) => ({
           "vendor-firebase-app": ["firebase/app"],
           "vendor-firebase-auth": ["firebase/auth"],
           "vendor-firebase-firestore": ["firebase/firestore"],
-          "vendor-firebase-storage": ["firebase/storage"],
           "vendor-firebase-functions": ["firebase/functions"],
-          // Heavy third-party libs
+          // framer-motion is used on every screen including login, so a shared
+          // chunk is right. recharts deliberately is NOT named here.
           "vendor-animation": ["framer-motion"],
-          "vendor-charts": ["recharts"],
-          "vendor-pdf": ["html2canvas", "jspdf"],
-          "vendor-dompurify": ["dompurify"],
           // UI component library
           "vendor-ui": [
             "@radix-ui/react-dialog",
