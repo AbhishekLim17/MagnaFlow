@@ -46,6 +46,11 @@ import {
 
 const StaffManagement = () => {
   const [staff, setStaff] = useState([]);
+  // Set when getAllUsers hit its read bound — see the comment on that flag
+  // in userService. Without this, a company that outgrew a single
+  // unpaginated read would see a staff list that looked complete but wasn't,
+  // with no indication why someone was missing from it.
+  const [staffTruncated, setStaffTruncated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -126,6 +131,7 @@ const StaffManagement = () => {
       setLoading(true);
       const data = await getAllUsers({ role: 'staff' });
       setStaff(data);
+      setStaffTruncated(Boolean(data.truncated));
     } catch (error) {
       toast({
         title: "Error",
@@ -382,6 +388,15 @@ const StaffManagement = () => {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* A read this size is bounded (see userService); this is the only
+          visible sign that bound was actually hit. */}
+      {staffTruncated && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Showing the first {staff.length} staff members. There may be more than fit in a single list.</span>
+        </div>
       )}
 
       {/* Search */}

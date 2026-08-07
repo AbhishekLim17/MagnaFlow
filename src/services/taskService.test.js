@@ -26,6 +26,12 @@ vi.mock('./subtaskService', () => ({ deleteAllSubtasksForTask: vi.fn() }));
 vi.mock('./userService', () => ({ getCallerProfile: vi.fn(async () => null) }));
 
 const { getAllTasks, getTaskStatistics } = await import('./taskService');
+const { getDocs } = await import('firebase/firestore');
+
+const snapshotOf = (count) => {
+  const docs = Array.from({ length: count }, (_, i) => ({ id: `t${i}`, data: () => ({ title: `Task ${i}` }) }));
+  return { docs, size: docs.length, forEach: (cb) => docs.forEach(cb) };
+};
 
 const fields = () => calls.where.map(([f]) => f);
 const valueFor = (field) => calls.where.find(([f]) => f === field)?.[2];
@@ -89,6 +95,29 @@ describe('getAllTasks bounding', () => {
   test('honours an explicit limit', async () => {
     await getAllTasks({ orgId: 'orgA', limit: 25 });
     expect(calls.limit[0]).toBe(25);
+  });
+});
+
+// This is the only signal a caller gets that a bounded read may not be the
+// whole collection — an org that outgrows the limit used to see a task list
+// that looked complete but silently wasn't, with nothing to say why.
+describe('getAllTasks truncation flag', () => {
+  test('flags the result when it exactly fills the requested bound', async () => {
+    getDocs.mockResolvedValueOnce(snapshotOf(5));
+    const tasks = await getAllTasks({ orgId: 'orgA', limit: 5 });
+    expect(tasks.truncated).toBe(true);
+  });
+
+  test('does not flag a result that falls short of the bound', async () => {
+    getDocs.mockResolvedValueOnce(snapshotOf(3));
+    const tasks = await getAllTasks({ orgId: 'orgA', limit: 5 });
+    expect(tasks.truncated).toBe(false);
+  });
+
+  test('an empty result is not flagged', async () => {
+    getDocs.mockResolvedValueOnce(snapshotOf(0));
+    const tasks = await getAllTasks({ orgId: 'orgA', limit: 5 });
+    expect(tasks.truncated).toBe(false);
   });
 });
 

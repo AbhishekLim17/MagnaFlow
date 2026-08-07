@@ -5,10 +5,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { getAllDesignations, createDesignation, updateDesignation as updateDesignationService, deleteDesignation } from '@/services/designationService';
 import { getAllUsers } from '@/services/userService';
-import { onSnapshot, collection } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 const DesignationsContext = createContext();
 
@@ -22,69 +19,26 @@ export const DesignationsProvider = ({ children }) => {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
 
-  // The designations collection requires an authenticated user (Firestore
-  // rules). Only open the listener once signed in — otherwise it spams
-  // permission-denied errors on the login screen.
+  // This used to be a live onSnapshot listener. Designations were the third
+  // listener opened in the same instant as NotificationBell's and the
+  // dashboard's activity feed on every login — and that burst of concurrent
+  // listener setup is what was tripping a Firestore JS SDK internal-assertion
+  // bug (the same "b815"/"ca9" failure behind the sign-out crash fixed
+  // earlier), which then poisons the client's connection for the rest of the
+  // session: every read after that point silently fails. Designations change
+  // rarely — an admin adding a job title now and then — so they don't need to
+  // be live. One fewer always-on listener meaningfully cuts how often that
+  // race gets a chance to fire. TasksContext already made the same call for
+  // the same reason (see its staleness-window comment).
   useEffect(() => {
     if (!isAuthenticated) {
       setDesignations([]);
       setLoading(false);
-      return undefined;
+      return;
     }
-
-    console.log("🚀 Setting up designations real-time listener");
-    const unsubscribe = setupDesignationsListener();
-
-    return () => {
-      console.log("🔌 Cleaning up designations listener");
-      safeUnsubscribe(unsubscribe);
-    };
+    loadDesignations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
-
-  // Set up real-time listener for designations
-  const setupDesignationsListener = () => {
-    try {
-      const designationsRef = collection(db, 'designations');
-      
-      const unsubscribe = safeListen(() => onSnapshot(
-        designationsRef,
-        (snapshot) => {
-          console.log("📡 Designations snapshot received:", snapshot.size, "documents");
-          
-          const data = [];
-          snapshot.forEach((doc) => {
-            data.push({ id: doc.id, ...doc.data() });
-          });
-          
-          // Sort by name
-          data.sort((a, b) => {
-            const nameA = (a.name || '').toLowerCase();
-            const nameB = (b.name || '').toLowerCase();
-            return nameA.localeCompare(nameB);
-          });
-          
-          console.log("✅ Setting designations from listener:", data.length);
-          setDesignations(data);
-          setLoading(false);
-        },
-        (error) => {
-          console.error("❌ Designations listener error:", error);
-          setLoading(false);
-          
-          // Fallback to manual load on error
-          loadDesignations();
-        }
-      ));
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error("❌ Error setting up listener:", error);
-      // Fallback to manual load
-      loadDesignations();
-      return null;
-    }
-  };
 
   const loadDesignations = async () => {
     try {

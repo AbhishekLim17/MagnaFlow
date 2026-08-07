@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Briefcase, Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+
+// Two designations that only differ by case or surrounding whitespace look
+// identical in every dropdown that offers them, so a duplicate here does not
+// announce itself the way a duplicate email or id would. This can only exist
+// today from data that predates the app's own creation guard (a direct
+// database write, an import) — the guard below stops a NEW one being typed
+// in, but does nothing about one that is already there, so the management
+// screen needs to flag it directly.
+const normalize = (name) => (name || '').trim().toLowerCase();
 
 const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) => {
   const [designation, setDesignation] = useState(initialValue);
@@ -94,6 +104,15 @@ const DesignationsManagement = () => {
     setIsEditDialogOpen(true);
   };
 
+  const duplicateNames = React.useMemo(() => {
+    const counts = new Map();
+    for (const d of designations) {
+      const key = normalize(d.name);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return new Set([...counts].filter(([, count]) => count > 1).map(([key]) => key));
+  }, [designations]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
@@ -133,16 +152,27 @@ const DesignationsManagement = () => {
             </div>
           ) : designations.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {designations.map((designation) => (
+              {designations.map((designation) => {
+                const isDuplicate = duplicateNames.has(normalize(designation.name));
+                return (
                 <motion.div
                   key={designation.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: designations.indexOf(designation) * 0.05 }}
-                  className="flex items-center justify-between p-4 rounded-xl bg-muted/60"
+                  className={`flex items-center justify-between p-4 rounded-xl bg-muted/60 ${isDuplicate ? 'ring-1 ring-warning' : ''}`}
                 >
-                  <div className="flex-1">
-                    <span className="font-medium text-foreground">{designation.name}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* whitespace-pre so a trailing-space duplicate is visibly
+                          different from its twin instead of looking identical */}
+                      <span className="whitespace-pre font-medium text-foreground">{designation.name}</span>
+                      {isDuplicate && (
+                        <Badge variant="warning" className="gap-1">
+                          <AlertTriangle className="h-3 w-3" /> Possible duplicate
+                        </Badge>
+                      )}
+                    </div>
                     {designation.description && (
                       <p className="text-sm text-muted-foreground mt-1">{designation.description}</p>
                     )}
@@ -156,7 +186,8 @@ const DesignationsManagement = () => {
                     </Button>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">

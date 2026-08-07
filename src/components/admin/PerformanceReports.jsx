@@ -144,7 +144,13 @@ const PerformanceReports = () => {
   };
 
   const exportToPDF = async () => {
-    const [{ default: jsPDF }] = await Promise.all([
+    // jspdf-autotable v5 dropped the old `doc.autoTable({...})` mixin. That
+    // form only ever worked by patching a *global* `window.jsPDF`, which an
+    // ES module import never creates — so `doc.autoTable` has been undefined
+    // since this dependency was installed at this version, not since any
+    // later change here. v5's real API is a plain function you call with the
+    // document as the first argument.
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'),
       import('jspdf-autotable'),
     ]);
@@ -161,7 +167,7 @@ const PerformanceReports = () => {
     // Add summary statistics
     doc.setFontSize(12);
     doc.text('Summary Statistics', 14, 38);
-    doc.autoTable({
+    autoTable(doc, {
       startY: 42,
       head: [['Metric', 'Value']],
       body: [
@@ -170,14 +176,14 @@ const PerformanceReports = () => {
         ['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length.toString()],
         ['Pending Tasks', tasks.filter(t => t.status === 'pending').length.toString()],
         ['Completion Rate', `${completionRate}%`],
-        ['Active Staff', staff.length.toString()],
+        ['Active Staff', activeStaffList.length.toString()],
       ],
     });
-    
+
     // Add staff productivity
     let finalY = doc.lastAutoTable.finalY + 10;
     doc.text('Staff Productivity', 14, finalY);
-    doc.autoTable({
+    autoTable(doc, {
       startY: finalY + 4,
       head: [['Staff Member', 'Total Tasks', 'Completed', 'In Progress', 'Pending', 'Productivity']],
       body: staffProductivity.map(s => [
@@ -210,7 +216,7 @@ const PerformanceReports = () => {
     summarySheet.addRow(['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length]);
     summarySheet.addRow(['Pending Tasks', tasks.filter(t => t.status === 'pending').length]);
     summarySheet.addRow(['Completion Rate', `${completionRate}%`]);
-    summarySheet.addRow(['Active Staff', staff.length]);
+    summarySheet.addRow(['Active Staff', activeStaffList.length]);
     
     // Staff productivity sheet
     const staffSheet = workbook.addWorksheet('Staff Productivity');
@@ -285,10 +291,18 @@ const PerformanceReports = () => {
 
   const teamEfficiency = calculateTeamEfficiency();
 
-  // Count active projects (unique assignments)
-  const activeProjects = staff.filter(member => {
-    const memberTasks = tasks.filter(t => t.assignedTo === member.id);
-    return memberTasks.some(t => t.status === 'in-progress' || t.status === 'pending');
+  // Staff currently carrying open work. This was labelled "Active Staff" on
+  // the card below but measured something else entirely (who has an
+  // in-progress/pending task) and never checked account status — a
+  // deactivated employee whose tasks are still assigned to them counted as
+  // "active" here even though they cannot sign in any more. Now scoped to
+  // staff whose account is actually active, and the trend line beside it
+  // counts the same active-status pool rather than every staff document ever
+  // created (deactivated included).
+  const activeStaffList = staff.filter((member) => member.status !== 'inactive');
+  const staffWithOpenWork = activeStaffList.filter((member) => {
+    const memberTasks = tasks.filter((t) => t.assignedTo === member.id);
+    return memberTasks.some((t) => t.status === 'in-progress' || t.status === 'pending');
   }).length;
 
   return (
@@ -360,12 +374,12 @@ const PerformanceReports = () => {
                 color: 'teal-600',
                 trend: completionRate > 0 ? `${completionRate}%` : '0%'
               },
-              { 
-                title: 'Active Staff', 
-                value: activeProjects.toString(), 
-                icon: BarChart3, 
+              {
+                title: 'Staff With Open Work',
+                value: staffWithOpenWork.toString(),
+                icon: BarChart3,
                 color: 'blue-600',
-                trend: `${staff.length} total`
+                trend: `${activeStaffList.length} active`
               },
               { 
                 title: 'Team Efficiency', 

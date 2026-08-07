@@ -29,6 +29,9 @@ export const TasksProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState(null);
+  // Set when getAllTasks hit its read bound, meaning the org may have more
+  // tasks than this list shows. See the comment on that flag in taskService.
+  const [tasksTruncated, setTasksTruncated] = useState(false);
   const lastLoadedAt = useRef(0);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
@@ -83,6 +86,7 @@ export const TasksProvider = ({ children }) => {
         // master-admin: no org-scoped task list.
         setTasks([]);
         setStatistics(null);
+        setTasksTruncated(false);
         setLoading(false);
         lastLoadedAt.current = Date.now();
         return;
@@ -90,6 +94,7 @@ export const TasksProvider = ({ children }) => {
 
       const tasksData = await getAllTasks(filters);
       setTasks(tasksData);
+      setTasksTruncated(Boolean(tasksData.truncated));
       console.log("✅ Tasks loaded:", tasksData.length);
 
       const stats = await getTaskStatistics(filters);
@@ -117,6 +122,7 @@ export const TasksProvider = ({ children }) => {
     } else {
       setTasks([]);
       setStatistics(null);
+      setTasksTruncated(false);
       setLoading(false);
       lastLoadedAt.current = 0;
     }
@@ -336,6 +342,7 @@ export const TasksProvider = ({ children }) => {
 
   const value = {
     tasks,
+    tasksTruncated,
     loading,
     statistics,
     createTask,

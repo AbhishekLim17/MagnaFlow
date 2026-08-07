@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -150,7 +150,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
 };
 
 const TaskManagement = () => {
-  const { tasks, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
+  const { tasks, tasksTruncated, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -406,6 +406,19 @@ const TaskManagement = () => {
           Create Task
         </Button>
       </div>
+
+      {/* A read this size is bounded (see taskService); this is the only
+          visible sign that bound was actually hit, so the list can look
+          complete while quietly not being the whole list. */}
+      {tasksTruncated && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Showing the first {tasks.length} tasks. There may be more — narrow the filters below to see a
+            specific set.
+          </span>
+        </div>
+      )}
 
       {/* Filters */}
       <Card className="p-4">

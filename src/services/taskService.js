@@ -18,6 +18,7 @@ import {
 import { db } from '@/config/firebase';
 import { sendCriticalTaskAlert } from './emailService';
 import { deleteAllSubtasksForTask } from './subtaskService';
+import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
 import { getCallerProfile } from './userService';
 
 // Collection reference
@@ -95,16 +96,17 @@ export const getAllTasks = async (filters = {}) => {
     // Always bound the read. Firestore bills per document returned, and an
     // unbounded collection scan gets slower and more expensive as the data
     // grows. Callers that need more can raise `limit` explicitly.
-    constraints.push(firestoreLimit(filters.limit ?? DEFAULT_TASK_LIMIT));
+    const boundedAt = filters.limit ?? DEFAULT_TASK_LIMIT;
+    constraints.push(firestoreLimit(boundedAt));
 
     const q = query(collection(db, TASKS_COLLECTION), ...constraints);
     const snapshot = await getDocs(q);
-    
+
     const tasks = [];
     snapshot.forEach((doc) => {
       tasks.push({ id: doc.id, ...doc.data() });
     });
-    
+
     // If we have filters and no orderBy, sort in memory by createdAt (newest first)
     if (!hasOrderBy) {
       tasks.sort((a, b) => {
@@ -113,10 +115,23 @@ export const getAllTasks = async (filters = {}) => {
         return bTime - aTime; // desc order
       });
     }
-    
+
+    // Hitting the bound exactly means there may be more rows this call never
+    // saw — the org has genuinely outgrown a single unpaginated read. Flagged
+    // on the array itself (not thrown, not logged) so a screen that cares can
+    // show it and one that doesn't is unaffected; this used to fail
+    // completely silently; a company with more than 500 tasks would see a
+    // task list that looked complete but wasn't, with nothing to suggest why.
+    tasks.truncated = tasks.length >= boundedAt;
+
     return tasks;
   } catch (error) {
     console.error('Error getting tasks:', error);
+    // Nearly every dashboard's task list passes through here, which makes
+    // this (with getAllUsers) one of the two places most likely to actually
+    // observe a poisoned Firestore client — see the note in
+    // firestoreRecovery for why a global handler alone misses this.
+    if (isFirestoreInternalAssertion(error)) recoverFromFirestoreFailure();
     throw error;
   }
 };

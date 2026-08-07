@@ -4,6 +4,7 @@
 import {
   collection,
   doc,
+  documentId,
   addDoc,
   getDoc,
   getDocs,
@@ -22,6 +23,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, db, secondaryAuth } from '@/config/firebase';
+import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
 
 // Collection reference
 const USERS_COLLECTION = 'users';
@@ -93,6 +95,35 @@ export const getUserById = async (uid) => {
   }
 };
 
+/**
+ * Resolve a batch of uids to their user documents in one round trip, for
+ * screens that need to display a name against an id they were not given the
+ * document for directly (an audit log's targetUserId, for example).
+ *
+ * Firestore's `in` operator caps at 30 values, so this chunks transparently —
+ * callers just get back everything found, keyed by id. An id with no
+ * matching document (a deleted account) is simply absent from the map, which
+ * lets a caller distinguish "not fetched yet" from "no longer exists".
+ *
+ * @param {string[]} uids
+ * @returns {Promise<Map<string, Object>>}
+ */
+export const getUsersByIds = async (uids) => {
+  const unique = [...new Set(uids)].filter(Boolean);
+  const result = new Map();
+  if (unique.length === 0) return result;
+
+  const CHUNK = 30;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const snap = await getDocs(
+      query(collection(db, USERS_COLLECTION), where(documentId(), 'in', chunk))
+    );
+    snap.forEach((d) => result.set(d.id, normalizeUser({ id: d.id, ...d.data() })));
+  }
+  return result;
+};
+
 // Role is matched by exact string throughout the app (routing, rules, context).
 // Manually bootstrapped accounts (the first master-admin, etc.) are created by
 // hand in the Firebase console, where a stray leading/trailing space in the
@@ -153,7 +184,8 @@ export const getAllUsers = async (filters = {}) => {
     }
 
     // Always bound the read — see the note in taskService.
-    constraints.push(firestoreLimit(filters.limit ?? DEFAULT_USER_LIMIT));
+    const boundedAt = filters.limit ?? DEFAULT_USER_LIMIT;
+    constraints.push(firestoreLimit(boundedAt));
 
     q = query(collection(db, USERS_COLLECTION), ...constraints);
 
@@ -172,9 +204,20 @@ export const getAllUsers = async (filters = {}) => {
       });
     }
 
+    // See the identical note in taskService's getAllTasks: hitting the bound
+    // exactly means the org may have more than this call returned, and that
+    // used to have zero visible signal — a staff list could quietly stop
+    // being the whole staff list.
+    users.truncated = users.length >= boundedAt;
+
     return users;
   } catch (error) {
     console.error('Error getting users:', error);
+    // Nearly every screen's staff/user list passes through here, which makes
+    // this one of the two places (see the identical check in taskService)
+    // most likely to actually observe a poisoned Firestore client — see the
+    // note in firestoreRecovery for why a global handler alone misses this.
+    if (isFirestoreInternalAssertion(error)) recoverFromFirestoreFailure();
     throw error;
   }
 };

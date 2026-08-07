@@ -16,7 +16,7 @@ import { useToast } from '@/components/ui/use-toast';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import { EmptyState, LoadingState } from '@/components/shared/States';
 import { getAllOrganizations, generateOrgId, provisionOrganization, updateOrganization, deleteOrganization, getOrgMemberCount, suspendOrganization, reactivateOrganization, computeOrgUsage, getAuditLogs } from '@/services/organizationService';
-import { createUser } from '@/services/userService';
+import { createUser, getUsersByIds } from '@/services/userService';
 import { getErrorLogs } from '@/services/errorLogService';
 import { reportError } from '@/lib/reportError';
 
@@ -234,6 +234,7 @@ const MasterAdminDashboard = () => {
   const [organizations, setOrganizations] = useState([]);
   const [usageStats, setUsageStats] = useState({});
   const [auditLogs, setAuditLogs] = useState([]);
+  const [auditUserNames, setAuditUserNames] = useState(new Map());
   const [errorLogs, setErrorLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
@@ -255,6 +256,15 @@ const MasterAdminDashboard = () => {
       setOrganizations(orgs);
       setAuditLogs(logs);
       setErrorLogs(errors);
+
+      // Resolve just the uids this page of logs actually references (bounded
+      // by getAuditLogs' own limit), not every user in every org — a big
+      // company's user collection has no bearing on the cost of showing 200
+      // log lines. Best-effort: a name that fails to resolve just falls back
+      // to the id, same as it did before.
+      getUsersByIds(logs.map((l) => l.targetUserId).filter(Boolean))
+        .then(setAuditUserNames)
+        .catch(() => {});
 
       // Compute usage live (no scheduled function on the Spark plan).
       const statsEntries = await Promise.all(
@@ -316,6 +326,13 @@ const MasterAdminDashboard = () => {
   // Map an org id to its name for the audit log; orgs deleted since the entry
   // was written won't be found, so show a friendly label instead of a raw id.
   const orgName = (id) => organizations.find((o) => o.id === id)?.name || 'a deleted org';
+
+  // Mirrors orgName: fall back to the raw id (still visible, just not
+  // resolved) rather than hiding which account a log entry is actually about.
+  const userName = (id) => {
+    const user = auditUserNames.get(id);
+    return user ? (user.name || user.email) : id;
+  };
 
   const menuItems = [
     { id: 'organizations', label: 'Organizations', icon: Building2 },
@@ -441,7 +458,7 @@ const MasterAdminDashboard = () => {
                     <span>
                       <span className="text-foreground font-medium">{log.action}</span>
                       {log.targetOrgId && ` · ${orgName(log.targetOrgId)}`}
-                      {log.targetUserId && <span className="break-all"> · user {log.targetUserId}</span>}
+                      {log.targetUserId && <span className="break-all"> · {userName(log.targetUserId)}</span>}
                     </span>
                     <span className="text-muted-foreground">
                       {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : ''}
