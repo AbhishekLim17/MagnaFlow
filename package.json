@@ -14,6 +14,7 @@
     "deploy:staging": "npm run build && firebase hosting:channel:deploy staging --expires 30d",
     "emulators": "firebase emulators:start --only firestore,auth --project demo-magnaflow --config firebase.test.json",
     "seed": "node scripts/seed-emulator.cjs",
+    "seed:scale": "node scripts/seed-scale.cjs",
     "dev:emulated": "vite --mode emulated",
     "check:secrets": "node scripts/check-secrets.cjs"
   },
