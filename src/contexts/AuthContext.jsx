@@ -169,11 +169,23 @@ export const AuthProvider = ({ children }) => {
    * Logout current user
    */
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      throw error;
-    }
+    await signOut(auth);
+
+    // Hard navigation rather than a client-side route change.
+    //
+    // Signing out tears down the Firestore listeners while the SDK's async
+    // queue is mid-flight, and the queue does not recover: the next getDoc
+    // throws
+    //
+    //   FIRESTORE INTERNAL ASSERTION FAILED: Unexpected state (ID: b815)
+    //
+    // so signing back in as anyone — including the same person — fails until
+    // the tab is reloaded. Reproduced on every logout-then-login cycle.
+    // Replacing the document drops the poisoned client entirely, which is
+    // free here because sign-out is a terminal action with no state to keep.
+    // replace() rather than assign() so Back cannot return to the signed-in
+    // screens of the account that just left.
+    window.location.replace('/login');
   };
 
   // Memoized so its identity only changes when the underlying user changes.

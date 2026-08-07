@@ -93,6 +93,12 @@ const TASKS = [
   ['Refresh the design tokens',           'pending',    'medium',   'u-staff2', DEPT_ENG,      PROJ_APOLLO,   2, 15],
   ['Renew the payment gateway contract',  'pending',    'high',     'u-staff3', DEPT_ACCOUNTS, PROJ_ATLAS,    3, 20],
   ['Decommission the legacy exporter',    'cancelled',  'low',      'u-staff2', DEPT_ENG,      PROJ_APOLLO, -20, -8],
+  // Heads, managers and admins are assigned work too — without these the
+  // "Assigned to me" panel on their dashboards has nothing to render.
+  ['Approve the Q3 hiring plan',          'pending',    'high',     'u-head',     DEPT_ENG,      PROJ_APOLLO,  -1,  5],
+  ['Sign off the platform roadmap',       'in-progress','critical', 'u-head',     DEPT_ENG,      PROJ_APOLLO,  -4,  -2],
+  ['Review the Apollo release checklist', 'pending',    'medium',   'u-manager',  DEPT_ENG,      PROJ_APOLLO,   0,  6],
+  ['Renew the org-wide software licences','pending',    'high',     'u-orgadmin', DEPT_ACCOUNTS, PROJ_ATLAS,   -1,  9],
 ];
 
 async function reset() {

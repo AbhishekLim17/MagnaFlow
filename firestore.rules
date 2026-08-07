@@ -76,7 +76,17 @@ service cloud.firestore {
             && request.resource.data.role == 'staff'
             && request.resource.data.get('projectIds', []).hasAny(myProjectIds()));
 
-      allow delete: if isOrgAdmin(resource.data.get('orgId', null)) || isMasterAdmin();
+      // Department heads and managers run their own scope, so they may remove
+      // staff from it — but only staff, and only people already inside that
+      // scope. They can never remove a peer or anyone senior.
+      allow delete: if isOrgAdmin(resource.data.get('orgId', null))
+        || isMasterAdmin()
+        || (isDeptHead() && isOrgMember(resource.data.get('orgId', null))
+            && resource.data.role == 'staff'
+            && resource.data.get('departmentIds', []).hasAny(myDeptIds()))
+        || (isManager() && isOrgMember(resource.data.get('orgId', null))
+            && resource.data.role == 'staff'
+            && resource.data.get('projectIds', []).hasAny(myProjectIds()));
 
       // Update: master-admin can change anything. An org-admin can update
       // mid-tier/staff users in their OWN org, but must NOT elevate anyone to
@@ -90,6 +100,23 @@ service cloud.firestore {
             && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
             && resource.data.role in ['department-head', 'manager', 'staff']
             && request.resource.data.role in ['department-head', 'manager', 'staff'])
+        // A head or manager may edit staff inside their own scope. The role is
+        // pinned to 'staff' on BOTH sides, so this can never be used to promote
+        // anyone — including themselves — and the target must still be in their
+        // scope afterwards, so a member cannot be moved out of reach or a
+        // stranger pulled in.
+        || (isDeptHead() && isOrgMember(resource.data.get('orgId', null))
+            && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
+            && resource.data.role == 'staff'
+            && request.resource.data.role == 'staff'
+            && resource.data.get('departmentIds', []).hasAny(myDeptIds())
+            && request.resource.data.get('departmentIds', []).hasAny(myDeptIds()))
+        || (isManager() && isOrgMember(resource.data.get('orgId', null))
+            && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
+            && resource.data.role == 'staff'
+            && request.resource.data.role == 'staff'
+            && resource.data.get('projectIds', []).hasAny(myProjectIds())
+            && request.resource.data.get('projectIds', []).hasAny(myProjectIds()))
         || (request.auth.uid == uid
             && request.resource.data.role == resource.data.role
             && request.resource.data.status == resource.data.status
@@ -251,7 +278,10 @@ service cloud.firestore {
     // Designations — kept global (not per-org) to minimize scope.
     match /designations/{designationId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && myRole() in ['admin', 'org-admin', 'master-admin'];
+      // Heads and managers hire into their own scope, so they need to be able
+      // to add the job title they are hiring for without waiting on an admin.
+      allow write: if isSignedIn()
+        && myRole() in ['admin', 'org-admin', 'master-admin', 'department-head', 'manager'];
     }
 
     // Email logs

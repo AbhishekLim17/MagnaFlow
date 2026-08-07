@@ -34,6 +34,7 @@ const HEAD_A = 'headA';
 const MGR_A = 'mgrA';
 const STAFF_A = 'staffA';
 const STAFF_B = 'staffB';
+const STAFF_SCOPED = 'staffScoped'; // in HEAD_A's dept and MGR_A's project
 
 const USERS = {
   [MASTER]: { role: 'master-admin', email: 'master@x.com', status: 'active' },
@@ -43,6 +44,7 @@ const USERS = {
   [MGR_A]: { role: 'manager', orgId: ORG_A, departmentIds: [], projectIds: [PROJ_A], email: 'm@x.com', status: 'active' },
   [STAFF_A]: { role: 'staff', orgId: ORG_A, departmentIds: [], projectIds: [], email: 's@x.com', status: 'active' },
   [STAFF_B]: { role: 'staff', orgId: ORG_B, departmentIds: [], projectIds: [], email: 'sb@x.com', status: 'active' },
+  [STAFF_SCOPED]: { role: 'staff', orgId: ORG_A, departmentIds: [DEPT_A], projectIds: [PROJ_A], email: 'ss@x.com', status: 'active' },
 };
 
 let testEnv;
@@ -363,5 +365,72 @@ describe('listing departments and projects', () => {
   test('anonymous cannot list departments', async () => {
     const anon = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDocs(deptsOf(anon, ORG_A)));
+  });
+});
+
+// Heads and managers run their own scope. The risk in granting that is
+// privilege escalation, so every "can" below is paired with a "cannot".
+describe('scoped admin powers for heads and managers', () => {
+  test('a head CAN edit staff in their department', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(HEAD_A), 'users', STAFF_SCOPED), { designation: 'Lead Dev' }));
+  });
+
+  test('a manager CAN edit staff on their project', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(MGR_A), 'users', STAFF_SCOPED), { designation: 'QA Lead' }));
+  });
+
+  test('a head CAN remove staff from their department', async () => {
+    await assertSucceeds(deleteDoc(doc(asUser(HEAD_A), 'users', STAFF_SCOPED)));
+  });
+
+  // The escalation guards.
+  test('a head cannot promote staff to department-head', async () => {
+    await assertFails(updateDoc(doc(asUser(HEAD_A), 'users', STAFF_SCOPED), { role: 'department-head' }));
+  });
+
+  test('a head cannot promote staff to org-admin', async () => {
+    await assertFails(updateDoc(doc(asUser(HEAD_A), 'users', STAFF_SCOPED), { role: 'org-admin' }));
+  });
+
+  test('a manager cannot promote themselves', async () => {
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'users', MGR_A), { role: 'org-admin' }));
+  });
+
+  test('a head cannot edit another org-admin', async () => {
+    await assertFails(updateDoc(doc(asUser(HEAD_A), 'users', ADMIN_A), { designation: 'nope' }));
+  });
+
+  test('a head cannot delete an org-admin', async () => {
+    await assertFails(deleteDoc(doc(asUser(HEAD_A), 'users', ADMIN_A)));
+  });
+
+  test("a head cannot edit staff in another org", async () => {
+    await assertFails(updateDoc(doc(asUser(HEAD_A), 'users', STAFF_B), { designation: 'nope' }));
+  });
+
+  test('a head cannot move staff out of their department', async () => {
+    await assertFails(
+      updateDoc(doc(asUser(HEAD_A), 'users', STAFF_SCOPED), { departmentIds: ['someOtherDept'] })
+    );
+  });
+
+  test('a head cannot edit staff who are in no department of theirs', async () => {
+    await assertFails(updateDoc(doc(asUser(HEAD_A), 'users', STAFF_A), { designation: 'nope' }));
+  });
+
+  test('plain staff cannot edit another staff member', async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'users', STAFF_B), { designation: 'nope' }));
+  });
+
+  test('a head CAN add a designation', async () => {
+    await assertSucceeds(setDoc(doc(asUser(HEAD_A), 'designations', 'd-new'), { name: 'Tech Lead' }));
+  });
+
+  test('a manager CAN add a designation', async () => {
+    await assertSucceeds(setDoc(doc(asUser(MGR_A), 'designations', 'd-new2'), { name: 'Scrum Master' }));
+  });
+
+  test('plain staff cannot add a designation', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'designations', 'd-nope'), { name: 'CEO' }));
   });
 });

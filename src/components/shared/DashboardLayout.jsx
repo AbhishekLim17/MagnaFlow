@@ -12,9 +12,9 @@
 // its full width — on a 1280px laptop the old 256px sidebar was taking 20% of
 // the screen to repeat words already shown in the page title.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -28,6 +28,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/components/ui/use-toast';
 import { reportError } from '@/lib/reportError';
 import NotificationBell from '@/components/shared/NotificationBell';
+import ChangePasswordDialog from '@/components/shared/ChangePasswordDialog';
 import Brandmark from '@/components/shared/Brandmark';
 
 const greeting = () => {
@@ -46,6 +47,8 @@ const greeting = () => {
  * @param {ReactNode} headerActions  optional buttons rendered in the header
  * @param {ReactNode} children    page content
  */
+const RAIL_KEY = 'magnaflow-rail';
+
 const DashboardLayout = ({
   subtitle = 'Dashboard',
   menuItems = [],
@@ -59,6 +62,27 @@ const DashboardLayout = ({
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Changing your own password is an account action every role needs, so it
+  // belongs to the shell rather than being re-added to each dashboard.
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  // Remembered, because a rail that springs back to icons on every page load
+  // is worse than one that never expands.
+  const [isRailExpanded, setIsRailExpanded] = useState(() => {
+    try {
+      return window.localStorage.getItem(RAIL_KEY) === 'expanded';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RAIL_KEY, isRailExpanded ? 'expanded' : 'collapsed');
+    } catch {
+      // Private mode; the rail just will not be remembered.
+    }
+  }, [isRailExpanded]);
 
   const handleLogout = async () => {
     try {
@@ -92,18 +116,27 @@ const DashboardLayout = ({
   const IconRail = () => (
     <TooltipProvider delayDuration={120}>
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center border-r border-border bg-card pb-6 lg:flex"
+        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border bg-card pb-6 transition-[width] duration-300 ease-premium lg:flex ${
+          isRailExpanded ? 'w-64 items-stretch' : 'w-20 items-center'
+        }`}
         aria-label="Main navigation"
       >
         {/* Same h-20 band as the header, with the same bottom border, so the
             two rules meet as one continuous line across the top of the app and
             the mark sits on the greeting's centreline. Previously the rail's
             logo sat 6px low and the header's border stopped dead at the rail. */}
-        <div className="flex h-20 w-full shrink-0 items-center justify-center border-b border-border">
-          <Brandmark className="h-10 w-10" />
+        <div
+          className={`flex h-20 w-full shrink-0 items-center border-b border-border ${
+            isRailExpanded ? 'gap-3 px-5' : 'justify-center'
+          }`}
+        >
+          <Brandmark className="h-10 w-10 shrink-0" />
+          {isRailExpanded && (
+            <span className="truncate text-base font-bold tracking-tight">MagnaFlow</span>
+          )}
         </div>
 
-        <nav className="flex flex-1 flex-col items-center gap-1 pt-4">
+        <nav className={`flex flex-1 flex-col gap-1 pt-4 ${isRailExpanded ? 'px-3' : 'items-center'}`}>
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -114,13 +147,18 @@ const DashboardLayout = ({
                     aria-current={isActive ? 'page' : undefined}
                     // Filled, not tinted: this is now the only place the current
                     // section is marked, so it has to be unmistakable at a glance.
-                    className={`relative grid h-11 w-11 place-items-center rounded-xl transition-all duration-200 ease-premium ${
+                    className={`relative flex h-11 items-center rounded-xl transition-all duration-200 ease-premium ${
+                      isRailExpanded ? 'w-full gap-3 px-3' : 'w-11 justify-center'
+                    } ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-card'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    {isRailExpanded ? (
+                      <span className="truncate text-sm font-semibold">{item.label}</span>
+                    ) : null}
                     <span className="sr-only">{item.label}</span>
                     {isActive && (
                       <motion.span
@@ -131,24 +169,45 @@ const DashboardLayout = ({
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">{item.label}</TooltipContent>
+                {!isRailExpanded && <TooltipContent side="right">{item.label}</TooltipContent>}
               </Tooltip>
             );
           })}
         </nav>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={handleLogout}
-              className="grid h-11 w-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Sign out</span>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Sign out</TooltipContent>
-        </Tooltip>
+        <div className={`flex flex-col gap-1 ${isRailExpanded ? 'px-3' : 'items-center'}`}>
+          <button
+            onClick={() => setIsRailExpanded((v) => !v)}
+            aria-expanded={isRailExpanded}
+            aria-label={isRailExpanded ? 'Collapse navigation' : 'Expand navigation'}
+            className={`flex h-11 items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${
+              isRailExpanded ? 'w-full gap-3 px-3' : 'w-11 justify-center'
+            }`}
+          >
+            {isRailExpanded ? (
+              <PanelLeftClose className="h-5 w-5 shrink-0" />
+            ) : (
+              <PanelLeftOpen className="h-5 w-5 shrink-0" />
+            )}
+            {isRailExpanded && <span className="truncate text-sm font-semibold">Collapse</span>}
+          </button>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleLogout}
+                className={`flex h-11 items-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive ${
+                  isRailExpanded ? 'w-full gap-3 px-3' : 'w-11 justify-center'
+                }`}
+              >
+                <LogOut className="h-5 w-5 shrink-0" />
+                {isRailExpanded && <span className="truncate text-sm font-semibold">Sign out</span>}
+                <span className="sr-only">Sign out</span>
+              </button>
+            </TooltipTrigger>
+            {!isRailExpanded && <TooltipContent side="right">Sign out</TooltipContent>}
+          </Tooltip>
+        </div>
       </aside>
     </TooltipProvider>
   );
@@ -213,6 +272,8 @@ const DashboardLayout = ({
 
       <IconRail />
 
+      <ChangePasswordDialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen} />
+
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <SheetContent side="left" className="w-[17rem] p-0">
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
@@ -220,7 +281,7 @@ const DashboardLayout = ({
         </SheetContent>
       </Sheet>
 
-      <div className="lg:pl-20">
+      <div className={`transition-[padding] duration-300 ease-premium ${isRailExpanded ? 'lg:pl-64' : 'lg:pl-20'}`}>
         {/* Top bar: identity on the left, pill nav centre, actions right. */}
         {/* h-20 on the header itself (border-box) so its rule lands on exactly
             the same pixel as the rail's, instead of 1px lower. The blur is what
@@ -263,6 +324,14 @@ const DashboardLayout = ({
                 aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               >
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsChangePasswordOpen(true)}
+                aria-label="Change password"
+              >
+                <KeyRound className="h-5 w-5" />
               </Button>
               <NotificationBell />
               <div className="hidden items-center gap-2 md:flex">

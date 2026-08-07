@@ -11,21 +11,22 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, CheckCircle, Clock, AlertTriangle, Mail, Award, Activity, Plus, BarChart3 } from 'lucide-react';
+import { Users, CheckCircle, Clock, AlertTriangle, Award, Activity, Plus, BarChart3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTasks } from '@/contexts/TasksContext';
-import { useEmailQuota } from '@/hooks/useEmailQuota';
+import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getAllUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
+import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
   const { tasks } = useTasks();
-  const emailQuota = useEmailQuota();
+  const { currentUser } = useAuth();
   const [recentActivity, setRecentActivity] = useState([]);
   const [staffStats, setStaffStats] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -153,7 +154,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           title="Completed Today"
           index={0}
@@ -183,15 +184,11 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           icon={BarChart3}
           color="purple"
         />
-        <StatCard
-          title="Email Quota"
-          index={4}
-          value={`${emailQuota.used}/${emailQuota.limit}`}
-          icon={Mail}
-          color={emailQuota.status === 'critical' ? 'red' : emailQuota.status === 'warning' ? 'yellow' : 'green'}
-          trend={`${emailQuota.percentage}%`}
-        />
       </div>
+
+      {/* An org admin is assigned work too, and the tiles above only roll up
+          the whole organisation. */}
+      <MyTasksPanel tasks={tasks} userId={currentUser?.uid || currentUser?.id} />
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

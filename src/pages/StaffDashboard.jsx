@@ -3,19 +3,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, KeyRound, MessageSquare, ListChecks } from 'lucide-react';
+import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
+import { LoadingState } from '@/components/shared/States';
 import { useToast } from '@/components/ui/use-toast';
 import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
-import ChangePasswordDialog from '@/components/staff/ChangePasswordDialog';
+import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import StatCard from '@/components/shared/StatCard';
 import { useCommentCount } from '@/hooks/useCommentCount';
@@ -158,7 +159,6 @@ const StaffDashboard = () => {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
-  const [showChangePassword, setShowChangePassword] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -258,18 +258,6 @@ const StaffDashboard = () => {
 
   // Format date
 
-  const headerActions = (
-    <Button
-      variant="outline"
-      size="sm"
-      className="border-primary/30 text-primary hover:bg-primary-soft hover:text-primary"
-      onClick={() => setShowChangePassword(true)}
-    >
-      <KeyRound className="w-4 h-4 sm:mr-2" />
-      <span className="hidden sm:inline">Change Password</span>
-    </Button>
-  );
-
   return (
     <DashboardLayout
       subtitle="Staff Panel"
@@ -277,7 +265,6 @@ const StaffDashboard = () => {
       activeTab="dashboard"
       onTabChange={() => {}}
       title="My Tasks"
-      headerActions={headerActions}
     >
       <main className="space-y-6">
         {/* The header already greets the user by name. */}
@@ -297,6 +284,23 @@ const StaffDashboard = () => {
             />
           ))}
         </div>
+
+        {/* Everyone above staff could see how their work sits on a timeline;
+            the people doing it could not. Same component, their tasks only. */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GanttChartSquare className="h-5 w-5 text-primary" /> My Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <LoadingState label="Loading timeline..." />
+            ) : (
+              <ProjectGanttChart tasks={tasks} getStaffName={() => user?.name || 'You'} />
+            )}
+          </CardContent>
+        </Card>
 
         {/* Task Management Section */}
         <Card>
@@ -406,11 +410,6 @@ const StaffDashboard = () => {
           currentUser={currentUser}
         />
       )}
-
-      <ChangePasswordDialog
-        open={showChangePassword}
-        onOpenChange={setShowChangePassword}
-      />
     </DashboardLayout>
   );
 };

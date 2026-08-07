@@ -19,6 +19,8 @@ import {
   Clock,
   TrendingUp,
   AlertTriangle,
+  KeyRound,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,11 +30,12 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
-import { getAllUsers, createUser } from '@/services/userService';
+import { getAllUsers, createUser, deleteUser, resetUserPassword } from '@/services/userService';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import StatCard from '@/components/shared/StatCard';
 import { EmptyState, LoadingState } from '@/components/shared/States';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
+import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import { reportError } from '@/lib/reportError';
 
@@ -132,10 +135,44 @@ const ScopedDashboard = ({ scope }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [staff, setStaff] = useState([]);
   const [staffLoading, setStaffLoading] = useState(true);
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const [busyStaffId, setBusyStaffId] = useState(null);
+
+  // A head or manager owns their scope, so they can reset a password or remove
+  // someone without waiting on an org admin. Both are limited to staff inside
+  // that scope by the security rules, not just by this UI.
+  const handleResetPassword = async (member) => {
+    setBusyStaffId(member.id);
+    try {
+      await resetUserPassword(member.email);
+      toast({
+        title: 'Reset link sent',
+        description: `${member.name} can set a new password from the email.`,
+      });
+    } catch (error) {
+      reportError(error, { title: 'Could not send the reset link' });
+    } finally {
+      setBusyStaffId(null);
+    }
+  };
+
+  const handleRemoveStaff = async (member) => {
+    if (!window.confirm(`Remove ${member.name}? They lose access immediately.`)) return;
+    setBusyStaffId(member.id);
+    try {
+      await deleteUser(member.id);
+      toast({ title: 'Staff removed', description: `${member.name} no longer has access.` });
+      loadStaff();
+    } catch (error) {
+      reportError(error, { title: 'Could not remove staff' });
+    } finally {
+      setBusyStaffId(null);
+    }
+  };
 
   const scopeIds = user?.[cfg.scopeIdsKey] || [];
   const scopeId = scopeIds[0];
@@ -199,6 +236,9 @@ const ScopedDashboard = ({ scope }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* A head or manager is assigned work too; the rollup above never showed it. */}
+      <MyTasksPanel tasks={tasks} userId={user?.id || user?.uid} />
     </div>
   );
 
@@ -224,11 +264,38 @@ const ScopedDashboard = ({ scope }) => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {staff.map((s) => (
-              <div key={s.id} className="p-3 rounded-xl bg-muted/60 border border-border">
-                <p className="text-foreground font-medium">{s.name}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Mail className="w-3 h-3" />{s.email}
-                </p>
+              <div
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/60 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{s.name}</p>
+                  <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    {s.email}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Send a password reset link to ${s.name}`}
+                    disabled={busyStaffId === s.id}
+                    onClick={() => handleResetPassword(s)}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${s.name}`}
+                    disabled={busyStaffId === s.id}
+                    onClick={() => handleRemoveStaff(s)}
+                    className="text-muted-foreground hover:bg-destructive-soft hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
