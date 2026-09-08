@@ -160,7 +160,7 @@ service cloud.firestore {
       );
 
       // Only a master-admin may move a task between organizations.
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn() && !isClient() && (
         isMasterAdmin()
         || (
           request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
@@ -177,7 +177,7 @@ service cloud.firestore {
       );
       // Department-heads and managers own the tasks inside their scope, so they
       // may delete them â€” not just the ones they personally created.
-      allow delete: if isSignedIn() && (
+      allow delete: if isSignedIn() && !isClient() && (
         isOrgAdmin(resource.data.get('orgId', null))
         || isMasterAdmin()
         || isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
@@ -265,6 +265,7 @@ service cloud.firestore {
     // Only the drain job (Admin SDK, which bypasses rules) marks them sent.
     match /mail_queue/{mailId} {
       allow create: if isSignedIn()
+        && !isClient()
         && request.resource.data.requestedBy == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.attempts == 0
