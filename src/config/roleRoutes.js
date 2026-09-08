@@ -1,7 +1,7 @@
 // src/config/roleRoutes.js
-// Central map of role → home route. Add new roles here; never in component code.
+// Central map of role -> home route. Add new roles here; never in component code.
 //
-// Each of the 5 tiers gets its own dashboard route. 'admin' is a legacy alias
+// Each of the 6 tiers gets its own dashboard route. 'admin' is a legacy alias
 // for 'org-admin' (pre-existing accounts created before this model existed).
 
 export const ROLE_HOME_ROUTE = {
@@ -11,6 +11,8 @@ export const ROLE_HOME_ROUTE = {
   'department-head': '/department',
   manager: '/manager',
   staff: '/staff',
+  // Client portal — read-only, project-scoped dashboard for external stakeholders.
+  client: '/client',
 };
 
 // Roles allowed into each dashboard route.
@@ -19,6 +21,7 @@ export const ORG_ADMIN_ROLES = ['admin', 'org-admin'];
 export const DEPARTMENT_HEAD_ROLES = ['department-head'];
 export const MANAGER_ROLES = ['manager'];
 export const STAFF_ROLES = ['staff'];
+export const CLIENT_ROLES = ['client'];
 
 /**
  * Returns the home route for a given role, falling back to /staff.

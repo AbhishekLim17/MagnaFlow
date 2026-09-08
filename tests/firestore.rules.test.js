@@ -2,7 +2,7 @@
  * Firestore security-rules tests.
  *
  * These protect the multi-tenant guarantees the app depends on. A subtle edit
- * to firestore.rules can silently expose one organization's data to another —
+ * to firestore.rules can silently expose one organization's data to another â€”
  * that is a breach, not a bug, so it gets automated coverage.
  *
  * Run with the emulator:
@@ -55,7 +55,7 @@ beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     // Must match the --project passed to emulators:exec. A "demo-" prefix tells
     // the emulator this project doesn't exist, so it runs without any Firebase
-    // credentials — which is what lets these tests run in CI.
+    // credentials â€” which is what lets these tests run in CI.
     projectId: 'demo-magnaflow',
     firestore: {
       rules: readFileSync(join(__dirname, '..', 'firestore.rules'), 'utf8'),
@@ -231,7 +231,7 @@ describe('unauthenticated access', () => {
 });
 
 // Crash reports carry stack traces and URLs that can name another org's data,
-// so anyone may file one but only a master-admin may read them — and nobody
+// so anyone may file one but only a master-admin may read them â€” and nobody
 // may edit or erase a report once written.
 describe('error logs', () => {
   test('any signed-in user can report an error', async () => {
@@ -434,3 +434,128 @@ describe('scoped admin powers for heads and managers', () => {
     await assertFails(setDoc(doc(asUser(STAFF_A), 'designations', 'd-nope'), { name: 'CEO' }));
   });
 });
+
+
+// ─── Client Portal ───────────────────────────────────────────────────────────
+// These tests verify the rules added for the client/guest role.
+// A client should be able to read tasks in their assigned projects within their
+// org, but have zero write access anywhere, and no access to other collections.
+
+describe('client portal access', () => {
+  const CLIENT_A = 'clientA';        // in org A, project A
+  const CLIENT_OTHER = 'clientOther'; // in org B
+
+  beforeEach(async () => {
+    // Seed client accounts and a project-less task in org A.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users', CLIENT_A), {
+        role: 'client',
+        orgId: ORG_A,
+        projectIds: [PROJ_A],
+        email: 'client@a.com',
+        status: 'active',
+      });
+      await setDoc(doc(db, 'users', CLIENT_OTHER), {
+        role: 'client',
+        orgId: ORG_B,
+        projectIds: ['projB'],
+        email: 'client@b.com',
+        status: 'active',
+      });
+      // A task in org A with NO projectId (should be invisible to client)
+      await setDoc(doc(db, 'tasks', 'taskNoProject'), {
+        title: 'No project task', orgId: ORG_A,
+        createdBy: ADMIN_A, status: 'pending',
+      });
+    });
+  });
+
+  // ── reads allowed ─────────────────────────────────────────────────────────
+
+  test('client CAN read a task in their org and assigned project', async () => {
+    // taskA has projectId: PROJ_A, orgId: ORG_A — client is linked to PROJ_A in ORG_A
+    await assertSucceeds(getDoc(doc(asUser(CLIENT_A), 'tasks', 'taskA')));
+  });
+
+  test('client CAN read their own user document', async () => {
+    await assertSucceeds(getDoc(doc(asUser(CLIENT_A), 'users', CLIENT_A)));
+  });
+
+  test('client CAN read their org document', async () => {
+    await assertSucceeds(getDoc(doc(asUser(CLIENT_A), 'organizations', ORG_A)));
+  });
+
+  test('client CAN read project name for their assigned project', async () => {
+    // The project sub-doc (proj name) is needed to render the portal header.
+    await assertSucceeds(getDoc(doc(asUser(CLIENT_A), 'organizations', ORG_A, 'projects', PROJ_A)));
+  });
+
+  // ── reads denied ──────────────────────────────────────────────────────────
+
+  test('client CANNOT read a task in their org but a different project', async () => {
+    // taskNoProject has no projectId so it won't be in myProjectIds()
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'tasks', 'taskNoProject')));
+  });
+
+  test('client CANNOT read a task in another org', async () => {
+    // taskB is in ORG_B; CLIENT_A is in ORG_A
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'tasks', 'taskB')));
+  });
+
+  test('client CANNOT read another user document (staff roster)', async () => {
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'users', STAFF_A)));
+  });
+
+  test('client CANNOT read task comments', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'task_comments', 'c1'), {
+        taskId: 'taskA', userId: STAFF_A, text: 'internal note',
+      });
+    });
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'task_comments', 'c1')));
+  });
+
+  test('client CANNOT read task attachments', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'task_attachments', 'att1'), {
+        taskId: 'taskA', uploadedBy: STAFF_A, url: 'https://example.com/file.pdf',
+      });
+    });
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'task_attachments', 'att1')));
+  });
+
+  test('client CANNOT read audit logs', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'audit_logs', 'log1'), {
+        orgId: ORG_A, actorId: ADMIN_A, action: 'created_user',
+      });
+    });
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'audit_logs', 'log1')));
+  });
+
+  // ── writes denied ─────────────────────────────────────────────────────────
+
+  test('client CANNOT create a task', async () => {
+    await assertFails(setDoc(doc(asUser(CLIENT_A), 'tasks', 'evil-task'), {
+      title: 'sneaky', orgId: ORG_A, projectId: PROJ_A,
+      createdBy: CLIENT_A, status: 'pending',
+    }));
+  });
+
+  test('client CANNOT update a task', async () => {
+    await assertFails(updateDoc(doc(asUser(CLIENT_A), 'tasks', 'taskA'), { status: 'completed' }));
+  });
+
+  test('client CANNOT delete a task', async () => {
+    await assertFails(deleteDoc(doc(asUser(CLIENT_A), 'tasks', 'taskA')));
+  });
+
+  test('client CANNOT queue an email', async () => {
+    await assertFails(setDoc(doc(asUser(CLIENT_A), 'mail_queue', 'mail1'), {
+      requestedBy: CLIENT_A, status: 'pending', attempts: 0,
+      to_email: 'target@evil.com', title: 'Hi', notification_type: 'test',
+    }));
+  });
+});
+

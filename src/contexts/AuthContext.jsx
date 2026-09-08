@@ -21,7 +21,7 @@ const AuthContext = createContext();
 // its members. Enforced at login/session-restore (one org read) rather than in
 // Firestore rules (which would cost an extra read on every operation). Fails
 // open on a read error so a transient Firestore glitch can't lock everyone out
-// — data access itself is still governed by the security rules regardless.
+// â€” data access itself is still governed by the security rules regardless.
 const orgIsSuspended = async (orgId) => {
   if (!orgId) return false;
   try {
@@ -47,43 +47,43 @@ export const AuthProvider = ({ children }) => {
 
   // Monitor Firebase auth state changes
   useEffect(() => {
-    console.log("🚀 AuthProvider: Setting up auth state listener");
+    console.log("ðŸš€ AuthProvider: Setting up auth state listener");
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("� Auth state changed:", firebaseUser ? "User logged in" : "User logged out");
+      console.log("ï¿½ Auth state changed:", firebaseUser ? "User logged in" : "User logged out");
 
       // The signed-in identity may have changed (login, logout, or an
-      // impersonation session swap) — drop any cached org profile so the next
+      // impersonation session swap) â€” drop any cached org profile so the next
       // scoped query resolves against the new user, never the previous one.
       clearCallerProfileCache();
 
       if (firebaseUser) {
         try {
           // Fetch user data from Firestore
-          console.log("� Fetching user data for UID:", firebaseUser.uid);
+          console.log("ï¿½ Fetching user data for UID:", firebaseUser.uid);
           const userData = await getUserById(firebaseUser.uid);
           
           if (userData && await orgIsSuspended(userData.orgId)) {
-            console.warn("⚠️  Organization suspended — signing out");
+            console.warn("âš ï¸  Organization suspended â€” signing out");
             await signOut(auth);
             setUser(null);
             setIsAuthenticated(false);
           } else if (userData) {
-            console.log("✅ User data loaded:", userData);
+            console.log("âœ… User data loaded:", userData);
             setUser(userData);
             setIsAuthenticated(true);
           } else {
-            console.warn("⚠️  User document not found in Firestore");
+            console.warn("âš ï¸  User document not found in Firestore");
             setUser(null);
             setIsAuthenticated(false);
           }
         } catch (error) {
-          console.error("❌ Error fetching user data:", error);
+          console.error("âŒ Error fetching user data:", error);
           setUser(null);
           setIsAuthenticated(false);
         }
       } else {
-        console.log("👤 No user logged in");
+        console.log("ðŸ‘¤ No user logged in");
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }) => {
       // Firebase returns for a wrong password, so the final `error.message`
       // branch showed the user the literal string
       // "Firebase: Error (auth/invalid-credential)."
-      console.error('❌ Login failed:', error?.code || error);
+      console.error('âŒ Login failed:', error?.code || error);
       return { success: false, error: toUserMessage(error, 'Login failed. Please try again.') };
     }
   };
@@ -179,7 +179,7 @@ export const AuthProvider = ({ children }) => {
     //
     //   FIRESTORE INTERNAL ASSERTION FAILED: Unexpected state (ID: b815)
     //
-    // so signing back in as anyone — including the same person — fails until
+    // so signing back in as anyone â€” including the same person â€” fails until
     // the tab is reloaded. Reproduced on every logout-then-login cycle.
     // Replacing the document drops the poisoned client entirely, which is
     // free here because sign-out is a terminal action with no state to keep.
@@ -216,7 +216,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [user, currentUser, isAuthenticated, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,5 +1,5 @@
 // src/config/roles.js
-// Canonical role name constants for the 5-tier RBAC model.
+// Canonical role name constants for the 6-tier RBAC model.
 // Use these instead of string literals so rules/services/components/rules stay in sync.
 
 export const ROLES = {
@@ -8,6 +8,10 @@ export const ROLES = {
   DEPARTMENT_HEAD: 'department-head',
   MANAGER: 'manager',
   STAFF: 'staff',
+  // External stakeholder / guest role. Read-only, project-scoped.
+  // Accounts are created by org-admins in the Client Portal tab and are
+  // linked to one or more projects via the standard projectIds array.
+  CLIENT: 'client',
 };
 
 // Legacy alias: pre-existing accounts created before this model was introduced

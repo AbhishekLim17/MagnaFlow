@@ -11,7 +11,8 @@ import {
   Briefcase,
   Shield,
   Building2,
-  GanttChartSquare
+  GanttChartSquare,
+  Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -27,6 +28,7 @@ import AdminManagement from '@/components/admin/AdminManagement';
 import DepartmentsProjectsManagement from '@/components/admin/DepartmentsProjectsManagement';
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import { AdminCommandCenter } from '@/components/admin/AdminCommandCenter';
+import ClientsManagement from '@/components/admin/ClientsManagement';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,6 +39,7 @@ const menuItems = [
   { id: 'tasks', label: 'Task Management', icon: CheckSquare },
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
+  { id: 'clients', label: 'Client Portal', icon: Globe },
 ];
 
 const AdminDashboard = () => {
@@ -133,9 +136,11 @@ const AdminDashboard = () => {
         <Route path="/tasks" element={<TaskManagement />} />
         <Route path="/timeline" element={<ProjectTimeline />} />
         <Route path="/reports" element={<PerformanceReports />} />
+        <Route path="/clients" element={<ClientsManagement />} />
       </Routes>
     </DashboardLayout>
   );
 };
 
 export default AdminDashboard;
+

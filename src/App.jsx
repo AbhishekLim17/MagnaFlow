@@ -18,6 +18,7 @@ import {
   DEPARTMENT_HEAD_ROLES,
   MANAGER_ROLES,
   STAFF_ROLES,
+  CLIENT_ROLES,
 } from "@/config/roleRoutes";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
@@ -31,6 +32,7 @@ const MasterAdminDashboard = lazy(
   () => import("@/components/admin/MasterAdminDashboard"),
 );
 const ScopedDashboard = lazy(() => import("@/pages/ScopedDashboard"));
+const ClientPortal = lazy(() => import("@/pages/ClientPortal"));
 
 const FullPageLoader = () => (
   <LoadingSpinner size="large" className="min-h-screen" />
@@ -110,6 +112,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/client/*"
+          element={
+            <ProtectedRoute allowedRoles={CLIENT_ROLES}>
+              <ClientPortal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/staff/*"
           element={
             <ProtectedRoute allowedRoles={STAFF_ROLES}>
@@ -182,3 +192,4 @@ function App() {
 }
 
 export default App;
+
