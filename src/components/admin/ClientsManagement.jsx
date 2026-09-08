@@ -55,7 +55,120 @@ const generateTempPassword = () => {
   ).join("");
 };
 
-// ─── component ────────────────────────────────────────────────────────────────
+// ─── project picker sub-component (defined at module level) ───────────────────
+
+const ProjectPicker = ({ projects, selectedIds, onToggle }) => (
+  <div className="space-y-2">
+    <Label>Projects this client can see *</Label>
+    {projects.length === 0 ? (
+      <p className="text-sm text-muted-foreground">
+        No projects found. Create projects in Departments &amp; Projects first.
+      </p>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto rounded-lg border p-2">
+        {projects.map((p) => {
+          const selected = selectedIds.includes(p.id);
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onToggle(p.id)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors ${
+                selected
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/70"
+              }`}
+            >
+              <FolderOpen className="w-4 h-4 shrink-0" />
+              {p.name}
+            </button>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
+
+// ─── form dialog (defined at module level to prevent re-mounting on keystrokes) ─
+
+const ClientFormDialog = ({
+  open,
+  onClose,
+  onSubmit,
+  title,
+  description,
+  isEdit,
+  formData,
+  setFormData,
+  projects,
+  toggleProject,
+  saving,
+}) => (
+  <Dialog open={open} onOpenChange={onClose}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Globe className="w-5 h-5" />
+          {title}
+        </DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-2">
+        {/* Name */}
+        <div className="space-y-1">
+          <Label htmlFor="client-name">Full Name *</Label>
+          <Input
+            id="client-name"
+            placeholder="e.g. Priya Sharma"
+            value={formData.name}
+            onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+          />
+        </div>
+
+        {/* Email — read-only when editing */}
+        <div className="space-y-1">
+          <Label htmlFor="client-email">Email *</Label>
+          <Input
+            id="client-email"
+            type="email"
+            placeholder="client@company.com"
+            value={formData.email}
+            onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))}
+            disabled={isEdit}
+          />
+          {isEdit && (
+            <p className="text-xs text-muted-foreground">
+              Email cannot be changed. Use &quot;Send Reset Email&quot; to update their password.
+            </p>
+          )}
+        </div>
+
+        {/* Project picker */}
+        <ProjectPicker
+          projects={projects}
+          selectedIds={formData.projectIds}
+          onToggle={toggleProject}
+        />
+
+        {!isEdit && (
+          <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+            A temporary password will be created and a password-setup email will be sent to the client automatically.
+          </p>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={onSubmit} disabled={saving}>
+          {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Account"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+// ─── main component ──────────────────────────────────────────────────────────
 
 const ClientsManagement = () => {
   const { currentUser } = useAuth();
@@ -76,7 +189,7 @@ const ClientsManagement = () => {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
-  // ── data loading ─────────────────────────────────────────────────────────
+  // ─── data loading ──────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
     if (!currentUser?.orgId) return;
@@ -98,7 +211,7 @@ const ClientsManagement = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── helpers ───────────────────────────────────────────────────────────────
+  // ─── helpers ───────────────────────────────────────────────────────────────
 
   const projectName = (id) =>
     projects.find((p) => p.id === id)?.name ?? id;
@@ -112,7 +225,7 @@ const ClientsManagement = () => {
     }));
   };
 
-  // ── add ───────────────────────────────────────────────────────────────────
+  // ─── add ───────────────────────────────────────────────────────────────────
 
   const openAdd = () => {
     setFormData(EMPTY_FORM);
@@ -155,7 +268,7 @@ const ClientsManagement = () => {
     }
   };
 
-  // ── edit ──────────────────────────────────────────────────────────────────
+  // ─── edit ──────────────────────────────────────────────────────────────────
 
   const openEdit = (client) => {
     setSelectedClient(client);
@@ -194,7 +307,7 @@ const ClientsManagement = () => {
     }
   };
 
-  // ── status toggle ─────────────────────────────────────────────────────────
+  // ─── status toggle ─────────────────────────────────────────────────────────
 
   const handleToggleStatus = async (client) => {
     try {
@@ -212,7 +325,7 @@ const ClientsManagement = () => {
     }
   };
 
-  // ── password reset ────────────────────────────────────────────────────────
+  // ─── password reset ────────────────────────────────────────────────────────
 
   const handleResetPassword = async (client) => {
     try {
@@ -227,7 +340,7 @@ const ClientsManagement = () => {
     }
   };
 
-  // ── delete ────────────────────────────────────────────────────────────────
+  // ─── delete ────────────────────────────────────────────────────────────────
 
   const openDelete = (client) => {
     setClientToDelete(client);
@@ -248,7 +361,7 @@ const ClientsManagement = () => {
     }
   };
 
-  // ── filter ────────────────────────────────────────────────────────────────
+  // ─── filter ────────────────────────────────────────────────────────────────
 
   const filtered = clients.filter((c) => {
     const q = searchQuery.toLowerCase();
@@ -258,104 +371,7 @@ const ClientsManagement = () => {
     );
   });
 
-  // ── project picker sub-component ─────────────────────────────────────────
-
-  const ProjectPicker = () => (
-    <div className="space-y-2">
-      <Label>Projects this client can see *</Label>
-      {projects.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No projects found. Create projects in Departments &amp; Projects first.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto rounded-lg border p-2">
-          {projects.map((p) => {
-            const selected = formData.projectIds.includes(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => toggleProject(p.id)}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors ${
-                  selected
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/70"
-                }`}
-              >
-                <FolderOpen className="w-4 h-4 shrink-0" />
-                {p.name}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-
-  // ── form dialog (shared add/edit) ─────────────────────────────────────────
-
-  const FormDialog = ({ open, onClose, onSubmit, title, description, isEdit }) => (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            {title}
-          </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {/* Name */}
-          <div className="space-y-1">
-            <Label htmlFor="client-name">Full Name *</Label>
-            <Input
-              id="client-name"
-              placeholder="e.g. Priya Sharma"
-              value={formData.name}
-              onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
-            />
-          </div>
-
-          {/* Email — read-only when editing */}
-          <div className="space-y-1">
-            <Label htmlFor="client-email">Email *</Label>
-            <Input
-              id="client-email"
-              type="email"
-              placeholder="client@company.com"
-              value={formData.email}
-              onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))}
-              disabled={isEdit}
-            />
-            {isEdit && (
-              <p className="text-xs text-muted-foreground">
-                Email cannot be changed. Use &quot;Send Reset Email&quot; to update their password.
-              </p>
-            )}
-          </div>
-
-          {/* Project picker */}
-          <ProjectPicker />
-
-          {!isEdit && (
-            <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
-              A temporary password will be created and a password-setup email will be sent to the client automatically.
-            </p>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={onSubmit} disabled={saving}>
-            {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Account"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
-  // ── render ────────────────────────────────────────────────────────────────
+  // ─── render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -492,23 +508,33 @@ const ClientsManagement = () => {
       )}
 
       {/* Add Dialog */}
-      <FormDialog
+      <ClientFormDialog
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         onSubmit={handleAdd}
         title="New Client Account"
         description="Create a login for an external stakeholder. They will only see the projects you assign."
         isEdit={false}
+        formData={formData}
+        setFormData={setFormData}
+        projects={projects}
+        toggleProject={toggleProject}
+        saving={saving}
       />
 
       {/* Edit Dialog */}
-      <FormDialog
+      <ClientFormDialog
         open={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         onSubmit={handleEdit}
         title="Edit Client Account"
         description="Update the client name or the projects they can access."
         isEdit={true}
+        formData={formData}
+        setFormData={setFormData}
+        projects={projects}
+        toggleProject={toggleProject}
+        saving={saving}
       />
 
       {/* Delete Confirm */}
