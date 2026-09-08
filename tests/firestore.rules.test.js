@@ -551,6 +551,19 @@ describe('client portal access', () => {
     await assertFails(deleteDoc(doc(asUser(CLIENT_A), 'tasks', 'taskA')));
   });
 
+  test('org-admin CAN create a client account in their org', async () => {
+    await assertSucceeds(setDoc(doc(asUser(ADMIN_A), 'users', 'new-client-id'), {
+      name: 'New Client', email: 'newclient@example.com',
+      role: 'client', orgId: ORG_A, projectIds: [PROJ_A], status: 'active',
+    }));
+  });
+
+  test('org-admin CAN update a client account in their org', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(ADMIN_A), 'users', CLIENT_A), {
+      name: 'Updated Client Name', projectIds: [PROJ_A],
+    }));
+  });
+
   test('client CANNOT queue an email', async () => {
     await assertFails(setDoc(doc(asUser(CLIENT_A), 'mail_queue', 'mail1'), {
       requestedBy: CLIENT_A, status: 'pending', attempts: 0,

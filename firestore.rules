@@ -73,7 +73,7 @@ service cloud.firestore {
       // Department-heads/managers may create staff scoped to their own department/project.
       allow create: if isMasterAdmin()
         || (isOrgAdmin(request.resource.data.get('orgId', null))
-            && request.resource.data.role in ['department-head', 'manager', 'staff'])
+            && request.resource.data.role in ['department-head', 'manager', 'staff', 'client'])
         || (isDeptHead() && isOrgMember(request.resource.data.get('orgId', null))
             && request.resource.data.role == 'staff'
             && request.resource.data.get('departmentIds', []).hasAny(myDeptIds()))
@@ -103,8 +103,8 @@ service cloud.firestore {
       allow update: if isMasterAdmin()
         || (isOrgAdmin(resource.data.get('orgId', null))
             && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
-            && resource.data.role in ['department-head', 'manager', 'staff']
-            && request.resource.data.role in ['department-head', 'manager', 'staff'])
+            && resource.data.role in ['department-head', 'manager', 'staff', 'client']
+            && request.resource.data.role in ['department-head', 'manager', 'staff', 'client'])
         // A head or manager may edit staff inside their own scope. The role is
         // pinned to 'staff' on BOTH sides, so this can never be used to promote
         // anyone â€” including themselves â€” and the target must still be in their
