@@ -10,7 +10,7 @@ This document provides a single, comprehensive guide covering everything about M
 
 1. [Executive Summary & Problem Statement](#1-executive-summary--problem-statement)
 2. [What the Client Gets (Business & Non-Technical Perspective)](#2-what-the-client-gets-business--non-technical-perspective)
-3. [The 5-Tier Role Hierarchy & Dashboards](#3-the-5-tier-role-hierarchy--dashboards)
+3. [The 6-Tier Role Hierarchy & Dashboards (Including Client Portal)](#3-the-6-tier-role-hierarchy--dashboards-including-client-portal)
 4. [End-to-End Client Workflow & Lifecycle](#4-end-to-end-client-workflow--lifecycle)
 5. [Core Features Deep Dive](#5-core-features-deep-dive)
 6. [Engineering on the Firebase Spark Plan (The Zero-Cost Architecture)](#6-engineering-on-the-firebase-spark-plan-the-zero-cost-architecture)
@@ -26,7 +26,7 @@ Organizations often struggle with fragmented communication across email, chat, a
 
 **MagnaFlow** solves this by providing:
 - **Strict Multi-Tenancy:** Each client organization exists in complete logical isolation.
-- **Granular 5-Tier Access Control:** Purpose-built views for Executives, Department Heads, Project Managers, and Individual Contributors.
+- **Granular 6-Tier Access Control:** Purpose-built views for Platform Owners, Executives, Department Heads, Project Managers, Staff, and External Clients.
 - **Automated Timelines (Gantt Charts):** Live schedules rendered directly from task start and due dates without third-party chart dependencies.
 - **Zero Cloud Operating Cost:** Operates 100% on Firebase's free tier without compromising on tenant isolation or security.
 
@@ -44,6 +44,9 @@ Rather than exposing every employee to an intimidating, bloated interface, Magna
 - **Executives** see business health, organizational charts, department workloads, and aggregate task velocity.
 - **Managers** see deadlines, resource allocations, bottlenecks, and project Gantt timelines.
 - **Staff** see an actionable, prioritized personal checklist of their daily assignments, subtasks, and feedback.
+
+### External Stakeholder & Client Transparency
+- **Guest / Client Portal (`/client`):** Allows clients, investors, or outside partners to view project progress, upcoming milestones, and delivery timelines without giving them access to internal team discussions, sensitive employee data, or editing capabilities.
 
 ### Clear Accountability & Visibility
 - **No More Spreadsheet Chaos:** Every task is assigned to an accountable owner with clear start dates, deadlines, and priority levels (Low, Medium, High, Critical).
@@ -119,9 +122,10 @@ sequenceDiagram
 3. **Staff Onboarding:** The Org Admin or Department Head creates staff profiles. The system records the profile in Firestore and creates their authentication record.
 4. **Project Creation & Delegation:** Projects are launched and assigned to project managers. Managers populate projects with tasks, assign deadlines, configure subtask checklists, and tag assignees.
 5. **Daily Execution & Collaboration:** Staff work from their personal dashboard. They update task statuses as work progresses, check off subtask items, and collaborate using threaded comments.
-6. **Timeline Monitoring:** Leaders review the visual Gantt timeline to identify bottlenecks before milestones are missed.
-7. **Automated Reminders:** Any critical tasks slipping past deadlines trigger automatic 8:00 AM email reminders.
-8. **Reporting & Insights:** Org Admins export executive summary reports (Excel, PDF, or charts) analyzing completion rates, task velocity, and department workloads.
+6. **Client Onboarding & Project Sharing:** The Org Admin invites external stakeholders from the **Client Portal** panel (`/admin/clients`), assigning them to specific projects. The client receives a password setup email and logs in to their dedicated portal (`/client`) for real-time progress visibility.
+7. **Timeline Monitoring:** Leaders review the visual Gantt timeline to identify bottlenecks before milestones are missed.
+8. **Automated Reminders:** Any critical tasks slipping past deadlines trigger automatic 8:00 AM email reminders.
+9. **Reporting & Insights:** Org Admins export executive summary reports (Excel, PDF, or charts) analyzing completion rates, task velocity, and department workloads.
 
 ---
 
@@ -283,7 +287,7 @@ MagnaFlow/
 ### Verification Suite
 MagnaFlow features an automated test harness ensuring regressions cannot reach production:
 - **Unit & Component Tests:** 108 tests passing via Vitest (`npm test`).
-- **Security Rules Integration Tests:** 65 tests passing against the local Firestore emulator (`npm run test:rules`).
+- **Security Rules Integration Tests:** 81 tests passing against the local Firestore emulator (including 13 dedicated client-role isolation tests) (`npm run test:rules`).
 - **Secret Scanner:** Automated verification (`npm run check:secrets`) ensuring no private keys or tokens leak into committed files.
 
 ### Running Locally with Emulators
