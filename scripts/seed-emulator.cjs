@@ -66,6 +66,11 @@ const PEOPLE = [
     orgId: ORG_ID, departmentIds: [DEPT_ENG], projectIds: [PROJ_APOLLO],
   },
   {
+    uid: 'u-client', email: 'client@demo.test', name: 'Acme Corp Client',
+    role: 'client', designation: 'External Stakeholder',
+    orgId: ORG_ID, departmentIds: [], projectIds: [PROJ_APOLLO],
+  },
+  {
     uid: 'u-staff3', email: 'staff3@demo.test', name: 'Aisha Khan',
     role: 'staff', designation: 'Accounts Executive',
     orgId: ORG_ID, departmentIds: [DEPT_ACCOUNTS], projectIds: [PROJ_ATLAS],
