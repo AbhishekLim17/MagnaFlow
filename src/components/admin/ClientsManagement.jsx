@@ -202,8 +202,7 @@ const ClientsManagement = () => {
       setClients(allUsers.users ?? allUsers);
       setProjects(orgProjects);
     } catch (err) {
-      reportError(err, { context: "ClientsManagement.loadData" });
-      toast({ title: "Failed to load data", variant: "destructive" });
+      reportError(err, { title: "Failed to load data", context: { context: "ClientsManagement.loadData" } });
     } finally {
       setLoading(false);
     }
@@ -261,8 +260,7 @@ const ClientsManagement = () => {
       setIsAddOpen(false);
       loadData();
     } catch (err) {
-      reportError(err, { context: "ClientsManagement.handleAdd" });
-      toast({ title: err.message || "Failed to create account", variant: "destructive" });
+      reportError(err, { title: "Failed to create account", context: { context: "ClientsManagement.handleAdd" } });
     } finally {
       setSaving(false);
     }
@@ -300,8 +298,7 @@ const ClientsManagement = () => {
       setIsEditOpen(false);
       loadData();
     } catch (err) {
-      reportError(err, { context: "ClientsManagement.handleEdit" });
-      toast({ title: err.message || "Failed to update account", variant: "destructive" });
+      reportError(err, { title: "Failed to update account", context: { context: "ClientsManagement.handleEdit" } });
     } finally {
       setSaving(false);
     }
@@ -320,8 +317,7 @@ const ClientsManagement = () => {
       }
       loadData();
     } catch (err) {
-      reportError(err, { context: "ClientsManagement.toggleStatus" });
-      toast({ title: "Failed to update status", variant: "destructive" });
+      reportError(err, { title: "Failed to update status", context: { context: "ClientsManagement.toggleStatus" } });
     }
   };
 
@@ -335,8 +331,7 @@ const ClientsManagement = () => {
         description: `Sent to ${client.email}`,
       });
     } catch (err) {
-      reportError(err, { context: "ClientsManagement.resetPassword" });
-      toast({ title: "Failed to send reset email", variant: "destructive" });
+      reportError(err, { title: "Failed to send reset email", context: { context: "ClientsManagement.resetPassword" } });
     }
   };
 
@@ -356,8 +351,7 @@ const ClientsManagement = () => {
       setClientToDelete(null);
       loadData();
     } catch (err) {
-      reportError(err, { context: "ClientsManagement.handleDelete" });
-      toast({ title: "Failed to delete client", variant: "destructive" });
+      reportError(err, { title: "Failed to delete client", context: { context: "ClientsManagement.handleDelete" } });
     }
   };
 

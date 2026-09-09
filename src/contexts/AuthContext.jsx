@@ -141,7 +141,7 @@ export const AuthProvider = ({ children }) => {
       const userData = await getUserById(userCredential.user.uid);
       if (!userData) {
         await signOut(auth);
-        throw new Error("User data not found in database");
+        throw new Error("No active profile found for this account. If you were recently removed, please contact your administrator.");
       }
       if (userData.status === 'inactive') {
         await signOut(auth);

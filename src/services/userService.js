@@ -263,7 +263,53 @@ export const createUser = async (userData) => {
     // Create user using SECONDARY auth instance (won't affect admin session).
     // The secondary instance becomes signed-in as the new user as a side
     // effect, so it MUST be signed out again on every path — see finally.
-    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    let userCredential;
+    try {
+      userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    } catch (authError) {
+      // If email is already in use, check if this is an orphaned Auth sign-in (no active Firestore user)
+      if (authError.code === 'auth/email-already-in-use' && typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
+        try {
+          const snap = await getDocs(
+            query(collection(db, USERS_COLLECTION), where('email', '==', email), firestoreLimit(1))
+          );
+          if (snap.empty) {
+            // No profile in Firestore: auto-purge the leftover orphan and retry
+            const lookupRes = await fetch(
+              'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:lookup',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer owner',
+                },
+                body: JSON.stringify({ email: [email] }),
+              }
+            );
+            const lookupData = await lookupRes.json();
+            const orphanUid = lookupData.users?.[0]?.localId;
+            if (orphanUid) {
+              await fetch(
+                'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:delete',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer owner',
+                  },
+                  body: JSON.stringify({ localId: orphanUid }),
+                }
+              );
+              // Retry creation after purging the orphan
+              userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            }
+          }
+        } catch (orphanErr) {
+          console.warn('Orphan purge retry failed:', orphanErr?.message || orphanErr);
+        }
+      }
+      if (!userCredential) throw authError;
+    }
     const uid = userCredential.user.uid;
 
     // Create user document in Firestore
@@ -382,6 +428,23 @@ export const deleteUser = async (uid) => {
     const victim = await getUserById(uid).catch(() => null);
 
     await deleteDoc(doc(db, USERS_COLLECTION, uid));
+
+    // When running locally with emulators, immediately purge from the Auth emulator
+    // so the email address is freed for re-creation without manual console intervention.
+    if (typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
+      try {
+        await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer owner',
+          },
+          body: JSON.stringify({ localId: uid }),
+        });
+      } catch (e) {
+        console.warn('Could not auto-purge user from Auth emulator:', e?.message || e);
+      }
+    }
 
     if (victim) {
       // The Firebase Auth account still exists and keeps the email address
