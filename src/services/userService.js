@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from 'firebase/functions';
 // User Service - Handles all user-related Firebase operations
 // CRUD operations for user management (Admin functionality)
 
@@ -19,6 +20,8 @@ import {
 } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  deleteUser as deleteAuthUser,
   signOut,
   sendPasswordResetEmail
 } from 'firebase/auth';
@@ -268,39 +271,58 @@ export const createUser = async (userData) => {
       userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     } catch (authError) {
       // If email is already in use, check if this is an orphaned Auth sign-in (no active Firestore user)
-      if (authError.code === 'auth/email-already-in-use' && typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
+      if (authError.code === 'auth/email-already-in-use') {
         try {
           const snap = await getDocs(
             query(collection(db, USERS_COLLECTION), where('email', '==', email), firestoreLimit(1))
           );
           if (snap.empty) {
-            // No profile in Firestore: auto-purge the leftover orphan and retry
-            const lookupRes = await fetch(
-              'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:lookup',
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': 'Bearer owner',
-                },
-                body: JSON.stringify({ email: [email] }),
-              }
-            );
-            const lookupData = await lookupRes.json();
-            const orphanUid = lookupData.users?.[0]?.localId;
-            if (orphanUid) {
-              await fetch(
-                'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:delete',
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer owner',
-                  },
-                  body: JSON.stringify({ localId: orphanUid }),
+            let purged = false;
+            if (typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
+              try {
+                const lookupRes = await fetch(
+                  'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:lookup',
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer owner',
+                    },
+                    body: JSON.stringify({ email: [email] }),
+                  }
+                );
+                const lookupData = await lookupRes.json();
+                const orphanUid = lookupData.users?.[0]?.localId;
+                if (orphanUid) {
+                  await fetch(
+                    'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:delete',
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer owner',
+                      },
+                      body: JSON.stringify({ localId: orphanUid }),
+                    }
+                  );
+                  purged = true;
                 }
-              );
-              // Retry creation after purging the orphan
+              } catch (e) {
+                console.warn('Could not auto-purge orphan from Auth emulator:', e?.message || e);
+              }
+            } else {
+              try {
+                const orphanCred = await signInWithEmailAndPassword(secondaryAuth, email, password);
+                if (orphanCred?.user) {
+                  await deleteAuthUser(orphanCred.user);
+                  purged = true;
+                }
+              } catch (e) {
+                console.warn('Could not sign-in/purge orphan on secondaryAuth:', e?.message || e);
+              }
+            }
+
+            if (purged) {
               userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
             }
           }
@@ -423,32 +445,40 @@ export const updateUser = async (uid, updates) => {
  */
 export const deleteUser = async (uid) => {
   try {
-    // Capture identity before the doc disappears, so the leftover Auth account
-    // can be surfaced for manual cleanup and recorded in the audit trail.
     const victim = await getUserById(uid).catch(() => null);
 
-    await deleteDoc(doc(db, USERS_COLLECTION, uid));
+    let cloudFnSuccess = false;
+    try {
+      const functions = getFunctions();
+      const deleteAccountFn = httpsCallable(functions, 'deleteUserAccount');
+      const result = await deleteAccountFn({ uid });
+      if (result?.data?.success) {
+        cloudFnSuccess = true;
+      }
+    } catch (fnErr) {
+      console.warn('Cloud function deleteUserAccount unavailable or failed, using direct delete fallback:', fnErr?.message || fnErr);
+    }
 
-    // When running locally with emulators, immediately purge from the Auth emulator
-    // so the email address is freed for re-creation without manual console intervention.
-    if (typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
-      try {
-        await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:delete', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer owner',
-          },
-          body: JSON.stringify({ localId: uid }),
-        });
-      } catch (e) {
-        console.warn('Could not auto-purge user from Auth emulator:', e?.message || e);
+    if (!cloudFnSuccess) {
+      await deleteDoc(doc(db, USERS_COLLECTION, uid));
+
+      if (typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
+        try {
+          await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-magnaflow/accounts:delete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer owner',
+            },
+            body: JSON.stringify({ localId: uid }),
+          });
+        } catch (e) {
+          console.warn('Could not auto-purge user from Auth emulator:', e?.message || e);
+        }
       }
     }
 
     if (victim) {
-      // The Firebase Auth account still exists and keeps the email address
-      // reserved. Record it so an admin can clear it in the console.
       await setDoc(doc(db, 'userDeletions', uid), {
         userId: uid,
         email: victim.email || null,
@@ -457,7 +487,7 @@ export const deleteUser = async (uid) => {
         deletedAt: Timestamp.now(),
         deletedBy: auth.currentUser?.uid || null,
         deletedByEmail: auth.currentUser?.email || null,
-        authCleanupDone: false,
+        authCleanupDone: cloudFnSuccess || (typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true'),
       }).catch((e) => console.warn('Could not record deletion marker:', e?.code));
 
       await writeAuditLog({
