@@ -50,6 +50,19 @@ service cloud.firestore {
         // Clients may read project names for projects they are linked to.
         allow read: if isOrgMember(orgId) || isMasterAdmin() || (isClient() && isOrgMember(orgId) && projId in myProjectIds());
         allow write: if isOrgAdmin(orgId) || isMasterAdmin();
+
+        // Budget expenses — org members (non-client) can read and write their org's expenses.
+        // Clients have no visibility into financial data.
+        match /expenses/{expId} {
+          allow read: if (isOrgMember(orgId) && !isClient()) || isMasterAdmin();
+          allow create: if (isOrgMember(orgId) && !isClient())
+            && request.resource.data.amount is number
+            && request.resource.data.amount >= 0
+            && request.resource.data.description is string;
+          allow update: if isOrgAdmin(orgId) || isMasterAdmin();
+          allow delete: if isOrgAdmin(orgId) || isMasterAdmin()
+            || resource.data.addedBy == request.auth.uid;
+        }
       }
     }
 

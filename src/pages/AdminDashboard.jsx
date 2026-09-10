@@ -12,7 +12,8 @@ import {
   Shield,
   Building2,
   GanttChartSquare,
-  Globe
+  Globe,
+  DollarSign,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -29,6 +30,7 @@ import DepartmentsProjectsManagement from '@/components/admin/DepartmentsProject
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import { AdminCommandCenter } from '@/components/admin/AdminCommandCenter';
 import ClientsManagement from '@/components/admin/ClientsManagement';
+import BudgetTracker from '@/components/admin/BudgetTracker';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -40,6 +42,7 @@ const menuItems = [
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'clients', label: 'Client Portal', icon: Globe },
+  { id: 'budget', label: 'Budget Tracker', icon: DollarSign },
 ];
 
 const AdminDashboard = () => {
@@ -137,6 +140,7 @@ const AdminDashboard = () => {
         <Route path="/timeline" element={<ProjectTimeline />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />
+        <Route path="/budget" element={<BudgetTracker />} />
       </Routes>
     </DashboardLayout>
   );

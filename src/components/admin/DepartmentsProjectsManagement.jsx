@@ -38,7 +38,7 @@ const DepartmentsProjectsManagement = () => {
   const [isDeptDialogOpen, setIsDeptDialogOpen] = useState(false);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
-  const [newProject, setNewProject] = useState({ name: '', departmentId: '' });
+  const [newProject, setNewProject] = useState({ name: '', departmentId: '', budget: '', currency: 'USD' });
 
   useEffect(() => {
     loadAll();
@@ -90,9 +90,14 @@ const DepartmentsProjectsManagement = () => {
     e.preventDefault();
     if (!newProject.name.trim() || !newProject.departmentId) return;
     try {
-      await createProject(user.orgId, { name: newProject.name.trim(), departmentId: newProject.departmentId });
+      await createProject(user.orgId, {
+      name: newProject.name.trim(),
+      departmentId: newProject.departmentId,
+      budget: Number(newProject.budget) || 0,
+      currency: newProject.currency || 'USD',
+    });
       toast({ title: 'Project created', description: `"${newProject.name}" has been added.` });
-      setNewProject({ name: '', departmentId: '' });
+      setNewProject({ name: '', departmentId: '', budget: '', currency: 'USD' });
       setIsProjectDialogOpen(false);
       loadAll();
     } catch (error) {
@@ -186,6 +191,11 @@ const DepartmentsProjectsManagement = () => {
                   <div>
                     <p className="text-foreground">{proj.name}</p>
                     <p className="text-xs text-muted-foreground">{departmentName(proj.departmentId)}</p>
+                    {proj.budget > 0 && (
+                      <p className="text-xs font-medium text-emerald-500 mt-0.5">
+                        Budget: {new Intl.NumberFormat(undefined, { style: 'currency', currency: proj.currency || 'USD', maximumFractionDigits: 0 }).format(proj.budget)}
+                      </p>
+                    )}
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft"
                     onClick={() => handleDeleteProject(proj)}>
@@ -232,6 +242,24 @@ const DepartmentsProjectsManagement = () => {
                   {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-foreground">Budget (optional)</Label>
+                <Input type="number" min="0" step="1" placeholder="e.g. 50000"
+                  value={newProject.budget}
+                  onChange={(e) => setNewProject(p => ({ ...p, budget: e.target.value }))}
+                  className="mt-2 surface border-border text-foreground" />
+              </div>
+              <div>
+                <Label className="text-foreground">Currency</Label>
+                <Select value={newProject.currency} onValueChange={(v) => setNewProject(p => ({ ...p, currency: v }))}>
+                  <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['USD','EUR','GBP','INR','CAD','AUD','SGD'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsProjectDialogOpen(false)}>Cancel</Button>

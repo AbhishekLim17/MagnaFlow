@@ -197,13 +197,19 @@ export const getProjects = async (orgId) => {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 };
 
-export const createProject = async (orgId, { name, departmentId, memberUserIds = [] }) => {
+export const createProject = async (
+  orgId,
+  { name, departmentId, memberUserIds = [], budget = 0, currency = 'USD', budgetNotes = '' }
+) => {
   const projRef = doc(collection(db, ORGS_COLLECTION, orgId, 'projects'));
   const projDoc = {
     name,
     departmentId,
     memberUserIds,
     status: 'active',
+    budget: Number(budget) || 0,
+    currency: currency || 'USD',
+    budgetNotes: budgetNotes || '',
     createdAt: Timestamp.now(),
   };
   await setDoc(projRef, projDoc);
