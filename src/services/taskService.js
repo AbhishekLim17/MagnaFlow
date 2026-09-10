@@ -324,6 +324,7 @@ export const getTaskStatistics = async (filters = {}) => {
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in-progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
+      review: tasks.filter(t => t.status === 'review').length,
       cancelled: tasks.filter(t => t.status === 'cancelled').length,
       byPriority: {
         low: tasks.filter(t => t.priority === 'low').length,
@@ -353,3 +354,4 @@ export const getTasksCreatedBy = async (userId) => {
     throw error;
   }
 };
+

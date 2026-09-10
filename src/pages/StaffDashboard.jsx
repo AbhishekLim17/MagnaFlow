@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
+import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import KanbanBoard from '@/components/shared/KanbanBoard';
 import StatCard from '@/components/shared/StatCard';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
@@ -43,6 +44,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
       pending: 'bg-muted text-muted-foreground border-border',
       'in-progress': 'bg-primary-soft text-primary border-primary/30',
       completed: 'bg-success-soft text-success border-success/30',
+      review: 'bg-amber-500/10 text-amber-600 border-amber-300/50',
     };
     return badges[status] || badges.pending;
   };
@@ -139,6 +141,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
               <SelectContent>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="review">In Review</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
@@ -159,6 +162,12 @@ const StaffDashboard = () => {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('staffTaskViewMode') || 'list');
+
+  const switchView = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('staffTaskViewMode', mode);
+  };
 
   useEffect(() => {
     if (user) {
@@ -308,12 +317,29 @@ const StaffDashboard = () => {
             {/* Header with Add Task Button */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-xl font-semibold">My Tasks</h3>
-              <Button
-                onClick={() => setIsAddTaskOpen(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Personal Task
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* View toggle */}
+                <div className="flex items-center rounded-lg border border-border overflow-hidden bg-muted">
+                  <button
+                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => switchView('list')}
+                    title="List view"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => switchView('kanban')}
+                    title="Kanban view"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </div>
+                <Button onClick={() => setIsAddTaskOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Personal Task
+                </Button>
+              </div>
             </div>
 
             {/* Filters */}
@@ -336,6 +362,7 @@ const StaffDashboard = () => {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -352,8 +379,26 @@ const StaffDashboard = () => {
               </Select>
             </div>
 
+            {/* Kanban View */}
+            {viewMode === 'kanban' && !loading && (
+              <KanbanBoard
+                tasks={filteredTasks}
+                staffMap={{ [user?.id]: user?.name || user?.email || 'You' }}
+                onStatusChange={async (taskId, newStatus) => {
+                  try {
+                    await updateTaskStatus(taskId, newStatus);
+                    toast({ title: 'Task moved', description: 'Status updated.' });
+                  } catch {
+                    toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+                  }
+                }}
+                onCardClick={setSelectedTask}
+                canAdd={false}
+              />
+            )}
+
             {/* Tasks List */}
-            {loading ? (
+            {viewMode === 'list' && (loading ? (
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
                 <p className="mt-4 text-muted-foreground">Loading tasks...</p>
@@ -380,7 +425,8 @@ const StaffDashboard = () => {
                   />
                 ))}
               </div>
-            )}
+            ))
+            }
           </div>
         </Card>
       </main>
@@ -415,3 +461,5 @@ const StaffDashboard = () => {
 };
 
 export default StaffDashboard;
+
+

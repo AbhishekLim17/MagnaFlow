@@ -124,6 +124,7 @@ const TaskFormDialog = ({
                 <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
@@ -181,3 +182,4 @@ const TaskFormDialog = ({
 };
 
 export default TaskFormDialog;
+

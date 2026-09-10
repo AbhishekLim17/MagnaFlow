@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import KanbanBoard from '@/components/shared/KanbanBoard';
 import {
   Tooltip,
   TooltipContent,
@@ -150,7 +151,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
 };
 
 const TaskManagement = () => {
-  const { tasks, tasksTruncated, loading, createTask, updateTask, deleteTask, refreshTasks } = useTasks();
+  const { tasks, tasksTruncated, loading, createTask, updateTask, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -163,6 +164,12 @@ const TaskManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskForComments, setTaskForComments] = useState(null);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('taskViewMode') || 'list');
+
+  const switchView = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('taskViewMode', mode);
+  };
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
@@ -379,9 +386,16 @@ const TaskManagement = () => {
       pending: 'bg-muted text-muted-foreground border-border',
       'in-progress': 'bg-primary-soft text-primary border-primary/30',
       completed: 'bg-success-soft text-success border-success/30',
+      review: 'bg-amber-500/10 text-amber-600 border-amber-300/50',
     };
     return styles[status] || styles.pending;
   };
+
+  const staffMap = React.useMemo(() => {
+    const m = {};
+    staff.forEach(s => { m[s.id] = s.name || s.email; });
+    return m;
+  }, [staff]);
 
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -399,12 +413,29 @@ const TaskManagement = () => {
         <div>
           <p className="text-muted-foreground mt-1">Create and assign tasks to your team</p>
         </div>
-        <Button
-          onClick={() => setIsAddDialogOpen(true)} variant="success"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Task
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg border border-border overflow-hidden bg-muted">
+            <button
+              className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => switchView('list')}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => switchView('kanban')}
+              title="Kanban view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)} variant="success">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Task
+          </Button>
+        </div>
       </div>
 
       {/* A read this size is bounded (see taskService); this is the only
@@ -458,7 +489,30 @@ const TaskManagement = () => {
         </div>
       </Card>
 
+      {/* Kanban View */}
+      {viewMode === 'kanban' && !loading && (
+        <KanbanBoard
+          tasks={filteredTasks}
+          staffMap={staffMap}
+          onStatusChange={async (taskId, newStatus) => {
+            try {
+              await updateTaskStatus(taskId, newStatus);
+              toast({ title: 'Task moved', description: 'Status updated successfully.' });
+            } catch {
+              toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+            }
+          }}
+          onCardClick={setTaskForComments}
+          onAddTask={(defaultStatus) => {
+            setFormData(prev => ({ ...prev, status: defaultStatus }));
+            setIsAddDialogOpen(true);
+          }}
+          canAdd={true}
+        />
+      )}
+
       {/* Tasks List */}
+      {viewMode === 'list' && (
       <Card>
         <div className="p-6">
           {loading ? (
@@ -490,6 +544,7 @@ const TaskManagement = () => {
           )}
         </div>
       </Card>
+      )}
 
       <TaskFormDialog
         mode="add"
@@ -547,3 +602,5 @@ const TaskManagement = () => {
 };
 
 export default TaskManagement;
+
+
