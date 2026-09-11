@@ -6,6 +6,7 @@
 // twice when the Gantt chart was introduced.
 
 import React from 'react';
+import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ const TaskFormDialog = ({
   setFormData,
   staff = [],
   projects = [],
+  tasks = [],
   onSubmit,
   onCancel,
 }) => {
@@ -170,6 +172,56 @@ const TaskFormDialog = ({
               </Select>
             </div>
           </div>
+
+
+          {/* Depends On (blockedBy) multi-select */}
+          {tasks.length > 0 && (
+            <div>
+              <Label>Depends On <span className="text-muted-foreground text-xs font-normal">(blocked by)</span></Label>
+              <Select
+                value=""
+                onValueChange={(v) => {
+                  const current = formData.blockedBy || [];
+                  if (!current.includes(v)) set({ blockedBy: [...current, v] });
+                }}
+              >
+                <SelectTrigger className={FIELD_CLASS}>
+                  <SelectValue placeholder="Add a prerequisite task…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tasks
+                    .filter((t) => t.id !== (formData.id || '') && !(formData.blockedBy || []).includes(t.id))
+                    .map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {(formData.blockedBy || []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {(formData.blockedBy || []).map((depId) => {
+                    const dep = tasks.find((t) => t.id === depId);
+                    if (!dep) return null;
+                    return (
+                      <span
+                        key={depId}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs px-2.5 py-0.5 border border-primary/20"
+                      >
+                        {dep.title}
+                        <button
+                          type="button"
+                          aria-label={`Remove dependency on ${dep.title}`}
+                          onClick={() => set({ blockedBy: (formData.blockedBy || []).filter((id) => id !== depId) })}
+                          className="ml-0.5 hover:text-destructive transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter>

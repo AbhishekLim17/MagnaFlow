@@ -183,6 +183,7 @@ const TaskManagement = () => {
     startDate: '',
     deadline: '',
     projectId: '',
+    blockedBy: [],
   });
 
   const { toast } = useToast();
@@ -321,6 +322,7 @@ const TaskManagement = () => {
       startDate: task.startDate ? formatDateForInput(task.startDate) : '',
       deadline: task.deadline ? formatDateForInput(task.deadline) : '',
       projectId: task.projectId || '',
+      blockedBy: Array.isArray(task.blockedBy) ? task.blockedBy : [],
     });
     setIsEditDialogOpen(true);
   };
@@ -340,6 +342,7 @@ const TaskManagement = () => {
       startDate: '',
       deadline: '',
       projectId: '',
+      blockedBy: [],
     });
     setSelectedTask(null);
   };
@@ -554,6 +557,7 @@ const TaskManagement = () => {
         setFormData={setFormData}
         staff={staff}
         projects={projects}
+        tasks={tasks}
         onSubmit={handleAddTask}
         onCancel={() => { setIsAddDialogOpen(false); resetForm(); }}
       />
@@ -566,6 +570,7 @@ const TaskManagement = () => {
         setFormData={setFormData}
         staff={staff}
         projects={projects}
+        tasks={tasks}
         onSubmit={handleEditTask}
         onCancel={() => { setIsEditDialogOpen(false); resetForm(); }}
       />

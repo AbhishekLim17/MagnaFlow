@@ -168,6 +168,7 @@ export const createTask = async (taskData) => {
       createdBy,
       departmentId,
       projectId,
+      blockedBy,
     } = taskData;
     let { orgId } = taskData;
 
@@ -193,6 +194,7 @@ export const createTask = async (taskData) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       completedAt: null,
+      blockedBy: Array.isArray(blockedBy) ? blockedBy : [],
     };
     
     const docRef = await addDoc(collection(db, TASKS_COLLECTION), taskDoc);
