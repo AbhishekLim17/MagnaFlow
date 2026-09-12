@@ -307,15 +307,30 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                       : 'url(#dep-arrow-normal)';
                     const strokeW = isCriticalEdge ? 2 : 1.5;
 
-                    // Elbow connector: go right from pred, bend down/up, arrive at succ.
-                    // Midpoint X is at least 12px past pred right edge so the elbow
-                    // doesn't double back on itself when succ starts before pred ends.
-                    const elbowX = Math.max(x1 + 12, (x1 + x2) / 2);
+                    // Classic Gantt finish-to-start connector:
+                    //  1. Exit from the BOTTOM of the pred bar (right side)
+                    //  2. Drop straight down into the row-gap below the pred row
+                    //  3. Travel right (or left if needed) to line up with the succ bar
+                    //  4. Rise to the vertical centre of the successor row
+                    //  5. Arrive at the left edge of the succ bar — arrowhead →
+                    const BAR_H     = 20;                              // h-5 = 20px
+                    const barTop    = predIdx * ROW_H + (ROW_H - BAR_H) / 2;
+                    const barBottom = barTop + BAR_H;
+                    const exitX     = predGeo.rightPx;
+                    const exitY     = barBottom;
+                    // Row-gap: 4 px below pred row border (visually between rows)
+                    const rowGapY   = predIdx * ROW_H + ROW_H + 4;
+                    const entryX    = succGeo.leftPx;
+                    const entryY    = succIdx  * ROW_H + ROW_H / 2;
+                    // If the successor starts too close/before pred ends, extend 14px past pred
+                    const turnX     = entryX < exitX + 14 ? exitX + 14 : entryX;
+
                     const d =
-                      `M ${x1} ${y1} ` +
-                      `H ${elbowX} ` +
-                      `V ${y2} ` +
-                      `H ${x2}`;
+                      `M ${exitX} ${exitY} ` +   // bottom of pred bar (right edge)
+                      `V ${rowGapY} ` +            // down into the row gap
+                      `H ${turnX} ` +              // right toward (or past) succ
+                      `V ${entryY} ` +             // up to succ bar mid-height
+                      `H ${entryX}`;              // into succ bar left edge
 
                     return (
                       <path
