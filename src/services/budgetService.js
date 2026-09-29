@@ -1,11 +1,13 @@
-// Budget Service — expenses sub-collection under organizations/{orgId}/projects/{projId}/expenses
+// Budget Service ï¿½ expenses sub-collection under organizations/{orgId}/projects/{projId}/expenses
 // Provides full CRUD for expense entries and a budget summary computation.
 
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -17,8 +19,6 @@ import { auth, db } from '@/config/firebase';
 const orgsCol = 'organizations';
 
 // Path helpers
-const projectRef = (orgId, projId) =>
-  doc(db, orgsCol, orgId, 'projects', projId);
 
 const expensesCol = (orgId, projId) =>
   collection(db, orgsCol, orgId, 'projects', projId, 'expenses');
@@ -95,15 +95,44 @@ export const computeBudgetSummary = (expenses = [], budget = 0) => {
   return { spent, budget, remaining, pctUsed, byCategory };
 };
 
-// Update budget meta on project document
+// Budget figures live in organizations/{org}/projects/{proj}/finance/budget, not on
+// the project document (which every member of the organization can read).
+const financeRef = (orgId, projId) =>
+  doc(db, orgsCol, orgId, 'projects', projId, 'finance', 'budget');
+
+export const getProjectBudget = async (orgId, projId) => {
+  const snap = await getDoc(financeRef(orgId, projId));
+  return snap.exists() ? snap.data() : null;
+};
+
+/**
+ * Fold each project's budget into the project object so callers keep one flat
+ * shape. Projects not yet migrated still carry the legacy fields, which remain as
+ * the fallback.
+ */
+export const attachBudgets = (orgId, projects) =>
+  Promise.all(
+    projects.map(async (p) => {
+      try {
+        const b = await getProjectBudget(orgId, p.id);
+        return b ? { ...p, ...b } : p;
+      } catch {
+        return p;
+      }
+    })
+  );
 
 export const updateProjectBudget = async (orgId, projId, budgetFields) => {
   try {
-    await updateDoc(projectRef(orgId, projId), {
-      budget: Number(budgetFields.budget) || 0,
-      currency: budgetFields.currency || 'USD',
-      budgetNotes: budgetFields.budgetNotes || '',
-    });
+    await setDoc(
+      financeRef(orgId, projId),
+      {
+        budget: Number(budgetFields.budget) || 0,
+        currency: budgetFields.currency || 'USD',
+        budgetNotes: budgetFields.budgetNotes || '',
+      },
+      { merge: true }
+    );
   } catch (error) {
     console.error('Error updating project budget:', error);
     throw error;

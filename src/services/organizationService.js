@@ -19,11 +19,21 @@ import {
   where,
   orderBy,
   limit as firestoreLimit,
+  writeBatch,
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 
 const ORGS_COLLECTION = 'organizations';
+
+// Billing contact, CC list, storage and seat limit are NOT kept on the
+// organization document: every member (clients included) can read that one.
+// They live in organizations/{id}/private/settings (org-admin + master-admin).
+// The seat counter lives in organizations/{id}/meta/seats, where the rules only
+// let it move together with a user being added or removed.
+const PRIVATE_FIELDS = ['seatLimit', 'storageQuotaMB', 'billingEmail', 'ccEmails'];
+const settingsRef = (orgId) => doc(db, ORGS_COLLECTION, orgId, 'private', 'settings');
+const seatsRef = (orgId) => doc(db, ORGS_COLLECTION, orgId, 'meta', 'seats');
 
 // Best-effort audit trail. Rules allow only master-admin to write audit_logs,
 // so this silently no-ops for other callers rather than failing their action.
@@ -43,7 +53,26 @@ const writeAuditLog = async (entry) => {
 
 export const getAllOrganizations = async () => {
   const snapshot = await getDocs(collection(db, ORGS_COLLECTION));
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const orgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Master-admin view: fold each organization's private settings back in, so the
+  // caller still sees one flat object. Organizations not yet migrated keep the
+  // legacy fields on the document itself, which stay as the fallback.
+  return Promise.all(
+    orgs.map(async (org) => {
+      try {
+        const s = await getDoc(settingsRef(org.id));
+        return s.exists() ? { ...org, ...s.data() } : org;
+      } catch {
+        return org;
+      }
+    })
+  );
+};
+
+/** Private settings (billing contact, CC list, ...). Org-admin and master-admin only. */
+export const getOrganizationSettings = async (orgId) => {
+  const s = await getDoc(settingsRef(orgId));
+  return s.exists() ? s.data() : null;
 };
 
 export const getOrganizationById = async (orgId) => {
@@ -70,17 +99,27 @@ export const generateOrgId = () => doc(collection(db, ORGS_COLLECTION)).id;
  * @returns {Promise<{orgId: string}>}
  */
 export const provisionOrganization = async (orgId, orgData) => {
-  await setDoc(doc(db, ORGS_COLLECTION, orgId), {
+  const seatLimit = Number(orgData.seatLimit ?? 10) || 10;
+  // The first org-admin's account is created before this runs (see
+  // MasterAdminDashboard), so start the seat counter from what already exists.
+  const existing = await getDocs(query(collection(db, 'users'), where('orgId', '==', orgId)));
+
+  const batch = writeBatch(db);
+  batch.set(doc(db, ORGS_COLLECTION, orgId), {
     name: orgData.name,
     plan: orgData.plan ?? 'trial',
     status: orgData.plan === 'active' ? 'active' : 'trial',
-    seatLimit: orgData.seatLimit ?? 10,
-    storageQuotaMB: orgData.storageQuotaMB ?? 1000,
-    billingEmail: orgData.billingEmail ?? '',
-    ccEmails: orgData.ccEmails ?? [],
     createdAt: Timestamp.now(),
     createdByMasterAdminId: auth.currentUser?.uid || null,
   });
+  batch.set(settingsRef(orgId), {
+    seatLimit,
+    storageQuotaMB: orgData.storageQuotaMB ?? 1000,
+    billingEmail: orgData.billingEmail ?? '',
+    ccEmails: orgData.ccEmails ?? [],
+  });
+  batch.set(seatsRef(orgId), { seatsUsed: existing.size, seatLimit, lastSeatUid: null });
+  await batch.commit();
   await writeAuditLog({ action: 'provision_org', targetOrgId: orgId });
   return { orgId };
 };
@@ -93,21 +132,29 @@ export const provisionOrganization = async (orgId, orgData) => {
  * @param {Object} updates
  */
 export const updateOrganization = async (orgId, updates) => {
-  const allowed = ['name', 'plan', 'seatLimit', 'storageQuotaMB', 'billingEmail', 'ccEmails'];
-  const patch = {};
+  const allowed = ['name', 'plan', ...PRIVATE_FIELDS];
+  const pub = {};
+  const priv = {};
   for (const k of allowed) {
-    if (updates[k] !== undefined) patch[k] = updates[k];
+    if (updates[k] === undefined) continue;
+    (PRIVATE_FIELDS.includes(k) ? priv : pub)[k] = updates[k];
   }
   // Plan and status were conflated: changing a trial org to Active updated the
   // label but left it showing as a trial. Keep them in step, except that a
   // suspension must never be lifted as a side effect of editing the plan.
-  if (patch.plan !== undefined) {
+  if (pub.plan !== undefined) {
     const current = await getOrganizationById(orgId);
     if (current && current.status !== 'suspended') {
-      patch.status = patch.plan === 'active' ? 'active' : 'trial';
+      pub.status = pub.plan === 'active' ? 'active' : 'trial';
     }
   }
-  await updateDoc(doc(db, ORGS_COLLECTION, orgId), patch);
+
+  const batch = writeBatch(db);
+  if (Object.keys(pub).length > 0) batch.update(doc(db, ORGS_COLLECTION, orgId), pub);
+  if (Object.keys(priv).length > 0) batch.set(settingsRef(orgId), priv, { merge: true });
+  // The limit is enforced against the seat counter, so keep them in step.
+  if (priv.seatLimit !== undefined) batch.set(seatsRef(orgId), { seatLimit: priv.seatLimit }, { merge: true });
+  await batch.commit();
   await writeAuditLog({ action: 'update_org', targetOrgId: orgId });
   return { success: true };
 };
@@ -164,6 +211,25 @@ export const computeOrgUsage = async (orgId) => {
     getDocs(query(collection(db, 'users'), where('orgId', '==', orgId))),
     getDocs(query(collection(db, 'tasks'), where('orgId', '==', orgId))),
   ]);
+
+  // Seat accounting is kept by the rules, but users can also be created or moved
+  // outside the app (Firebase console, master-admin moving accounts between orgs).
+  // Master-admin opening this screen is the moment to notice and correct drift, or
+  // to start counting for an organization that has no counter yet.
+  try {
+    const seats = await getDoc(seatsRef(orgId));
+    if (!seats.exists() || seats.data().seatsUsed !== usersSnap.size) {
+      let seatLimit = seats.exists() ? seats.data().seatLimit : undefined;
+      if (seatLimit === undefined) {
+        const [priv, org] = await Promise.all([getDoc(settingsRef(orgId)), getDoc(doc(db, ORGS_COLLECTION, orgId))]);
+        seatLimit = priv.data()?.seatLimit ?? org.data()?.seatLimit ?? 10;
+      }
+      await setDoc(seatsRef(orgId), { seatsUsed: usersSnap.size, seatLimit, lastSeatUid: seats.data()?.lastSeatUid ?? null });
+    }
+  } catch (error) {
+    console.warn('Could not reconcile seat count:', error?.code || error?.message);
+  }
+
   return { activeUserCount: usersSnap.size, taskCount: tasksSnap.size };
 };
 
@@ -226,13 +292,20 @@ export const createProject = async (
     departmentId,
     memberUserIds,
     status: 'active',
+    createdAt: Timestamp.now(),
+  };
+  // Budget figures go in the finance subdocument, not on the project itself,
+  // which every member of the organization can read.
+  const finance = {
     budget: Number(budget) || 0,
     currency: currency || 'USD',
     budgetNotes: budgetNotes || '',
-    createdAt: Timestamp.now(),
   };
-  await setDoc(projRef, projDoc);
-  return { id: projRef.id, ...projDoc };
+  const batch = writeBatch(db);
+  batch.set(projRef, projDoc);
+  batch.set(doc(projRef, 'finance', 'budget'), finance);
+  await batch.commit();
+  return { id: projRef.id, ...projDoc, ...finance };
 };
 
 export const updateProject = async (orgId, projId, updates) => {

@@ -15,6 +15,7 @@ import {
   query,
   where,
   limit as firestoreLimit,
+  runTransaction,
   Timestamp
 } from 'firebase/firestore';
 import {
@@ -243,6 +244,71 @@ export const assertMayCreate = (caller, { role, orgId, departmentIds, projectIds
   }
 };
 
+// ---- Seat accounting ------------------------------------------------------
+// organizations/{org}/meta/seats = { seatsUsed, seatLimit, lastSeatUid }. The
+// security rules only let it change together with a user document being created
+// or deleted (see seatBump in firestore.rules), so these run as transactions. An
+// organization with no counter yet is simply not under seat accounting.
+const seatsRefFor = (orgId) => doc(db, 'organizations', orgId, 'meta', 'seats');
+
+const seatLimitError = (limit) => Object.assign(
+  new Error(`This organization has used all ${limit} of its seats. Ask the platform owner to raise the limit before adding more people.`),
+  { code: 'seat-limit-reached' }
+);
+
+/** Fail early, BEFORE a Firebase Auth account exists, when no seat is free. */
+export const assertSeatAvailable = async (orgId) => {
+  if (!orgId) return;
+  try {
+    const seats = await getDoc(seatsRefFor(orgId));
+    if (seats.exists()) {
+      const { seatsUsed = 0, seatLimit = Infinity } = seats.data();
+      if (seatsUsed >= seatLimit) throw seatLimitError(seatLimit);
+    }
+  } catch (error) {
+    if (error.code === 'seat-limit-reached') throw error;
+    // Counter not readable by this caller: the rules will still decide.
+  }
+};
+
+const saveNewUserWithSeat = async (uid, userDoc) => {
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  if (!userDoc.orgId) {
+    await setDoc(userRef, userDoc);
+    return;
+  }
+  const seatsRef = seatsRefFor(userDoc.orgId);
+  await runTransaction(db, async (tx) => {
+    const seats = await tx.get(seatsRef);
+    if (!seats.exists()) {
+      tx.set(userRef, userDoc);
+      return;
+    }
+    const { seatsUsed = 0, seatLimit = Infinity } = seats.data();
+    if (seatsUsed >= seatLimit) throw seatLimitError(seatLimit);
+    tx.set(userRef, userDoc);
+    tx.update(seatsRef, { seatsUsed: seatsUsed + 1, lastSeatUid: uid });
+  });
+};
+
+const deleteUserWithSeat = async (uid, orgId) => {
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  if (!orgId) {
+    await deleteDoc(userRef);
+    return;
+  }
+  const seatsRef = seatsRefFor(orgId);
+  await runTransaction(db, async (tx) => {
+    const seats = await tx.get(seatsRef);
+    tx.delete(userRef);
+    if (seats.exists()) {
+      const used = seats.data().seatsUsed || 0;
+      // At zero the counter has drifted; the rules accept the delete without a decrement.
+      if (used > 0) tx.update(seatsRef, { seatsUsed: used - 1, lastSeatUid: uid });
+    }
+  });
+};
+
 export const createUser = async (userData) => {
   let { email, password, name, role, designation, status, orgId, departmentIds, projectIds } = userData;
   try {
@@ -262,6 +328,7 @@ export const createUser = async (userData) => {
     }
 
     await assertMayCreate(await getCallerProfile(), { role, orgId, departmentIds, projectIds });
+    await assertSeatAvailable(orgId);
 
     // Create user using SECONDARY auth instance (won't affect admin session).
     // The secondary instance becomes signed-in as the new user as a side
@@ -342,7 +409,7 @@ export const createUser = async (userData) => {
     };
 
     try {
-      await setDoc(doc(db, USERS_COLLECTION, uid), userDoc);
+      await saveNewUserWithSeat(uid, userDoc);
     } catch (docError) {
       // The Auth account exists but has no profile — it can never sign in and
       // its email is now reserved. Make that recoverable instead of silent.
@@ -352,13 +419,15 @@ export const createUser = async (userData) => {
       try {
         await deleteAuthUser(userCredential.user);
         const rolledBack = new Error(
-          `Could not save the profile for ${email} (${docError.code || docError.message}). ` +
-          `Nothing was created, so you can fix the problem and try again.`
+          docError.code === 'seat-limit-reached'
+            ? docError.message
+            : `Could not save the profile for ${email} (${docError.code || docError.message}). ` +
+              `Nothing was created, so you can fix the problem and try again.`
         );
-        rolledBack.code = 'profile-write-failed';
+        rolledBack.code = docError.code === 'seat-limit-reached' ? 'seat-limit-reached' : 'profile-write-failed';
         throw rolledBack;
       } catch (rollbackError) {
-        if (rollbackError.code === 'profile-write-failed') throw rollbackError;
+        if (rollbackError.code === 'profile-write-failed' || rollbackError.code === 'seat-limit-reached') throw rollbackError;
         const orphanError = new Error(
           `The sign-in account for ${email} was created, but saving their profile failed ` +
           `(${docError.code || docError.message}) and it could not be rolled back. Delete that account in ` +
@@ -465,7 +534,7 @@ export const deleteUser = async (uid) => {
     }
 
     if (!cloudFnSuccess) {
-      await deleteDoc(doc(db, USERS_COLLECTION, uid));
+      await deleteUserWithSeat(uid, victim?.orgId ?? null);
 
       if (typeof window !== 'undefined' && import.meta.env?.VITE_USE_EMULATORS === 'true') {
         try {

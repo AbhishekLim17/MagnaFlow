@@ -219,9 +219,6 @@ async function seed() {
     name: 'Northbridge Holdings Pvt. Ltd.',
     status: 'active',
     plan: 'active',
-    seatLimit: 100,
-    storageQuotaMB: 20000,
-    billingEmail: 'billing@northbridge-demo.test',
     createdAt: day(-400),
   });
   const orgRef = db.collection('organizations').doc(ORG_ID);
@@ -257,17 +254,27 @@ async function seed() {
     });
   }
 
+  // Billing details and the seat counter live in subdocuments (see organizationService).
+  const seated = (await db.collection('users').where('orgId', '==', ORG_ID).get()).size;
+  await orgRef.collection('private').doc('settings').set({
+    seatLimit: 100,
+    storageQuotaMB: 20000,
+    billingEmail: 'billing@northbridge-demo.test',
+    ccEmails: [],
+  });
+  await orgRef.collection('meta').doc('seats').set({ seatsUsed: seated, seatLimit: 100, lastSeatUid: null });
+
   console.log('Creating designations, including a pre-existing near-duplicate…');
   const allDesignations = new Set(Object.values(DESIGNATIONS_BY_DEPT).flat());
   for (const name of allDesignations) {
-    await db.collection('designations').add({ name, description: `${name} role`, createdAt: day(-350) });
+    await db.collection('designations').add({ name, description: `${name} role`, orgId: ORG_ID, createdAt: day(-350) });
   }
   // The app's own "add designation" guard trims and lowercases before
   // comparing, so it cannot create this through the UI — but bad historical
   // data or a race before that guard existed absolutely can produce it. This
   // checks the management screen does not choke on, or silently merge, two
   // designations that are "the same" to a human but not to a strict compare.
-  await db.collection('designations').add({ name: 'Software Engineer ', description: 'Legacy duplicate with trailing space', createdAt: day(-5) });
+  await db.collection('designations').add({ name: 'Software Engineer ', description: 'Legacy duplicate with trailing space', orgId: ORG_ID, createdAt: day(-5) });
 
   console.log('Creating tasks (this is the slow part)…');
   const allAssignable = [

@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
 import { beforeAll, afterAll, beforeEach, describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -864,5 +864,161 @@ describe('suspended organizations are cut off by the rules', () => {
     await assertSucceeds(getDoc(doc(asUser(MASTER), 'tasks', 'taskA')));
     await assertSucceeds(updateDoc(doc(asUser(MASTER), 'organizations', ORG_A), { status: 'active' }));
     await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'tasks', 'taskA')));
+  });
+});
+
+describe('organization private settings and finance are admin-only', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'organizations', ORG_A, 'private', 'settings'), { billingEmail: 'bill@a.test', ccEmails: ['boss@a.test'] });
+      await setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A, 'finance', 'budget'), { budget: 1000, currency: 'USD' });
+    });
+  });
+  const settings = (db) => doc(db, 'organizations', ORG_A, 'private', 'settings');
+  const budget = (db) => doc(db, 'organizations', ORG_A, 'projects', PROJ_A, 'finance', 'budget');
+
+  test('org-admin and master-admin can read the settings', async () => {
+    await assertSucceeds(getDoc(settings(asUser(ADMIN_A))));
+    await assertSucceeds(getDoc(settings(asUser(MASTER))));
+  });
+  test('managers, heads, staff, clients and other orgs cannot', async () => {
+    for (const uid of [MGR_A, HEAD_A, STAFF_A, CLIENT_A, ADMIN_B]) {
+      await assertFails(getDoc(settings(asUser(uid))));
+    }
+  });
+  test('only master-admin can change the settings', async () => {
+    await assertFails(updateDoc(settings(asUser(ADMIN_A)), { billingEmail: 'x@x.test' }));
+    await assertSucceeds(updateDoc(settings(asUser(MASTER)), { billingEmail: 'x@x.test' }));
+  });
+
+  test('the project budget is readable by org-admin, the project manager and department head', async () => {
+    for (const uid of [ADMIN_A, MGR_A, HEAD_A, MASTER]) await assertSucceeds(getDoc(budget(asUser(uid))));
+  });
+  test('staff, clients and other orgs cannot read the project budget', async () => {
+    for (const uid of [STAFF_A, STAFF_SCOPED, CLIENT_A, ADMIN_B]) await assertFails(getDoc(budget(asUser(uid))));
+  });
+  test('only org-admin can set the budget', async () => {
+    await assertSucceeds(updateDoc(budget(asUser(ADMIN_A)), { budget: 2000 }));
+    await assertFails(updateDoc(budget(asUser(MGR_A)), { budget: 9999 }));
+    await assertFails(updateDoc(budget(asUser(ADMIN_B)), { budget: 9999 }));
+  });
+});
+
+describe('seat limits are enforced by the rules', () => {
+  const seats = (db) => doc(db, 'organizations', ORG_A, 'meta', 'seats');
+  const newStaff = (id) => ({ role: 'staff', orgId: ORG_A, departmentIds: [], projectIds: [], email: `${id}@x.com`, status: 'active' });
+
+  const setSeats = async (data) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'organizations', ORG_A, 'meta', 'seats'), { lastSeatUid: null, ...data });
+    });
+  };
+
+  // What the app does: add the user and bump the counter together.
+  const addUser = async (who, id, bumpTo) => {
+    const db = asUser(who);
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', id), newStaff(id));
+    batch.update(seats(db), { seatsUsed: bumpTo, lastSeatUid: id });
+    return batch.commit();
+  };
+
+  test('adding a user within the limit works, with the counter moved by one', async () => {
+    await setSeats({ seatsUsed: 3, seatLimit: 5 });
+    await assertSucceeds(addUser(ADMIN_A, 'n1', 4));
+  });
+  test('a department head can add staff the same way', async () => {
+    await setSeats({ seatsUsed: 3, seatLimit: 5 });
+    const db = asUser(HEAD_A);
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', 'n2'), { ...newStaff('n2'), departmentIds: [DEPT_A] });
+    batch.update(seats(db), { seatsUsed: 4, lastSeatUid: 'n2' });
+    await assertSucceeds(batch.commit());
+  });
+  test('adding a user beyond the limit is refused', async () => {
+    await setSeats({ seatsUsed: 5, seatLimit: 5 });
+    await assertFails(addUser(ADMIN_A, 'n3', 6));
+  });
+  test('adding a user without moving the counter is refused', async () => {
+    await setSeats({ seatsUsed: 3, seatLimit: 5 });
+    await assertFails(setDoc(doc(asUser(ADMIN_A), 'users', 'n4'), newStaff('n4')));
+  });
+  test('the counter cannot be moved by more than one', async () => {
+    await setSeats({ seatsUsed: 3, seatLimit: 5 });
+    await assertFails(addUser(ADMIN_A, 'n5', 5));
+  });
+  test('the counter cannot be lowered or raised on its own', async () => {
+    await setSeats({ seatsUsed: 5, seatLimit: 5 });
+    await assertFails(updateDoc(seats(asUser(ADMIN_A)), { seatsUsed: 4, lastSeatUid: STAFF_A }));
+    await assertFails(updateDoc(seats(asUser(ADMIN_A)), { seatsUsed: 6, lastSeatUid: 'ghost' }));
+  });
+  test('the limit itself cannot be changed by an org-admin', async () => {
+    await setSeats({ seatsUsed: 3, seatLimit: 5 });
+    await assertFails(updateDoc(seats(asUser(ADMIN_A)), { seatLimit: 500 }));
+    await assertSucceeds(updateDoc(seats(asUser(MASTER)), { seatLimit: 500 }));
+  });
+  test('removing a user frees a seat, and only together', async () => {
+    await setSeats({ seatsUsed: 5, seatLimit: 5 });
+    await assertFails(deleteDoc(doc(asUser(ADMIN_A), 'users', STAFF_A)));
+    const db = asUser(ADMIN_A);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'users', STAFF_A));
+    batch.update(seats(db), { seatsUsed: 4, lastSeatUid: STAFF_A });
+    await assertSucceeds(batch.commit());
+  });
+  test('a freed seat cannot be claimed without deleting the user', async () => {
+    await setSeats({ seatsUsed: 5, seatLimit: 5 });
+    await assertFails(updateDoc(seats(asUser(ADMIN_A)), { seatsUsed: 4, lastSeatUid: STAFF_A }));
+  });
+  test('an organization without a seat counter is not affected', async () => {
+    await assertSucceeds(setDoc(doc(asUser(ADMIN_B), 'users', 'nb'), { ...newStaff('nb'), orgId: ORG_B }));
+  });
+  test('staff and clients cannot touch the counter', async () => {
+    await setSeats({ seatsUsed: 3, seatLimit: 5 });
+    await assertFails(updateDoc(seats(asUser(STAFF_A)), { seatsUsed: 4, lastSeatUid: 'x' }));
+    await assertFails(getDoc(seats(asUser(CLIENT_A))));
+    await assertSucceeds(getDoc(seats(asUser(MGR_A))));
+  });
+});
+
+describe('deleting a task can clear its conversation', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'task_attachments', 'attA'), { taskId: 'taskA', uploadedBy: STAFF_A });
+    });
+  });
+  test('the project manager can delete comments on tasks in their project', async () => {
+    await assertSucceeds(deleteDoc(doc(asUser(MGR_A), 'task_comments', 'comA')));
+  });
+  test('org-admin can', async () => {
+    await assertSucceeds(deleteDoc(doc(asUser(ADMIN_A), 'task_comments', 'comA')));
+  });
+  test('department head can', async () => {
+    await assertSucceeds(deleteDoc(doc(asUser(HEAD_A), 'task_comments', 'comA')));
+  });
+  test('ordinary staff cannot delete someone elses comment', async () => {
+    await assertFails(deleteDoc(doc(asUser(STAFF_SCOPED), 'task_comments', 'comA')));
+  });
+  test('another organization cannot', async () => {
+    await assertFails(deleteDoc(doc(asUser(ADMIN_B), 'task_comments', 'comA')));
+  });
+  test('the author can still delete their own comment', async () => {
+    await assertSucceeds(deleteDoc(doc(asUser(STAFF_A), 'task_comments', 'comA')));
+  });
+  test('moderators can clear attachments and notifications for the task', async () => {
+    await assertSucceeds(deleteDoc(doc(asUser(MGR_A), 'task_attachments', 'attA')));
+    await assertSucceeds(getDoc(doc(asUser(MGR_A), 'comment_notifications', 'notifA')));
+    await assertSucceeds(deleteDoc(doc(asUser(ADMIN_A), 'comment_notifications', 'notifA')));
+  });
+  test('but they still cannot read notifications for tasks outside their scope', async () => {
+    await assertFails(getDoc(doc(asUser(ADMIN_B), 'comment_notifications', 'notifA')));
+    await assertFails(getDoc(doc(asUser(STAFF_SCOPED), 'comment_notifications', 'notifA')));
+  });
+  test('a recipient can still read their own notifications by query', async () => {
+    await assertSucceeds(getDocs(query(collection(asUser(STAFF_A), 'comment_notifications'), where('userId', '==', STAFF_A))));
+  });
+  test('a moderator can list the notifications of a task by taskId', async () => {
+    await assertSucceeds(getDocs(query(collection(asUser(MGR_A), 'comment_notifications'), where('taskId', '==', 'taskA'))));
   });
 });

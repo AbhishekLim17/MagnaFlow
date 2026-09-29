@@ -66,6 +66,7 @@ import {
   deleteExpense,
   computeBudgetSummary,
   updateProjectBudget,
+  attachBudgets,
 } from '@/services/budgetService';
 import { reportError } from '@/lib/reportError';
 
@@ -154,6 +155,7 @@ const BudgetTracker = () => {
   useEffect(() => {
     if (!user?.orgId) return;
     getProjects(user.orgId)
+      .then((ps) => attachBudgets(user.orgId, ps))
       .then((ps) => {
         const active = ps.filter((p) => p.status !== 'archived');
         setProjects(active);

@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['scripts/integration/**/*.itest.js'],
+    // The files share one emulator and clear collections, so they must not overlap.
+    fileParallelism: false,
     testTimeout: 60000,
     hookTimeout: 60000,
   },

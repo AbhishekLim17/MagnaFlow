@@ -19,12 +19,16 @@ const fs = require('fs');
 const argv = process.argv.slice(2);
 const apply = argv.includes('--apply');
 const keyIdx = argv.indexOf('--key');
-if (keyIdx === -1 || !argv[keyIdx + 1]) {
-  console.error('Usage: --key <service-account.json> [--apply]');
-  process.exit(2);
+// FIRESTORE_EMULATOR_HOST (integration tests) needs no credential.
+if (process.env.FIRESTORE_EMULATOR_HOST) {
+  admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT || 'demo-magnaflow' });
+} else {
+  if (keyIdx === -1 || !argv[keyIdx + 1]) {
+    console.error('Usage: --key <service-account.json> [--apply]');
+    process.exit(2);
+  }
+  admin.initializeApp({ credential: admin.credential.cert(JSON.parse(fs.readFileSync(argv[keyIdx + 1], 'utf8'))) });
 }
-
-admin.initializeApp({ credential: admin.credential.cert(JSON.parse(fs.readFileSync(argv[keyIdx + 1], 'utf8'))) });
 const db = admin.firestore();
 
 async function main() {

@@ -5,10 +5,12 @@ import {
   collection, 
   doc, 
   getDoc,
+  getDocs,
   addDoc,
   updateDoc, 
   deleteDoc,
   arrayRemove,
+  query,
   where,
   Timestamp
 } from 'firebase/firestore';
@@ -296,6 +298,19 @@ export const updateTask = async (taskId, updates) => {
  * @param {string} taskId - Task ID
  * @returns {Promise<void>}
  */
+// Comments, attachment records and mention notifications are keyed by taskId. They
+// are removed with the task where the rules allow it (admins, and the head or
+// manager whose scope the task is in); anything the caller may not delete is left
+// behind, unreachable once the task is gone, rather than blocking the delete.
+const deleteByTaskId = async (collectionName, taskId) => {
+  try {
+    const snap = await getDocs(query(collection(db, collectionName), where('taskId', '==', taskId)));
+    await Promise.allSettled(snap.docs.map((d) => deleteDoc(d.ref)));
+  } catch (error) {
+    console.warn(`Could not clear ${collectionName} for task`, taskId, error?.code || error?.message);
+  }
+};
+
 export const deleteTask = async (taskId, { dependentTaskIds = [] } = {}) => {
   try {
     // First, delete all associated subtasks
@@ -316,6 +331,10 @@ export const deleteTask = async (taskId, { dependentTaskIds = [] } = {}) => {
       }
     }));
     
+    await Promise.all(
+      ['task_comments', 'task_attachments', 'comment_notifications'].map((c) => deleteByTaskId(c, taskId))
+    );
+
     // Then delete the task itself
     await deleteDoc(doc(db, TASKS_COLLECTION, taskId));
     console.log('Task deleted:', taskId);

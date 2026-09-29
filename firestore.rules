@@ -92,6 +92,54 @@ service cloud.firestore {
         || (isDeptHead() && isOrgMember(orgId) && projectDept(orgId, projId) in myDeptIds()));
     }
 
+
+    // ---- Seat accounting ----------------------------------------------------
+    // organizations/{org}/meta/seats holds { seatsUsed, seatLimit, lastSeatUid }.
+    // Creating a user must bump the counter by exactly one in the SAME batch, and
+    // deleting one must lower it by one, so an org can never exceed its limit
+    // through the app. The counter can only be moved together with a real user
+    // document appearing or disappearing (see seatBump), so it cannot be
+    // decremented on its own to make room. An organization with no seats document
+    // is not yet under seat accounting and is unaffected.
+    function seatsPath(orgId) { return /databases/$(database)/documents/organizations/$(orgId)/meta/seats; }
+    function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function seatTaken(orgId, uid) {
+      return !exists(seatsPath(orgId))
+        || (getAfter(seatsPath(orgId)).data.seatsUsed == get(seatsPath(orgId)).data.seatsUsed + 1
+            && getAfter(seatsPath(orgId)).data.seatsUsed <= get(seatsPath(orgId)).data.seatLimit
+            && getAfter(seatsPath(orgId)).data.lastSeatUid == uid);
+    }
+    function seatFreed(orgId, uid) {
+      // (a counter already at zero has drifted below the real headcount; removing a
+      // person then cannot lower it further and must not be blocked)
+      return !exists(seatsPath(orgId))
+        || get(seatsPath(orgId)).data.seatsUsed <= 0
+        || (getAfter(seatsPath(orgId)).data.seatsUsed == get(seatsPath(orgId)).data.seatsUsed - 1
+            && getAfter(seatsPath(orgId)).data.lastSeatUid == uid);
+    }
+    function seatBump(orgId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seatsUsed', 'lastSeatUid'])
+        && request.resource.data.lastSeatUid is string
+        && ((request.resource.data.seatsUsed == resource.data.seatsUsed + 1
+              && request.resource.data.seatsUsed <= resource.data.seatLimit
+              && !exists(userPath(request.resource.data.lastSeatUid))
+              && existsAfter(userPath(request.resource.data.lastSeatUid))
+              && getAfter(userPath(request.resource.data.lastSeatUid)).data.get('orgId', null) == orgId)
+            || (request.resource.data.seatsUsed == resource.data.seatsUsed - 1
+              && request.resource.data.seatsUsed >= 0
+              && exists(userPath(request.resource.data.lastSeatUid))
+              && !existsAfter(userPath(request.resource.data.lastSeatUid))));
+    }
+
+    // Who may clear a task's conversation when the task is removed: the admins and
+    // the head/manager whose scope the task sits in.
+    function canModerateTask(t) {
+      return isMasterAdmin()
+        || isOrgAdmin(t.get('orgId', null))
+        || (isDeptHead() && isDeptMember(t.get('orgId', null), t.get('departmentId', null)))
+        || (isManager() && isProjectMember(t.get('orgId', null), t.get('projectId', null)));
+    }
+
     // Organizations
     match /organizations/{orgId} {
       // Every member (clients included) may read their own org document; the
@@ -113,6 +161,23 @@ service cloud.firestore {
         allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
         allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
       }
+      // Billing contact, CC list, storage and the like: org-admins and master-admin
+      // only. These used to sit on the organization document, which every member
+      // (clients included) can read.
+      match /private/{docId} {
+        allow read: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(orgId));
+        allow write: if isSignedIn() && isMasterAdmin();
+      }
+
+      // Seat counter (see seatBump). Readable by members so user creation can
+      // check availability; only movable in step with a user being added/removed.
+      match /meta/{docId} {
+        allow read: if isSignedIn() && !isClient() && (isOrgMember(orgId) || isMasterAdmin());
+        allow create, delete: if isSignedIn() && isMasterAdmin();
+        allow update: if isSignedIn() && (isMasterAdmin()
+          || (docId == 'seats' && isOrgMember(orgId) && !isClient() && seatBump(orgId)));
+      }
+
       match /projects/{projId} {
         allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient())
           || isMasterAdmin()
@@ -122,6 +187,12 @@ service cloud.firestore {
         // Budget expenses are financial data: org-admins, plus the manager of
         // this project and the head of its department. Staff and clients have
         // no access.
+        // Budget figures (moved off the project document, which all members can read).
+        match /finance/{docId} {
+          allow read: if canManageProjectMoney(orgId, projId);
+          allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
+        }
+
         match /expenses/{expId} {
           allow read: if canManageProjectMoney(orgId, projId);
           allow create: if canManageProjectMoney(orgId, projId)
@@ -164,7 +235,9 @@ service cloud.firestore {
             && request.resource.data.get('departmentIds', []).hasAny(myDeptIds()))
         || (isManager() && isOrgMember(request.resource.data.get('orgId', null))
             && request.resource.data.role == 'staff'
-            && request.resource.data.get('projectIds', []).hasAny(myProjectIds())));
+            && request.resource.data.get('projectIds', []).hasAny(myProjectIds())))
+        && (request.resource.data.get('orgId', null) == null
+            || seatTaken(request.resource.data.orgId, uid));
 
       // Department heads and managers run their own scope, so they may remove
       // staff from it â€” but only staff, and only people already inside that
@@ -176,7 +249,9 @@ service cloud.firestore {
             && resource.data.get('departmentIds', []).hasAny(myDeptIds()))
         || (isManager() && isOrgMember(resource.data.get('orgId', null))
             && resource.data.role == 'staff'
-            && resource.data.get('projectIds', []).hasAny(myProjectIds())));
+            && resource.data.get('projectIds', []).hasAny(myProjectIds())))
+        && (resource.data.get('orgId', null) == null
+            || seatFreed(resource.data.orgId, uid));
 
       // Update: master-admin can change anything. An org-admin can update
       // mid-tier/staff users in their OWN org, but must NOT elevate anyone to
@@ -299,8 +374,12 @@ service cloud.firestore {
         && canSeeTask(resource.data.get('taskId', null))
         && request.resource.data.get('taskId', null) == resource.data.get('taskId', null)
         && request.resource.data.get('userId', null) == resource.data.get('userId', null);
+      // The author, or whoever moderates the task (so deleting a task can clear
+      // its conversation instead of leaving it orphaned).
       allow delete: if isSignedIn() && (
-        resource.data.get('userId', null) == request.auth.uid || isMasterAdmin()
+        resource.data.get('userId', null) == request.auth.uid
+        || isMasterAdmin()
+        || canModerateTask(taskData(resource.data.get('taskId', null)))
       );
     }
 
@@ -310,7 +389,9 @@ service cloud.firestore {
       allow create: if canSeeTask(request.resource.data.get('taskId', null))
         && request.resource.data.get('uploadedBy', null) == request.auth.uid;
       allow delete: if isSignedIn() && (
-        resource.data.get('uploadedBy', null) == request.auth.uid || isMasterAdmin()
+        resource.data.get('uploadedBy', null) == request.auth.uid
+        || isMasterAdmin()
+        || canModerateTask(taskData(resource.data.get('taskId', null)))
       );
     }
 
@@ -318,7 +399,10 @@ service cloud.firestore {
     // the sender's own organization and attributed to the sender; the recipient
     // may then read it, flip its `read` flag, or delete it - nothing else.
     match /comment_notifications/{notificationId} {
-      allow read, delete: if isSignedIn() && resource.data.get('userId', null) == request.auth.uid;
+      // The recipient, or (so a deleted task can take its notifications with it)
+      // whoever moderates the task.
+      allow read, delete: if isSignedIn() && (resource.data.get('userId', null) == request.auth.uid
+        || canModerateTask(taskData(resource.data.get('taskId', null))));
       allow update: if isSignedIn()
         && resource.data.get('userId', null) == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);

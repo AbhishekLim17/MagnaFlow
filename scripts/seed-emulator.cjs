@@ -128,9 +128,6 @@ async function seed() {
     name: 'Magnetar Global Pvt. Ltd.',
     status: 'active',
     plan: 'active',
-    seatLimit: 25,
-    storageQuotaMB: 5000,
-    billingEmail: 'billing@demo.test',
     createdAt: day(-120),
   });
 
@@ -156,6 +153,17 @@ async function seed() {
       createdAt: day(-90),
     });
   }
+
+  // Billing details and the seat counter live in subdocuments (see organizationService).
+  const seated = (await db.collection('users').where('orgId', '==', ORG_ID).get()).size;
+  await orgRef.collection('private').doc('settings').set({
+    seatLimit: 25,
+    storageQuotaMB: 5000,
+    billingEmail: 'billing@demo.test',
+    ccEmails: ['boss@demo.test'],
+  });
+  await orgRef.collection('meta').doc('seats').set({ seatsUsed: seated, seatLimit: 25, lastSeatUid: null });
+  await orgRef.collection('projects').doc(PROJ_APOLLO).collection('finance').doc('budget').set({ budget: 50000, currency: 'USD', budgetNotes: '' });
 
   console.log('Creating designations…');
   for (const name of ['Senior Developer', 'QA Engineer', 'Accounts Executive', 'Project Manager', 'Engineering Head']) {
