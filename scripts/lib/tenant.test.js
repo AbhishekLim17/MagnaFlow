@@ -5,18 +5,19 @@ const require = createRequire(import.meta.url);
 const { APP_URL, safeButtonLink, cleanEmailList, createTenantLookup } = require('./tenant.cjs');
 
 // Minimal stand-in for the slice of the Admin SDK the lookup uses.
-const fakeDb = ({ orgs = {}, tasks = {}, users = [] }) => ({
+const fakeDb = ({ orgs = {}, tasks = {}, users = {}, settings = {} }) => ({
   collection: (name) => ({
     doc: (id) => ({
       get: async () => {
-        const store = name === 'organizations' ? orgs : tasks;
+        const store = { organizations: orgs, tasks, users }[name] || {};
         return { exists: id in store, id, data: () => store[id] };
       },
-    }),
-    where: (_field, _op, value) => ({
-      limit: () => ({
-        get: async () => ({
-          docs: users.filter((u) => u.email === value).map((u) => ({ data: () => u })),
+      collection: (sub) => ({
+        doc: (subId) => ({
+          get: async () => {
+            const key = `${name}/${id}/${sub}/${subId}`;
+            return { exists: key in settings, data: () => settings[key] };
+          },
         }),
       }),
     }),
@@ -44,13 +45,16 @@ describe('cleanEmailList', () => {
 
 describe('tenant lookup', () => {
   const db = fakeDb({
-    orgs: { orgA: { ccEmails: ['boss@a.com', 'junk'] }, orgB: { ccEmails: 'boss@b.com' } },
+    orgs: { orgA: { ccEmails: ['boss@a.com', 'junk'] }, orgB: { ccEmails: 'boss@b.com' }, orgC: {} },
+    settings: { 'organizations/orgC/private/settings': { ccEmails: ['private@c.com'] } },
     tasks: { t1: { orgId: 'orgA' } },
-    users: [
-      { email: 'staff@a.com', orgId: 'orgA', status: 'active' },
-      { email: 'gone@a.com', orgId: 'orgA', status: 'inactive' },
-      { email: 'staff@b.com', orgId: 'orgB', status: 'active' },
-    ],
+    users: {
+      uA: { email: 'staff@a.com', name: 'Ann', orgId: 'orgA', status: 'active' },
+      uGone: { email: 'gone@a.com', orgId: 'orgA', status: 'inactive' },
+      uB: { email: 'staff@b.com', orgId: 'orgB', status: 'active' },
+      uNoMail: { orgId: 'orgA', status: 'active' },
+      uBad: { email: 'not-an-address', orgId: 'orgA' },
+    },
   });
 
   test('CC list comes from the organization, never another one', async () => {
@@ -61,12 +65,24 @@ describe('tenant lookup', () => {
     expect(await t.ccFor(undefined)).toBe('');
   });
 
-  test('recipient must be an active member of the same organization', async () => {
+  test('CC list prefers the private settings document over the public one', async () => {
     const t = createTenantLookup(db);
-    expect(await t.isActiveMemberOf('staff@a.com', 'orgA')).toBe(true);
-    expect(await t.isActiveMemberOf('staff@b.com', 'orgA')).toBe(false);
-    expect(await t.isActiveMemberOf('gone@a.com', 'orgA')).toBe(false);
-    expect(await t.isActiveMemberOf('stranger@example.com', 'orgA')).toBe(false);
+    expect(await t.ccFor('orgC')).toBe('private@c.com');
+  });
+
+  test('a recipient is resolved by uid, with the address taken from the user record', async () => {
+    const t = createTenantLookup(db);
+    expect(await t.resolveRecipient('uA', 'orgA')).toEqual({ email: 'staff@a.com', name: 'Ann' });
+  });
+
+  test('a recipient outside the organization, deactivated, unknown or without a valid address is refused', async () => {
+    const t = createTenantLookup(db);
+    expect(await t.resolveRecipient('uB', 'orgA')).toBeNull();
+    expect(await t.resolveRecipient('uGone', 'orgA')).toBeNull();
+    expect(await t.resolveRecipient('nobody', 'orgA')).toBeNull();
+    expect(await t.resolveRecipient('uNoMail', 'orgA')).toBeNull();
+    expect(await t.resolveRecipient('uBad', 'orgA')).toBeNull();
+    expect(await t.resolveRecipient(undefined, 'orgA')).toBeNull();
   });
 
   test('task lookup reports missing tasks as null', async () => {

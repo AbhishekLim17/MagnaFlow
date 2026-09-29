@@ -204,11 +204,10 @@ export const getNotifications = async (userId, limitCount = 20) => {
 };
 
 // Send email notification for @mention — routes through emailService.js
-export const sendEmailNotification = async (toEmail, toName, mentionedByName, taskTitle, commentText, taskId) => {
+export const sendEmailNotification = async (toUid, mentionedByName, taskTitle, commentText, taskId) => {
   try {
     return await sendMentionEmail({
-      toEmail,
-      toName,
+      toUid,
       taskTitle,
       commentText,
       mentionedBy: mentionedByName,

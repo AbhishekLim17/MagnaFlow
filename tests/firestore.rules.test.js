@@ -289,7 +289,7 @@ describe('outgoing email queue', () => {
     requestedBy: uid,
     status: 'pending',
     attempts: 0,
-    to_email: 'someone@example.com',
+    recipientUid: ADMIN_A,
     title: 'A task was assigned',
     notification_type: 'Task Assignment',
     taskId: 'taskA',
@@ -317,7 +317,7 @@ describe('outgoing email queue', () => {
 
   test('cannot queue an email with no recipient', async () => {
     await assertFails(
-      setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm5'), { ...validMail(STAFF_A), to_email: '' })
+      setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm5'), { ...validMail(STAFF_A), recipientUid: '' })
     );
   });
 
@@ -339,6 +339,20 @@ describe('outgoing email queue', () => {
 
   test('cannot queue mail about a task the caller cannot see', async () => {
     await assertFails(setDoc(doc(asUser(STAFF_SCOPED), 'mail_queue', 'n3'), { ...validMail(STAFF_SCOPED), taskId: 'taskB' }));
+  });
+
+  test('cannot address mail to a raw email address', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'r1'), { ...validMail(STAFF_A), to_email: 'victim@example.com' }));
+    const { recipientUid, ...rest } = validMail(STAFF_A);
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'r2'), { ...rest, to_email: 'victim@example.com' }));
+  });
+
+  test('cannot address mail to someone in another organization', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'r3'), { ...validMail(STAFF_A), recipientUid: STAFF_B }));
+  });
+
+  test('cannot address mail to a user that does not exist', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'r4'), { ...validMail(STAFF_A), recipientUid: 'ghost' }));
   });
 
   test('cannot choose the CC list', async () => {
@@ -611,8 +625,8 @@ describe('client portal access', () => {
 
   test('client CANNOT queue an email', async () => {
     await assertFails(setDoc(doc(asUser(CLIENT_A), 'mail_queue', 'mail1'), {
-      requestedBy: CLIENT_A, status: 'pending', attempts: 0,
-      to_email: 'target@evil.com', title: 'Hi', notification_type: 'test',
+      requestedBy: CLIENT_A, status: 'pending', attempts: 0, taskId: 'taskA',
+      recipientUid: ADMIN_A, title: 'Hi', notification_type: 'test',
     }));
   });
 });

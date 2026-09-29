@@ -259,31 +259,24 @@ export const updateTask = async (taskId, updates) => {
     // Send critical task alert if priority changed to critical
     if (updates.priority === 'critical' && currentTask.priority !== 'critical') {
       try {
-        // Guard: only fetch if task has an assigned user
+        // The recipient is named by uid; the mail job resolves the address itself.
         if (updatedTask.assignedTo) {
-          const userDoc = await getDoc(doc(db, 'users', updatedTask.assignedTo));
-          const userData = userDoc.exists() ? userDoc.data() : null;
-          
-          if (userData && userData.email) {
-            // createdBy is a uid; the email should say who, not a raw id.
-            let assignedByName = 'Admin';
-            if (currentTask.createdBy) {
-              try {
-                const creator = await getDoc(doc(db, 'users', currentTask.createdBy));
-                assignedByName = creator.exists() ? (creator.data().name || 'Admin') : 'Admin';
-              } catch { /* fall back to the generic label */ }
-            }
-            await sendCriticalTaskAlert({
-              taskId,
-              toEmail: userData.email,
-              toName: userData.name || userData.email,
-              taskTitle: updatedTask.title,
-              taskDescription: updatedTask.description,
-              dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
-              assignedBy: assignedByName
-            });
-            console.log('Critical task alert sent to:', userData.email);
+          // createdBy is a uid; the email should say who, not a raw id.
+          let assignedByName = 'Admin';
+          if (currentTask.createdBy) {
+            try {
+              const creator = await getDoc(doc(db, 'users', currentTask.createdBy));
+              assignedByName = creator.exists() ? (creator.data().name || 'Admin') : 'Admin';
+            } catch { /* fall back to the generic label */ }
           }
+          await sendCriticalTaskAlert({
+            taskId,
+            toUid: updatedTask.assignedTo,
+            taskTitle: updatedTask.title,
+            taskDescription: updatedTask.description,
+            dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
+            assignedBy: assignedByName
+          });
         }
       } catch (emailError) {
         console.error('Error sending critical task alert:', emailError);

@@ -33,6 +33,8 @@ jobs:
         run: npm test
       - name: Firestore security rules tests
         run: npm run test:rules
+      - name: Mail-job integration tests
+        run: npm run test:integration
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}

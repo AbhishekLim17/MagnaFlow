@@ -11,6 +11,7 @@
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "test:rules": "firebase emulators:exec --only firestore --project demo-magnaflow --config firebase.test.json \"vitest run --config vitest.rules.config.js\"",
     "test": "vitest run",
+    "test:integration": "firebase emulators:exec --only firestore --project demo-magnaflow --config firebase.test.json \"vitest run --config vitest.integration.config.js\"",
     "test:watch": "vitest",
     "deploy:staging": "npm run build && firebase hosting:channel:deploy staging --expires 30d",
     "emulators": "firebase emulators:start --only firestore,auth --project demo-magnaflow --config firebase.test.json",

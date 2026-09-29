@@ -32,3 +32,7 @@ jobs:
           java-version: '21'
       - name: Run rules tests
         run: npm run test:rules
+      # Runs the real mail scripts against the emulator (nothing is delivered):
+      # queue rejection, per-organization CC, reminders never crossing tenants.
+      - name: Run mail-job integration tests
+        run: npm run test:integration

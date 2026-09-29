@@ -373,16 +373,16 @@ service cloud.firestore {
     //    addresses from whichever org queued them
     // Only the drain job (Admin SDK, which bypasses rules) marks them sent.
     match /mail_queue/{mailId} {
-      // Beyond the shape checks, a request must be tied to a task the caller can
-      // actually see (so a signed-in user cannot fire arbitrary mail at arbitrary
-      // people), may not choose its own CC list (that is looked up per
-      // organization by the drain job), and may only carry the known template
-      // fields. The drain job additionally verifies that the recipient is an
-      // active member of the task organization before anything is sent.
+      // A request names its recipient by UID, never by address, and must be tied to
+      // a task the caller can actually see. The recipient must belong to the
+      // caller's own organization; the drain job then looks the address up itself
+      // (and re-checks the account is active). So no one can direct mail at an
+      // arbitrary outside address, choose a CC list, or add fields the template
+      // does not know about. Only whitelisted template fields are accepted.
       allow create: if isSignedIn()
         && !isClient()
         && request.resource.data.keys().hasOnly([
-             'to_email', 'to_name', 'cc_email', 'notification_type', 'notification_icon',
+             'recipientUid', 'notification_type', 'notification_icon',
              'notification_color', 'title', 'message',
              'detail_1_label', 'detail_1_value', 'detail_2_label', 'detail_2_value',
              'detail_3_label', 'detail_3_value', 'detail_4_label', 'detail_4_value',
@@ -391,17 +391,17 @@ service cloud.firestore {
         && request.resource.data.requestedBy == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.attempts == 0
-        && request.resource.data.to_email is string
-        && request.resource.data.to_email.size() > 3
-        && request.resource.data.to_email.size() < 200
+        && request.resource.data.get('recipientUid', null) is string
+        && request.resource.data.recipientUid.size() > 0
+        && request.resource.data.recipientUid.size() < 200
         && request.resource.data.title is string
         && request.resource.data.title.size() <= 300
         && request.resource.data.notification_type is string
         && request.resource.data.get('message', '') is string
         && request.resource.data.get('message', '').size() <= 1000
-        && request.resource.data.get('cc_email', '') == ''
         && request.resource.data.get('taskId', null) is string
-        && canSeeTask(request.resource.data.taskId);
+        && canSeeTask(request.resource.data.taskId)
+        && get(/databases/$(database)/documents/users/$(request.resource.data.recipientUid)).data.get('orgId', null) == myOrgId();
       allow read, update, delete: if false;
     }
 

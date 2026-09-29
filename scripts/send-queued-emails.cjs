@@ -58,7 +58,7 @@ async function main() {
     const verdict = await verify(tenant, data);
     if (!verdict.ok) {
       rejected += 1;
-      console.warn(`  REJECTED (${verdict.reason}) for ${data.to_email}`);
+      console.warn(`  REJECTED (${verdict.reason}) for recipient ${data.recipientUid || '(none)'}`);
       if (!DRY_RUN) {
         await doc.ref.update({
           status: 'rejected',
@@ -71,12 +71,14 @@ async function main() {
 
     const payload = {
       ...data,
+      to_email: verdict.recipient.email,
+      to_name: verdict.recipient.name,
       cc_email: verdict.cc,
       button_link: safeButtonLink(data.button_link),
     };
 
     if (DRY_RUN) {
-      console.log(`  would send to ${data.to_email} — ${data.notification_type}: ${data.title}`);
+      console.log(`  would send to ${payload.to_email} — ${payload.notification_type}: ${payload.title}`);
       continue;
     }
 
@@ -87,9 +89,9 @@ async function main() {
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
         error: admin.firestore.FieldValue.delete(),
       });
-      await logEmail(db, doc.id, data, verdict.orgId, 'sent');
+      await logEmail(db, doc.id, payload, verdict.orgId, 'sent');
       sent += 1;
-      console.log(`  sent to ${data.to_email} — ${data.title}`);
+      console.log(`  sent to ${payload.to_email} — ${payload.title}`);
     } catch (error) {
       failed += 1;
       const attempts = (data.attempts || 0) + 1;
@@ -102,9 +104,9 @@ async function main() {
         error: String(error?.message || error).slice(0, 500),
         lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      if (giveUp) await logEmail(db, doc.id, data, verdict.orgId, 'failed', error);
+      if (giveUp) await logEmail(db, doc.id, payload, verdict.orgId, 'failed', error);
       console.error(
-        `  FAILED for ${data.to_email} (attempt ${attempts}${giveUp ? ', giving up' : ''}): ${error?.message}`
+        `  FAILED for ${payload.to_email} (attempt ${attempts}${giveUp ? ', giving up' : ''}): ${error?.message}`
       );
     }
   }
@@ -120,13 +122,16 @@ async function main() {
 }
 
 async function verify(tenant, data) {
+  if (!data.recipientUid) return { ok: false, reason: 'no recipient (legacy queue entry)' };
   if (!data.taskId) return { ok: false, reason: 'no task reference' };
   const task = await tenant.getTask(data.taskId);
   if (!task) return { ok: false, reason: 'task no longer exists' };
-  if (!(await tenant.isActiveMemberOf(data.to_email, task.orgId))) {
+  // The address is looked up here, never taken from the browser.
+  const recipient = await tenant.resolveRecipient(data.recipientUid, task.orgId);
+  if (!recipient) {
     return { ok: false, reason: 'recipient is not an active member of the task organization' };
   }
-  return { ok: true, orgId: task.orgId ?? null, cc: await tenant.ccFor(task.orgId) };
+  return { ok: true, orgId: task.orgId ?? null, cc: await tenant.ccFor(task.orgId), recipient };
 }
 
 // The delivery record the browser used to try (and fail, under the rules) to

@@ -80,14 +80,12 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail, people =
 
           console.log(`✅ Created notifications for ${mentionedUserIds.length} users`);
 
-          // Queue an email for everyone whose address we know (delivery is by the
-          // scheduled job, which re-checks the recipient belongs to the task's org).
+          // Queue an email for each mentioned person, by uid (delivery is by the
+          // scheduled job, which looks the address up and re-checks the org).
           await Promise.all(
             mentioned
-              .filter((p) => p.email)
               .map((p) => sendMentionEmail({
-                toEmail: p.email,
-                toName: p.name,
+                toUid: p.id,
                 taskTitle,
                 commentText: text,
                 mentionedBy: userName,

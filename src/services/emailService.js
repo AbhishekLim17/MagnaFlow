@@ -26,7 +26,7 @@ const APP_URL = 'https://magnaflow-07sep25.web.app';
  * @param {Object} [logDetails] { type, taskId, source }
  */
 const queueEmail = async (emailData, logDetails = {}) => {
-  if (!emailData.to_email) {
+  if (!emailData.recipientUid) {
     console.warn('Skipping email with no recipient');
     return { success: false, error: 'No recipient' };
   }
@@ -63,8 +63,7 @@ const PRIORITY_COLORS = {
 export const sendTaskAssignedEmail = async (params) =>
   queueEmail(
     {
-      to_email: params.toEmail,
-      to_name: params.toName,
+      recipientUid: params.toUid,
       notification_type: 'Task Assignment',
       notification_icon: '📋',
       notification_color: PRIORITY_COLORS[params.taskPriority] || '#3e30d9',
@@ -85,8 +84,7 @@ export const sendTaskAssignedEmail = async (params) =>
 export const sendTaskCompletedEmail = async (params) =>
   queueEmail(
     {
-      to_email: params.toEmail,
-      to_name: params.toName,
+      recipientUid: params.toUid,
       notification_type: 'Task Completed',
       notification_icon: '✅',
       notification_color: '#51b206',
@@ -106,8 +104,7 @@ export const sendTaskCompletedEmail = async (params) =>
 export const sendTaskStatusChangedEmail = async (params) =>
   queueEmail(
     {
-      to_email: params.toEmail,
-      to_name: params.toName,
+      recipientUid: params.toUid,
       notification_type: 'Task Status Update',
       notification_icon: '📊',
       notification_color: '#3e30d9',
@@ -133,8 +130,7 @@ const clip = (value, max) => {
 export const sendMentionEmail = async (params) =>
   queueEmail(
     {
-      to_email: params.toEmail,
-      to_name: params.toName,
+      recipientUid: params.toUid,
       notification_type: 'Mention',
       notification_icon: '💬',
       notification_color: '#3e30d9',
@@ -153,8 +149,7 @@ export const sendMentionEmail = async (params) =>
 export const sendCriticalTaskAlert = async (params) =>
   queueEmail(
     {
-      to_email: params.toEmail,
-      to_name: params.toName,
+      recipientUid: params.toUid,
       notification_type: 'URGENT: Critical Task',
       notification_icon: '🚨',
       notification_color: '#ef4444',
@@ -175,8 +170,7 @@ export const sendCriticalTaskAlert = async (params) =>
 export const sendCriticalTaskReminder = async (params) =>
   queueEmail(
     {
-      to_email: params.toEmail,
-      to_name: params.toName,
+      recipientUid: params.toUid,
       notification_type: 'REMINDER: Critical Task',
       notification_icon: '⏰',
       notification_color: '#ef4444',
