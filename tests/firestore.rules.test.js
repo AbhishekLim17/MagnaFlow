@@ -292,6 +292,7 @@ describe('outgoing email queue', () => {
     to_email: 'someone@example.com',
     title: 'A task was assigned',
     notification_type: 'Task Assignment',
+    taskId: 'taskA',
   });
 
   test('a signed-in user can queue an email', async () => {
@@ -324,6 +325,36 @@ describe('outgoing email queue', () => {
     await assertFails(
       setDoc(doc(asUser(STAFF_A), 'mail_queue', 'm6'), { ...validMail(STAFF_A), attempts: 9 })
     );
+  });
+
+  // Otherwise the queue is an open relay: any employee could send mail to anyone.
+  test('cannot queue mail without a task reference', async () => {
+    const { taskId, ...rest } = validMail(STAFF_A);
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'n1'), rest));
+  });
+
+  test('cannot queue mail about a task in another organization', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'n2'), { ...validMail(STAFF_A), taskId: 'taskB' }));
+  });
+
+  test('cannot queue mail about a task the caller cannot see', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_SCOPED), 'mail_queue', 'n3'), { ...validMail(STAFF_SCOPED), taskId: 'taskB' }));
+  });
+
+  test('cannot choose the CC list', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'n4'), { ...validMail(STAFF_A), cc_email: 'victim@example.com' }));
+  });
+
+  test('cannot smuggle extra fields into a queued email', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'n5'), { ...validMail(STAFF_A), bcc: 'victim@example.com' }));
+  });
+
+  test('cannot queue an oversized message', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'mail_queue', 'n6'), { ...validMail(STAFF_A), message: 'x'.repeat(1001) }));
+  });
+
+  test('a client cannot queue an email', async () => {
+    await assertFails(setDoc(doc(asUser(CLIENT_A), 'mail_queue', 'n7'), validMail(CLIENT_A)));
   });
 
   // Payloads carry names, task titles and addresses from whoever queued them.
@@ -745,5 +776,22 @@ describe('project expenses are financial data', () => {
   });
   test('other org cannot read expenses', async () => {
     await assertFails(getDoc(expPath(asUser(ADMIN_B), 'exp1')));
+  });
+});
+
+describe('email logs are org-scoped and server-written', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'email_logs', 'logA'), { orgId: ORG_A, recipient: 'x@x.com' });
+    });
+  });
+  test('org-admin can read their org email log', async () => {
+    await assertSucceeds(getDoc(doc(asUser(ADMIN_A), 'email_logs', 'logA')));
+  });
+  test('another org admin cannot read it', async () => {
+    await assertFails(getDoc(doc(asUser(ADMIN_B), 'email_logs', 'logA')));
+  });
+  test('the browser cannot write email logs', async () => {
+    await assertFails(setDoc(doc(asUser(ADMIN_A), 'email_logs', 'forged'), { orgId: ORG_A }));
   });
 });

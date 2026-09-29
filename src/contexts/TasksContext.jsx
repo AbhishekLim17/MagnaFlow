@@ -178,8 +178,9 @@ export const TasksProvider = ({ children }) => {
               taskTitle: taskData.title,
               taskDescription: taskData.description || 'No description provided',
               taskPriority: taskData.priority?.charAt(0).toUpperCase() + taskData.priority?.slice(1) || 'Medium',
-              dueDate: taskData.dueDate ? new Date(taskData.dueDate).toLocaleDateString() : 'Not specified',
+              dueDate: (taskData.deadline || taskData.dueDate) ? new Date(taskData.deadline || taskData.dueDate).toLocaleDateString() : 'Not specified',
               assignedBy: user?.name || 'Admin',
+              taskId: newTask.id,
             };
 
             console.log("📧 Sending email with params:", emailParams);

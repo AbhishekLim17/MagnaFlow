@@ -12,6 +12,7 @@
  */
 const admin = require('firebase-admin');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
+const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -50,6 +51,7 @@ function buildCredential() {
 async function main() {
   admin.initializeApp({ credential: buildCredential() });
   const db = admin.firestore();
+  const tenant = createTenantLookup(db);
 
   const snap = await db
     .collection('mail_queue')
@@ -65,28 +67,51 @@ async function main() {
 
   console.log(`${snap.size} queued email(s)${DRY_RUN ? ' (dry run, nothing will be sent)' : ''}`);
 
-  if (DRY_RUN) {
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      console.log(`  would send to ${d.to_email} — ${d.notification_type}: ${d.title}`);
-    }
-    console.log('\nDry run complete. No mail sent, queue untouched.');
-    return;
-  }
-
-  const transport = createTransport();
+  const transport = DRY_RUN ? null : createTransport();
   let sent = 0;
   let failed = 0;
+  let rejected = 0;
 
   for (const doc of snap.docs) {
     const data = doc.data();
+
+    // The queue is written by browsers, so nothing in it is trusted. A message
+    // is only delivered when it is tied to a real task and its recipient is an
+    // active member of that task's organization; the CC list and the button
+    // target are replaced with server-side values.
+    const verdict = await verify(tenant, data);
+    if (!verdict.ok) {
+      rejected += 1;
+      console.warn(`  REJECTED (${verdict.reason}) for ${data.to_email}`);
+      if (!DRY_RUN) {
+        await doc.ref.update({
+          status: 'rejected',
+          error: verdict.reason,
+          lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      continue;
+    }
+
+    const payload = {
+      ...data,
+      cc_email: verdict.cc,
+      button_link: safeButtonLink(data.button_link),
+    };
+
+    if (DRY_RUN) {
+      console.log(`  would send to ${data.to_email} — ${data.notification_type}: ${data.title}`);
+      continue;
+    }
+
     try {
-      await sendNotification(transport, data);
+      await sendNotification(transport, payload);
       await doc.ref.update({
         status: 'sent',
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
         error: admin.firestore.FieldValue.delete(),
       });
+      await logEmail(db, doc.id, data, verdict.orgId, 'sent');
       sent += 1;
       console.log(`  sent to ${data.to_email} — ${data.title}`);
     } catch (error) {
@@ -101,16 +126,54 @@ async function main() {
         error: String(error?.message || error).slice(0, 500),
         lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+      if (giveUp) await logEmail(db, doc.id, data, verdict.orgId, 'failed', error);
       console.error(
         `  FAILED for ${data.to_email} (attempt ${attempts}${giveUp ? ', giving up' : ''}): ${error?.message}`
       );
     }
   }
 
-  console.log(`\nDone. Sent ${sent}, failed ${failed}.`);
+  if (DRY_RUN) {
+    console.log('\nDry run complete. No mail sent, queue untouched.');
+    return;
+  }
+  console.log(`\nDone. Sent ${sent}, failed ${failed}, rejected ${rejected}.`);
   // A single bad address should not turn the whole run red; a run where nothing
   // got through should.
   if (sent === 0 && failed > 0) process.exit(1);
+}
+
+async function verify(tenant, data) {
+  if (!data.taskId) return { ok: false, reason: 'no task reference' };
+  const task = await tenant.getTask(data.taskId);
+  if (!task) return { ok: false, reason: 'task no longer exists' };
+  if (!(await tenant.isActiveMemberOf(data.to_email, task.orgId))) {
+    return { ok: false, reason: 'recipient is not an active member of the task organization' };
+  }
+  return { ok: true, orgId: task.orgId ?? null, cc: await tenant.ccFor(task.orgId) };
+}
+
+// The delivery record the browser used to try (and fail, under the rules) to
+// write itself. The server is the only party that knows what actually happened.
+async function logEmail(db, mailId, data, orgId, status, error) {
+  const now = new Date();
+  try {
+    await db.collection('email_logs').add({
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      type: data.type || 'generic',
+      recipient: data.to_email,
+      taskId: data.taskId || null,
+      orgId: orgId ?? null,
+      mailId,
+      status,
+      monthYear: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      source: data.source || 'manual',
+      notificationType: data.notification_type || null,
+      error: error ? String(error.message || error).slice(0, 500) : null,
+    });
+  } catch (logError) {
+    console.warn('Could not write email log:', logError?.message);
+  }
 }
 
 main().catch((error) => {

@@ -253,13 +253,22 @@ export const updateTask = async (taskId, updates) => {
           const userData = userDoc.exists() ? userDoc.data() : null;
           
           if (userData && userData.email) {
+            // createdBy is a uid; the email should say who, not a raw id.
+            let assignedByName = 'Admin';
+            if (currentTask.createdBy) {
+              try {
+                const creator = await getDoc(doc(db, 'users', currentTask.createdBy));
+                assignedByName = creator.exists() ? (creator.data().name || 'Admin') : 'Admin';
+              } catch { /* fall back to the generic label */ }
+            }
             await sendCriticalTaskAlert({
+              taskId,
               toEmail: userData.email,
               toName: userData.name || userData.email,
               taskTitle: updatedTask.title,
               taskDescription: updatedTask.description,
               dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
-              assignedBy: currentTask.createdBy || 'Admin'
+              assignedBy: assignedByName
             });
             console.log('Critical task alert sent to:', userData.email);
           }

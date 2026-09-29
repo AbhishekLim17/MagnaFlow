@@ -13,38 +13,11 @@
 // Trade-off: delivery is not instant. Mail goes out on the next run of the
 // drain job rather than the moment a task is assigned.
 
-import { EMAIL_CONFIG } from '@/config/emailConfig';
 import { db, auth } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const QUEUE = 'mail_queue';
 const APP_URL = 'https://magnaflow-07sep25.web.app';
-
-/**
- * Log the request for quota tracking. Kept separate from the queue so the
- * existing email_logs reporting keeps working unchanged.
- */
-const logEmailToFirestore = async (emailDetails) => {
-  try {
-    const now = new Date();
-    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    await addDoc(collection(db, 'email_logs'), {
-      sentAt: serverTimestamp(),
-      type: emailDetails.type || 'generic',
-      recipient: emailDetails.recipient,
-      taskId: emailDetails.taskId || null,
-      status: emailDetails.status,
-      monthYear,
-      source: emailDetails.source || 'manual',
-      error: emailDetails.error || null,
-      notificationType: emailDetails.notificationType || null,
-    });
-  } catch (error) {
-    console.error('Failed to log email to Firestore:', error);
-    // Never throw — logging is not worth failing the caller over.
-  }
-};
 
 /**
  * Append one email to the queue.
@@ -72,28 +45,9 @@ const queueEmail = async (emailData, logDetails = {}) => {
       source: logDetails.source || 'manual',
     });
 
-    await logEmailToFirestore({
-      type: logDetails.type || 'generic',
-      recipient: emailData.to_email,
-      taskId: logDetails.taskId || null,
-      status: 'queued',
-      source: logDetails.source || 'manual',
-      notificationType: emailData.notification_type || null,
-    });
-
     return { success: true, queued: true };
   } catch (error) {
     console.error('Could not queue email:', error?.code || error?.message);
-
-    await logEmailToFirestore({
-      type: logDetails.type || 'generic',
-      recipient: emailData.to_email,
-      taskId: logDetails.taskId || null,
-      status: 'failed',
-      source: logDetails.source || 'manual',
-      error: error?.message || 'Unknown error',
-      notificationType: emailData.notification_type || null,
-    });
 
     return { success: false, error: error?.message };
   }
@@ -111,7 +65,6 @@ export const sendTaskAssignedEmail = async (params) =>
     {
       to_email: params.toEmail,
       to_name: params.toName,
-      cc_email: EMAIL_CONFIG.CC_EMAILS || '',
       notification_type: 'Task Assignment',
       notification_icon: '📋',
       notification_color: PRIORITY_COLORS[params.taskPriority] || '#3e30d9',
@@ -177,7 +130,6 @@ export const sendCriticalTaskAlert = async (params) =>
     {
       to_email: params.toEmail,
       to_name: params.toName,
-      cc_email: EMAIL_CONFIG.CC_EMAILS || '',
       notification_type: 'URGENT: Critical Task',
       notification_icon: '🚨',
       notification_color: '#ef4444',
@@ -200,7 +152,6 @@ export const sendCriticalTaskReminder = async (params) =>
     {
       to_email: params.toEmail,
       to_name: params.toName,
-      cc_email: EMAIL_CONFIG.CC_EMAILS || '',
       notification_type: 'REMINDER: Critical Task',
       notification_icon: '⏰',
       notification_color: '#ef4444',
