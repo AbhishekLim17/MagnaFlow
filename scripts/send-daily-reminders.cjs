@@ -14,44 +14,12 @@
  *   node scripts/send-daily-reminders.cjs [--dry-run]
  */
 
-const admin = require('firebase-admin');
+const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { APP_URL, createTenantLookup } = require('./lib/tenant.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const DONE_STATUSES = new Set(['completed', 'cancelled']);
-
-/**
- * Accepts either a whole service-account JSON (FIREBASE_SERVICE_ACCOUNT_JSON —
- * the same secret the hosting deploy uses, so it's known to exist) or the three
- * separate values. Missing credentials fail loudly and specifically rather than
- * producing a confusing Firebase error later.
- */
-function buildCredential() {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    try {
-      return admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON));
-    } catch {
-      console.error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON.');
-      process.exit(2);
-    }
-  }
-
-  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
-  if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
-    return admin.credential.cert({
-      projectId: FIREBASE_PROJECT_ID,
-      clientEmail: FIREBASE_CLIENT_EMAIL,
-      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    });
-  }
-
-  console.error(
-    'No Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON (preferred), or\n' +
-    'FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY.'
-  );
-  process.exit(2);
-}
 
 function formatDeadline(deadline) {
   if (!deadline) return 'Not specified';
@@ -99,8 +67,7 @@ async function main() {
   console.log('Time:', new Date().toISOString());
 
   const transport = DRY_RUN ? null : createTransport();
-  admin.initializeApp({ credential: buildCredential() });
-  const db = admin.firestore();
+  const db = initAdmin().firestore();
   const tenant = createTenantLookup(db);
 
   // Only critical tasks are read (single-field equality needs no composite

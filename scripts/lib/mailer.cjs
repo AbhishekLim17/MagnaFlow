@@ -33,6 +33,9 @@ function assertConfigured() {
 }
 
 function createTransport() {
+  // Integration tests: build the message but deliver nothing. sendNotification
+  // prints the rendered message so a test can assert on recipients and CC.
+  if (process.env.MAIL_TRANSPORT === 'json') return nodemailer.createTransport({ jsonTransport: true });
   assertConfigured();
   return nodemailer.createTransport({
     service: 'gmail',
@@ -135,7 +138,7 @@ function renderText(data) {
 async function sendNotification(transport, data) {
   if (!data.to_email) throw new Error('to_email is required');
 
-  return transport.sendMail({
+  const info = await transport.sendMail({
     from: `"MagnaFlow" <${process.env.GMAIL_USER}>`,
     to: data.to_email,
     cc: data.cc_email || undefined,
@@ -143,6 +146,8 @@ async function sendNotification(transport, data) {
     text: renderText(data),
     html: renderHtml(data),
   });
+  if (process.env.MAIL_TRANSPORT === 'json') console.log('[mail-json] ' + info.message);
+  return info;
 }
 
 module.exports = { createTransport, sendNotification, renderHtml, renderText, escapeHtml };

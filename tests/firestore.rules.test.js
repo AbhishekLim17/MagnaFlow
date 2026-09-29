@@ -822,3 +822,33 @@ describe('deactivated accounts lose data access', () => {
     await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'tasks', 'taskA')));
   });
 });
+
+describe('suspended organizations are cut off by the rules', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'organizations', ORG_A), { status: 'suspended' });
+    });
+  });
+  test('members of a suspended org cannot read their tasks or other data', async () => {
+    await assertFails(getDoc(doc(asUser(STAFF_A), 'tasks', 'taskA')));
+    await assertFails(getDoc(doc(asUser(ADMIN_A), 'tasks', 'taskA')));
+    await assertFails(getDoc(doc(asUser(ADMIN_A), 'users', STAFF_A)));
+    await assertFails(getDocs(collection(asUser(ADMIN_A), 'organizations', ORG_A, 'projects')));
+  });
+  test('they cannot write either', async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { status: 'in-progress' }));
+    await assertFails(setDoc(doc(asUser(ADMIN_A), 'tasks', 'new'), { title: 'x', orgId: ORG_A, createdBy: ADMIN_A, assignedTo: STAFF_A }));
+  });
+  test('but can still read their own profile and org doc, so the app can explain why', async () => {
+    await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'users', STAFF_A)));
+    await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'organizations', ORG_A)));
+  });
+  test('other organizations are unaffected', async () => {
+    await assertSucceeds(getDoc(doc(asUser(STAFF_B), 'tasks', 'taskB')));
+  });
+  test('master-admin can still manage a suspended org and reactivate it', async () => {
+    await assertSucceeds(getDoc(doc(asUser(MASTER), 'tasks', 'taskA')));
+    await assertSucceeds(updateDoc(doc(asUser(MASTER), 'organizations', ORG_A), { status: 'active' }));
+    await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'tasks', 'taskA')));
+  });
+});

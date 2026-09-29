@@ -11,6 +11,7 @@
  *   node scripts/send-queued-emails.cjs [--dry-run]
  */
 const admin = require('firebase-admin');
+const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
 
@@ -23,33 +24,8 @@ const MAX_PER_RUN = 100;
 // a permanently bad address would otherwise be attempted on every run.
 const MAX_ATTEMPTS = 3;
 
-function buildCredential() {
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (json) {
-    try {
-      return admin.credential.cert(JSON.parse(json));
-    } catch (error) {
-      console.error('FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON:', error.message);
-      process.exit(2);
-    }
-  }
-  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
-  if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
-    return admin.credential.cert({
-      projectId: FIREBASE_PROJECT_ID,
-      clientEmail: FIREBASE_CLIENT_EMAIL,
-      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    });
-  }
-  console.error(
-    'No Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON, or all three of\n' +
-      'FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.'
-  );
-  process.exit(2);
-}
-
 async function main() {
-  admin.initializeApp({ credential: buildCredential() });
+  initAdmin();
   const db = admin.firestore();
   const tenant = createTenantLookup(db);
 

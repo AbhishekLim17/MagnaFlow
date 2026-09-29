@@ -2,11 +2,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Two levels of "signed in":
+    //  - authed(): cheap, just an authenticated request. Used inside the role and
+    //    scope helpers below.
+    //  - isSignedIn(): authed() AND the account is not deactivated AND its
+    //    organization is not suspended. Every rule starts with it, ONCE.
+    // The Firestore rules engine stops after 1000 expression evaluations per
+    // request and does not memoize function bodies, so the heavier check must not
+    // be re-run from every helper.
+    //
     // A deactivated account is treated as signed out everywhere, so an admin
     // deactivating someone actually cuts their data access (not just the login
     // form). The one exception is reading their own profile, so the app can
-    // tell them why they were turned away.
-    function isSignedIn() { return request.auth != null && me().get('status', 'active') != 'inactive'; }
+    // tell them why they were turned away. Likewise a member of a SUSPENDED
+    // organization loses access to everything (the org document itself stays
+    // readable, see the organizations rule, so the app can say why).
+    function authed() { return request.auth != null; }
+    function myOrgSuspended() {
+      return myOrgId() != null
+        && exists(/databases/$(database)/documents/organizations/$(myOrgId()))
+        && get(/databases/$(database)/documents/organizations/$(myOrgId())).data.get('status', 'active') == 'suspended';
+    }
+    function isSignedIn() {
+      return request.auth != null
+        && me().get('status', 'active') != 'inactive'
+        && !myOrgSuspended();
+    }
     function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function myRole() { return me().role; }
     // .get(key, default) is used everywhere for optional fields (orgId,
@@ -17,15 +38,15 @@ service cloud.firestore {
     function myOrgId() { return me().get('orgId', null); }
     function myDeptIds() { return me().get('departmentIds', []); }
     function myProjectIds() { return me().get('projectIds', []); }
-    function isMasterAdmin() { return isSignedIn() && myRole() == 'master-admin'; }
-    function isOrgMember(orgId) { return isSignedIn() && myOrgId() == orgId; }
+    function isMasterAdmin() { return authed() && myRole() == 'master-admin'; }
+    function isOrgMember(orgId) { return authed() && myOrgId() == orgId; }
     function isOrgAdmin(orgId) { return isOrgMember(orgId) && myRole() in ['org-admin', 'admin']; }
     function isDeptMember(orgId, deptId) { return isOrgMember(orgId) && deptId in myDeptIds(); }
     function isProjectMember(orgId, projId) { return isOrgMember(orgId) && projId in myProjectIds(); }
-    function isDeptHead() { return isSignedIn() && myRole() == 'department-head'; }
-    function isManager() { return isSignedIn() && myRole() == 'manager'; }
+    function isDeptHead() { return authed() && myRole() == 'department-head'; }
+    function isManager() { return authed() && myRole() == 'manager'; }
     // Client: external stakeholder, read-only, scoped to their assigned projects.
-    function isClient() { return isSignedIn() && myRole() == 'client'; }
+    function isClient() { return authed() && myRole() == 'client'; }
 
     // ---- Task-scoped helpers ------------------------------------------------
     function taskData(taskId) {
@@ -65,18 +86,18 @@ service cloud.firestore {
         || inScope(orgId, request.resource.data.get('departmentId', null), request.resource.data.get('projectId', null));
     }
     function canManageProjectMoney(orgId, projId) {
-      return isMasterAdmin()
+      return isSignedIn() && (isMasterAdmin()
         || isOrgAdmin(orgId)
         || (isManager() && isProjectMember(orgId, projId))
-        || (isDeptHead() && isOrgMember(orgId) && projectDept(orgId, projId) in myDeptIds());
+        || (isDeptHead() && isOrgMember(orgId) && projectDept(orgId, projId) in myDeptIds()));
     }
 
     // Organizations
     match /organizations/{orgId} {
       // Every member (clients included) may read their own org document; the
       // portal header shows the organization name.
-      allow read: if isOrgMember(orgId) || isMasterAdmin();
-      allow write: if isMasterAdmin();
+      allow read: if (authed() && myOrgId() == orgId) || (isSignedIn() && isMasterAdmin());
+      allow write: if isSignedIn() && isMasterAdmin();
 
       // Reading is scoped to the organization, not to the individual
       // department or project. (Testing `deptId in myDeptIds()` here used to
@@ -89,14 +110,14 @@ service cloud.firestore {
       // branch: a client may only read the projects they are linked to, and
       // must fetch them by id (a list query cannot prove `projId in ids`).
       match /departments/{deptId} {
-        allow read: if (isOrgMember(orgId) && !isClient()) || isMasterAdmin();
-        allow write: if isOrgAdmin(orgId) || isMasterAdmin();
+        allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
       }
       match /projects/{projId} {
-        allow read: if (isOrgMember(orgId) && !isClient())
+        allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient())
           || isMasterAdmin()
-          || (isClient() && isOrgMember(orgId) && projId in myProjectIds());
-        allow write: if isOrgAdmin(orgId) || isMasterAdmin();
+          || (isClient() && isOrgMember(orgId) && projId in myProjectIds()));
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
 
         // Budget expenses are financial data: org-admins, plus the manager of
         // this project and the head of its department. Staff and clients have
@@ -108,10 +129,10 @@ service cloud.firestore {
             && request.resource.data.amount is number
             && request.resource.data.amount >= 0
             && request.resource.data.description is string;
-          allow update: if isOrgAdmin(orgId) || isMasterAdmin();
-          allow delete: if isOrgAdmin(orgId) || isMasterAdmin()
+          allow update: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
+          allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin()
             || (resource.data.get('addedBy', null) == request.auth.uid
-                && canManageProjectMoney(orgId, projId));
+                && canManageProjectMoney(orgId, projId)));
         }
       }
     }
@@ -135,7 +156,7 @@ service cloud.firestore {
       // department-head/manager/staff within their OWN org only (never another
       // org-admin/master-admin â€” that's master-admin's job via org provisioning).
       // Department-heads/managers may create staff scoped to their own department/project.
-      allow create: if isMasterAdmin()
+      allow create: if isSignedIn() && (isMasterAdmin()
         || (isOrgAdmin(request.resource.data.get('orgId', null))
             && request.resource.data.role in ['department-head', 'manager', 'staff', 'client'])
         || (isDeptHead() && isOrgMember(request.resource.data.get('orgId', null))
@@ -143,19 +164,19 @@ service cloud.firestore {
             && request.resource.data.get('departmentIds', []).hasAny(myDeptIds()))
         || (isManager() && isOrgMember(request.resource.data.get('orgId', null))
             && request.resource.data.role == 'staff'
-            && request.resource.data.get('projectIds', []).hasAny(myProjectIds()));
+            && request.resource.data.get('projectIds', []).hasAny(myProjectIds())));
 
       // Department heads and managers run their own scope, so they may remove
       // staff from it â€” but only staff, and only people already inside that
       // scope. They can never remove a peer or anyone senior.
-      allow delete: if isOrgAdmin(resource.data.get('orgId', null))
+      allow delete: if isSignedIn() && (isOrgAdmin(resource.data.get('orgId', null))
         || isMasterAdmin()
         || (isDeptHead() && isOrgMember(resource.data.get('orgId', null))
             && resource.data.role == 'staff'
             && resource.data.get('departmentIds', []).hasAny(myDeptIds()))
         || (isManager() && isOrgMember(resource.data.get('orgId', null))
             && resource.data.role == 'staff'
-            && resource.data.get('projectIds', []).hasAny(myProjectIds()));
+            && resource.data.get('projectIds', []).hasAny(myProjectIds())));
 
       // Update: master-admin can change anything. An org-admin can update
       // mid-tier/staff users in their OWN org, but must NOT elevate anyone to
@@ -164,7 +185,7 @@ service cloud.firestore {
       // to the mid-tier/staff set. A user may update their OWN document but must
       // not change their role, status, org, or department/project membership
       // (the latter two would self-grant access to other scopes' data).
-      allow update: if isMasterAdmin()
+      allow update: if isSignedIn() && (isMasterAdmin()
         || (isOrgAdmin(resource.data.get('orgId', null))
             && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
             && resource.data.role in ['department-head', 'manager', 'staff', 'client']
@@ -187,12 +208,11 @@ service cloud.firestore {
             && resource.data.get('projectIds', []).hasAny(myProjectIds())
             && request.resource.data.get('projectIds', []).hasAny(myProjectIds()))
         || (request.auth.uid == uid
-            && isSignedIn()
             && request.resource.data.role == resource.data.role
             && request.resource.data.status == resource.data.status
             && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
             && request.resource.data.get('departmentIds', []) == resource.data.get('departmentIds', [])
-            && request.resource.data.get('projectIds', []) == resource.data.get('projectIds', []));
+            && request.resource.data.get('projectIds', []) == resource.data.get('projectIds', [])));
     }
 
     // Tasks - primary collection for the admin/staff app.
@@ -310,7 +330,7 @@ service cloud.firestore {
 
     // Org usage stats â€” master-admin only
     match /org_usage_stats/{orgId} {
-      allow read, write: if isMasterAdmin();
+      allow read, write: if isSignedIn() && isMasterAdmin();
     }
 
     // Audit logs.
@@ -319,10 +339,10 @@ service cloud.firestore {
     // accountable at the org level too. Entries are append-only: nobody may
     // edit or delete history, and an org-admin cannot forge another org's log.
     match /audit_logs/{logId} {
-      allow read: if isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null));
-      allow create: if isMasterAdmin()
+      allow read: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
+      allow create: if isSignedIn() && (isMasterAdmin()
         || (isOrgAdmin(request.resource.data.get('orgId', null))
-            && request.resource.data.actorId == request.auth.uid);
+            && request.resource.data.actorId == request.auth.uid));
       allow update, delete: if false;
     }
 
@@ -333,7 +353,7 @@ service cloud.firestore {
     // so nobody can quietly erase evidence of a failure.
     match /error_logs/{logId} {
       allow create: if isSignedIn();
-      allow read: if isMasterAdmin();
+      allow read: if isSignedIn() && isMasterAdmin();
       allow update, delete: if false;
     }
 
@@ -418,7 +438,7 @@ service cloud.firestore {
     // Email logs
     match /email_logs/{logId} {
       // Scoped to the org-admin own organization (the drain job stamps orgId).
-      allow read: if isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null));
+      allow read: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
       allow write: if false; // written server-side only
     }
 
@@ -434,10 +454,10 @@ service cloud.firestore {
     // Admins record and later clear these markers; they are never deleted, so
     // the record of the removal survives.
     match /userDeletions/{uid} {
-      allow read: if isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null));
-      allow create: if isMasterAdmin() || isOrgAdmin(request.resource.data.get('orgId', null));
+      allow read: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
+      allow create: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(request.resource.data.get('orgId', null)));
       // Only the cleanup bookkeeping may change â€” the identity fields are fixed.
-      allow update: if (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)))
+      allow update: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)))
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.get('orgId', null) == resource.data.get('orgId', null);
       allow delete: if false;
