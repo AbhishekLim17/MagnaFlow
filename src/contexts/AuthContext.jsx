@@ -1,13 +1,13 @@
 // AuthContext - Firebase Authentication Integration
 // Handles user authentication, session management, and role-based access
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
 import { 
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged 
 } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { FUNCTIONS_ENABLED, callFunction } from "@/config/functions";
 import { auth } from "@/config/firebase";
 import { getUserById, clearCallerProfileCache } from "@/services/userService";
 import { getOrganizationById } from "@/services/organizationService";
@@ -44,6 +44,11 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  // While login() is running it validates the account itself and then sets the
+  // session. The auth listener would otherwise race it: it fires the instant
+  // signInWithEmailAndPassword resolves and could briefly authenticate an
+  // account login() is about to reject (deactivated, org suspended).
+  const loginInFlight = useRef(false);
 
   // Monitor Firebase auth state changes
   useEffect(() => {
@@ -57,13 +62,21 @@ export const AuthProvider = ({ children }) => {
       // scoped query resolves against the new user, never the previous one.
       clearCallerProfileCache();
 
+      if (firebaseUser && loginInFlight.current) return;
+
       if (firebaseUser) {
         try {
           // Fetch user data from Firestore
           console.log("ï¿½ Fetching user data for UID:", firebaseUser.uid);
           const userData = await getUserById(firebaseUser.uid);
           
-          if (userData && await orgIsSuspended(userData.orgId)) {
+          if (userData && userData.status === 'inactive') {
+            // A restored session must honour deactivation too, not only the login form.
+            console.warn("Account deactivated — signing out");
+            await signOut(auth);
+            setUser(null);
+            setIsAuthenticated(false);
+          } else if (userData && await orgIsSuspended(userData.orgId)) {
             console.warn("âš ï¸  Organization suspended â€” signing out");
             await signOut(auth);
             setUser(null);
@@ -103,6 +116,7 @@ export const AuthProvider = ({ children }) => {
    */
   const login = async (email, password) => {
     try {
+      loginInFlight.current = true;
       if (!email || !password) throw new Error("Email and password are required");
       if (!isValidEmail(email)) throw new Error("Invalid email address format");
 
@@ -114,9 +128,8 @@ export const AuthProvider = ({ children }) => {
       // stops the login.
       let limitResult = null;
       try {
-        const functions = getFunctions();
-        const checkLimit = httpsCallable(functions, 'checkLoginRateLimit');
-        limitResult = (await checkLimit({ email })).data;
+        // Only when Cloud Functions exist (see config/functions.js); on Spark this is skipped.
+        if (FUNCTIONS_ENABLED) limitResult = await callFunction('checkLoginRateLimit', { email });
       } catch (limitError) {
         console.warn('Login rate-limit check unavailable, proceeding without it:', limitError?.code || limitError?.message);
       }
@@ -131,11 +144,11 @@ export const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       // Clear rate limit attempts on success
-      try {
-        const functions = getFunctions();
-        const clearAttempts = httpsCallable(functions, 'clearLoginAttempts');
-        await clearAttempts({ email });
-      } catch (_) { /* non-critical */ }
+      if (FUNCTIONS_ENABLED) {
+        try {
+          await callFunction('clearLoginAttempts', { email });
+        } catch (_) { /* non-critical */ }
+      }
 
       // Fetch user data from Firestore
       const userData = await getUserById(userCredential.user.uid);
@@ -152,6 +165,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Your organization has been suspended. Please contact support.");
       }
       
+      setUser(userData);
+      setIsAuthenticated(true);
       return { success: true, user: userData };
       
     } catch (error) {
@@ -162,6 +177,8 @@ export const AuthProvider = ({ children }) => {
       // "Firebase: Error (auth/invalid-credential)."
       console.error('âŒ Login failed:', error?.code || error);
       return { success: false, error: toUserMessage(error, 'Login failed. Please try again.') };
+    } finally {
+      loginInFlight.current = false;
     }
   };
 

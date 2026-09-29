@@ -40,7 +40,7 @@ vi.mock('@/config/firebase', () => ({
   secondaryAuth: { currentUser: null },
 }));
 
-const { getPendingAuthCleanups, getUsersByIds, getAllUsers } = await import('./userService');
+const { getPendingAuthCleanups, getUsersByIds, getAllUsers, assertMayCreate } = await import('./userService');
 const { getDocs } = await import('firebase/firestore');
 
 beforeEach(() => {
@@ -138,5 +138,41 @@ describe('getAllUsers truncation flag', () => {
     userDocs = [{ id: 'u1', role: 'staff', orgId: 'orgA' }];
     const users = await getAllUsers({ role: 'staff', orgId: 'orgA', limit: 5 });
     expect(users.truncated).toBe(false);
+  });
+});
+
+// Mirrors the create rules: a request the rules would deny must be refused
+// before a Firebase Auth account is created.
+describe('assertMayCreate', () => {
+  const master = { role: 'master-admin' };
+  const admin = { role: 'org-admin', orgId: 'o1' };
+  const legacyAdmin = { role: 'admin', orgId: 'o1' };
+  const head = { role: 'department-head', orgId: 'o1', departmentIds: ['d1'] };
+  const manager = { role: 'manager', orgId: 'o1', projectIds: ['p1'] };
+  const staff = { role: 'staff', orgId: 'o1' };
+
+  test('master-admin may create anything anywhere', () => {
+    expect(() => assertMayCreate(master, { role: 'org-admin', orgId: 'o2' })).not.toThrow();
+  });
+  test('org-admin (and legacy admin) create mid-tier roles in their own org only', () => {
+    for (const a of [admin, legacyAdmin]) {
+      expect(() => assertMayCreate(a, { role: 'manager', orgId: 'o1' })).not.toThrow();
+      expect(() => assertMayCreate(a, { role: 'client', orgId: 'o1' })).not.toThrow();
+      expect(() => assertMayCreate(a, { role: 'org-admin', orgId: 'o1' })).toThrow();
+      expect(() => assertMayCreate(a, { role: 'staff', orgId: 'o2' })).toThrow();
+    }
+  });
+  test('department head may only create staff inside their department', () => {
+    expect(() => assertMayCreate(head, { role: 'staff', orgId: 'o1', departmentIds: ['d1'] })).not.toThrow();
+    expect(() => assertMayCreate(head, { role: 'staff', orgId: 'o1', departmentIds: ['d2'] })).toThrow();
+    expect(() => assertMayCreate(head, { role: 'manager', orgId: 'o1', departmentIds: ['d1'] })).toThrow();
+  });
+  test('manager may only create staff inside their project', () => {
+    expect(() => assertMayCreate(manager, { role: 'staff', orgId: 'o1', projectIds: ['p1'] })).not.toThrow();
+    expect(() => assertMayCreate(manager, { role: 'staff', orgId: 'o1', projectIds: ['p2'] })).toThrow();
+  });
+  test('staff, clients and unknown callers may create nothing', () => {
+    expect(() => assertMayCreate(staff, { role: 'staff', orgId: 'o1' })).toThrow();
+    expect(() => assertMayCreate(null, { role: 'staff', orgId: 'o1' })).toThrow();
   });
 });

@@ -2,7 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { return request.auth != null; }
+    // A deactivated account is treated as signed out everywhere, so an admin
+    // deactivating someone actually cuts their data access (not just the login
+    // form). The one exception is reading their own profile, so the app can
+    // tell them why they were turned away.
+    function isSignedIn() { return request.auth != null && me().get('status', 'active') != 'inactive'; }
     function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function myRole() { return me().role; }
     // .get(key, default) is used everywhere for optional fields (orgId,
@@ -118,13 +122,14 @@ service cloud.firestore {
     // so old admin/staff behavior keeps working unchanged for them).
     match /users/{uid} {
       // Clients may only read their own user document (to restore session / get their projectIds).
-      allow read: if isSignedIn() && (
-        request.auth.uid == uid
+      allow read: if (request.auth != null && request.auth.uid == uid)
+        || (isSignedIn() && (
+        false
         || (!isClient() && isOrgAdmin(resource.data.get('orgId', null)))
         || isMasterAdmin()
         || (isDeptHead() && isOrgMember(resource.data.get('orgId', null)) && resource.data.get('departmentIds', []).hasAny(myDeptIds()))
         || (isManager() && isOrgMember(resource.data.get('orgId', null)) && resource.data.get('projectIds', []).hasAny(myProjectIds()))
-      );
+      ));
 
       // Creation: master-admin creates any role in any org. An org-admin creates
       // department-head/manager/staff within their OWN org only (never another
@@ -182,6 +187,7 @@ service cloud.firestore {
             && resource.data.get('projectIds', []).hasAny(myProjectIds())
             && request.resource.data.get('projectIds', []).hasAny(myProjectIds()))
         || (request.auth.uid == uid
+            && isSignedIn()
             && request.resource.data.role == resource.data.role
             && request.resource.data.status == resource.data.status
             && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)

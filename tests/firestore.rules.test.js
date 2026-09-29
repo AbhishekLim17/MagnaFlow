@@ -795,3 +795,30 @@ describe('email logs are org-scoped and server-written', () => {
     await assertFails(setDoc(doc(asUser(ADMIN_A), 'email_logs', 'forged'), { orgId: ORG_A }));
   });
 });
+
+describe('deactivated accounts lose data access', () => {
+  const INACTIVE = 'staffInactive';
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users', INACTIVE), { role: 'staff', orgId: ORG_A, departmentIds: [], projectIds: [], email: 'i@x.com', status: 'inactive' });
+      await setDoc(doc(db, 'tasks', 'inactiveTask'), { title: 't', orgId: ORG_A, assignedTo: INACTIVE, createdBy: ADMIN_A, status: 'pending' });
+    });
+  });
+  test('can still read their own profile (so the app can explain why)', async () => {
+    await assertSucceeds(getDoc(doc(asUser(INACTIVE), 'users', INACTIVE)));
+  });
+  test('cannot read tasks assigned to them', async () => {
+    await assertFails(getDoc(doc(asUser(INACTIVE), 'tasks', 'inactiveTask')));
+  });
+  test('cannot create tasks, comments or mail', async () => {
+    await assertFails(setDoc(doc(asUser(INACTIVE), 'tasks', 'x'), { title: 'x', orgId: ORG_A, createdBy: INACTIVE, assignedTo: INACTIVE }));
+    await assertFails(setDoc(doc(asUser(INACTIVE), 'task_comments', 'x'), { taskId: 'inactiveTask', userId: INACTIVE, text: 'x' }));
+  });
+  test('cannot edit their own profile', async () => {
+    await assertFails(updateDoc(doc(asUser(INACTIVE), 'users', INACTIVE), { name: 'still here' }));
+  });
+  test('an active colleague is unaffected', async () => {
+    await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'tasks', 'taskA')));
+  });
+});

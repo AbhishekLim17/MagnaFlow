@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { FUNCTIONS_ENABLED, callFunction } from '@/config/functions';
 // User Service - Handles all user-related Firebase operations
 // CRUD operations for user management (Admin functionality)
 
@@ -20,7 +20,6 @@ import {
 } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   deleteUser as deleteAuthUser,
   signOut,
   sendPasswordResetEmail
@@ -245,6 +244,31 @@ export const getAllStaff = async () => {
  * @param {Object} userData - User data (name, email, password, role, designation, status)
  * @returns {Promise<Object>} Created user data
  */
+// Mirrors the create rules in firestore.rules so a request the rules will deny
+// is refused BEFORE a Firebase Auth account exists. The account is created
+// first (it has to be, to get a uid), so a late denial would strand a sign-in
+// that reserves the email address.
+export const assertMayCreate = (caller, { role, orgId, departmentIds, projectIds }) => {
+  const target = role || 'staff';
+  const overlaps = (a = [], b = []) => a.some((x) => b.includes(x));
+  let allowed = false;
+  if (caller?.role === 'master-admin') {
+    allowed = true;
+  } else if (caller?.role === 'org-admin' || caller?.role === 'admin') {
+    allowed = (orgId ?? null) === (caller.orgId ?? null) &&
+      ['department-head', 'manager', 'staff', 'client'].includes(target);
+  } else if (caller?.role === 'department-head') {
+    allowed = target === 'staff' && (orgId ?? null) === (caller.orgId ?? null) &&
+      overlaps(departmentIds, caller.departmentIds);
+  } else if (caller?.role === 'manager') {
+    allowed = target === 'staff' && (orgId ?? null) === (caller.orgId ?? null) &&
+      overlaps(projectIds, caller.projectIds);
+  }
+  if (!allowed) {
+    throw new Error(`You do not have permission to create a ${target} account with this scope.`);
+  }
+};
+
 export const createUser = async (userData) => {
   let { email, password, name, role, designation, status, orgId, departmentIds, projectIds } = userData;
   try {
@@ -262,6 +286,8 @@ export const createUser = async (userData) => {
       const caller = await getCallerProfile();
       if (caller && caller.role !== 'master-admin') orgId = caller.orgId;
     }
+
+    await assertMayCreate(await getCallerProfile(), { role, orgId, departmentIds, projectIds });
 
     // Create user using SECONDARY auth instance (won't affect admin session).
     // The secondary instance becomes signed-in as the new user as a side
@@ -310,17 +336,10 @@ export const createUser = async (userData) => {
               } catch (e) {
                 console.warn('Could not auto-purge orphan from Auth emulator:', e?.message || e);
               }
-            } else {
-              try {
-                const orphanCred = await signInWithEmailAndPassword(secondaryAuth, email, password);
-                if (orphanCred?.user) {
-                  await deleteAuthUser(orphanCred.user);
-                  purged = true;
-                }
-              } catch (e) {
-                console.warn('Could not sign-in/purge orphan on secondaryAuth:', e?.message || e);
-              }
             }
+            // In production an orphaned sign-in is NOT purged here. The old code tried to
+            // sign in to it with the password the admin had just typed, which only worked
+            // by coincidence. It is reported instead, and cleared via the userDeletions flow.
 
             if (purged) {
               userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
@@ -354,13 +373,26 @@ export const createUser = async (userData) => {
       // The Auth account exists but has no profile — it can never sign in and
       // its email is now reserved. Make that recoverable instead of silent.
       console.error('User profile write failed after account creation:', docError);
-      const orphanError = new Error(
-        `The sign-in account for ${email} was created, but saving their profile failed ` +
-        `(${docError.code || docError.message}). Delete that account in ` +
-        `Firebase Console → Authentication before retrying, or the email stays reserved.`
-      );
-      orphanError.code = 'profile-write-failed';
-      throw orphanError;
+      // We are still signed in to the new account on the secondary app, so it can
+      // be rolled back right here instead of stranding it and its email address.
+      try {
+        await deleteAuthUser(userCredential.user);
+        const rolledBack = new Error(
+          `Could not save the profile for ${email} (${docError.code || docError.message}). ` +
+          `Nothing was created, so you can fix the problem and try again.`
+        );
+        rolledBack.code = 'profile-write-failed';
+        throw rolledBack;
+      } catch (rollbackError) {
+        if (rollbackError.code === 'profile-write-failed') throw rollbackError;
+        const orphanError = new Error(
+          `The sign-in account for ${email} was created, but saving their profile failed ` +
+          `(${docError.code || docError.message}) and it could not be rolled back. Delete that account in ` +
+          `Firebase Console → Authentication before retrying, or the email stays reserved.`
+        );
+        orphanError.code = 'profile-write-failed';
+        throw orphanError;
+      }
     }
 
     await writeAuditLog({
@@ -448,15 +480,14 @@ export const deleteUser = async (uid) => {
     const victim = await getUserById(uid).catch(() => null);
 
     let cloudFnSuccess = false;
-    try {
-      const functions = getFunctions();
-      const deleteAccountFn = httpsCallable(functions, 'deleteUserAccount');
-      const result = await deleteAccountFn({ uid });
-      if (result?.data?.success) {
-        cloudFnSuccess = true;
+    // The callable only exists off the Spark plan (see config/functions.js).
+    if (FUNCTIONS_ENABLED) {
+      try {
+        const result = await callFunction('deleteUserAccount', { uid });
+        if (result?.success) cloudFnSuccess = true;
+      } catch (fnErr) {
+        console.warn('Cloud function deleteUserAccount failed, using direct delete fallback:', fnErr?.message || fnErr);
       }
-    } catch (fnErr) {
-      console.warn('Cloud function deleteUserAccount unavailable or failed, using direct delete fallback:', fnErr?.message || fnErr);
     }
 
     if (!cloudFnSuccess) {
