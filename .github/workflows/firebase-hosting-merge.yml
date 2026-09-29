@@ -26,6 +26,9 @@ jobs:
       - name: Secret scan
         run: npm run check:secrets
 
+      - name: Lint
+        run: npm run lint
+
       - name: Unit and component tests
         run: npm test
       - name: Firestore security rules tests

@@ -159,7 +159,7 @@ export const getCommentById = async (commentId) => {
   }
 };
 
-export default {
+const commentService = {
   createComment,
   updateComment,
   deleteComment,
@@ -167,3 +167,5 @@ export default {
   getCommentCount,
   getCommentById
 };
+
+export default commentService;

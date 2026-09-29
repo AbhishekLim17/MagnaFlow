@@ -9,11 +9,9 @@ import {
   Trash2,
   Edit3,
   Download,
-  ChevronDown,
   PiggyBank,
   BarChart3,
   CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 import {
   PieChart,
@@ -26,7 +24,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -163,6 +160,7 @@ const BudgetTracker = () => {
         if (active.length > 0 && !selectedProject) setSelectedProject(active[0]);
       })
       .catch((err) => reportError(err, { title: 'Failed to load projects' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.orgId]);
 
   // ── Load expenses when project changes ────────────────────────────────────

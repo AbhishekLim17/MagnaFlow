@@ -206,7 +206,7 @@ const ClientsManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.orgId, toast]);
+  }, [currentUser?.orgId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

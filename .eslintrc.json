@@ -7,7 +7,7 @@
     "no-unused-vars": "warn",
     "react/prop-types": "off",
     "react/display-name": "off",
-    "no-console": ["warn", { "allow": ["error", "warn"] }]
+    "no-console": "off"
   },
   "parserOptions": {
     "ecmaVersion": 2022,

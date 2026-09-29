@@ -220,7 +220,7 @@ export const sendEmailNotification = async (toEmail, toName, mentionedByName, ta
   }
 };
 
-export default {
+const notificationService = {
   createNotification,
   createNotificationsForMentions,
   markAsRead,
@@ -230,3 +230,5 @@ export default {
   getNotifications,
   sendEmailNotification
 };
+
+export default notificationService;

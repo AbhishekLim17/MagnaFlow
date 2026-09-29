@@ -88,4 +88,5 @@ export const LoadingState = ({
   );
 };
 
-export default { EmptyState, LoadingState, Skeleton };
+const States = { EmptyState, LoadingState, Skeleton };
+export default States;

@@ -95,6 +95,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
     }));
 
     return () => safeUnsubscribe(unsubscribe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate staff performance

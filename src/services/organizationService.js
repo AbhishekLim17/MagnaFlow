@@ -88,7 +88,7 @@ export const provisionOrganization = async (orgId, orgData) => {
 /**
  * Update an organization's editable fields (master-admin only, enforced by
  * rules). Accepts any of: name, plan, seatLimit, storageQuotaMB, billingEmail,
- * ccEmails. Does not touch status (use suspend/reactivate) or createdAt.
+ * ccEmails. Keeps status in step with plan (never lifts a suspension); createdAt is untouched.
  * @param {string} orgId
  * @param {Object} updates
  */
@@ -97,6 +97,15 @@ export const updateOrganization = async (orgId, updates) => {
   const patch = {};
   for (const k of allowed) {
     if (updates[k] !== undefined) patch[k] = updates[k];
+  }
+  // Plan and status were conflated: changing a trial org to Active updated the
+  // label but left it showing as a trial. Keep them in step, except that a
+  // suspension must never be lifted as a side effect of editing the plan.
+  if (patch.plan !== undefined) {
+    const current = await getOrganizationById(orgId);
+    if (current && current.status !== 'suspended') {
+      patch.status = patch.plan === 'active' ? 'active' : 'trial';
+    }
   }
   await updateDoc(doc(db, ORGS_COLLECTION, orgId), patch);
   await writeAuditLog({ action: 'update_org', targetOrgId: orgId });

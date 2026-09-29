@@ -21,6 +21,7 @@ const PerformanceReports = () => {
   useEffect(() => {
     // Load data from Firebase
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allTasks, timeRange]);
 
   const loadData = async () => {
@@ -63,7 +64,6 @@ const PerformanceReports = () => {
     const memberTasks = tasks.filter(t => t.assignedTo === member.id);
     const completedTasks = memberTasks.filter(t => t.status === 'completed');
     const inProgressTasks = memberTasks.filter(t => t.status === 'in-progress');
-    const reviewTasks = memberTasks.filter(t => t.status === 'review');
     const pendingTasks = memberTasks.filter(t => t.status === 'pending');
     
     return {

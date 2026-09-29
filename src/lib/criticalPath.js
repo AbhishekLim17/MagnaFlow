@@ -1,4 +1,4 @@
-﻿// criticalPath.js -- pure CPM (Critical Path Method) algorithm.
+// criticalPath.js -- pure CPM (Critical Path Method) algorithm.
 //
 // Input:  tasks[] with { id, startDate, deadline, blockedBy: string[] }
 // Output: Set<string> of task IDs whose total float == 0 (critical path).

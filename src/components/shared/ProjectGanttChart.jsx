@@ -1,4 +1,4 @@
-﻿// ProjectGanttChart - renders a project tasks as a Gantt timeline.
+// ProjectGanttChart - renders a project tasks as a Gantt timeline.
 // Critical path tasks (zero total float via CPM) are highlighted in amber.
 // Dependency edges are drawn as SVG elbow-connector arrows with correct
 // pixel positions measured via ResizeObserver on the actual grid element.
@@ -292,12 +292,6 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
 
                     // Skip backward dependencies — pred timeline after succ
                     if (predRow.start >= succRow.end) return null;
-
-                    // Arrow: right edge of predecessor → left edge of successor
-                    const x1 = predGeo.rightPx;
-                    const y1 = predIdx * ROW_H + ROW_H / 2;
-                    const x2 = succGeo.leftPx;
-                    const y2 = succIdx * ROW_H + ROW_H / 2;
 
                     const isCriticalEdge =
                       predRow.isCritical && succRow.isCritical;

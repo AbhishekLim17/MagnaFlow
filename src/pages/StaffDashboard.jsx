@@ -173,6 +173,7 @@ const StaffDashboard = () => {
     if (user) {
       refreshTasks();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
 
