@@ -21,7 +21,7 @@ import { getErrorLogs } from '@/services/errorLogService';
 import { reportError } from '@/lib/reportError';
 
 const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
-  const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '' });
+  const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '', ccEmails: '' });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -33,6 +33,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
         seatLimit: org.seatLimit ?? 10,
         storageQuotaMB: org.storageQuotaMB ?? 1000,
         billingEmail: org.billingEmail || '',
+        ccEmails: Array.isArray(org.ccEmails) ? org.ccEmails.join(', ') : (org.ccEmails || ''),
       });
     }
   }, [org]);
@@ -48,6 +49,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
         seatLimit: Number(form.seatLimit) || 1,
         storageQuotaMB: Number(form.storageQuotaMB) || 0,
         billingEmail: form.billingEmail,
+        ccEmails: form.ccEmails.split(',').map((s) => s.trim()).filter(Boolean),
       });
       toast({ title: 'Organization updated', description: `${form.name} has been saved.` });
       onOpenChange(false);
@@ -101,6 +103,13 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
               <Input type="email" value={form.billingEmail} onChange={(e) => setForm((p) => ({ ...p, billingEmail: e.target.value }))}
                 className="mt-2 surface border-border text-foreground" />
             </div>
+          </div>
+          <div>
+            <Label className="text-foreground">CC on notification emails</Label>
+            <Input value={form.ccEmails} onChange={(e) => setForm((p) => ({ ...p, ccEmails: e.target.value }))}
+              placeholder="admin@company.com, manager@company.com"
+              className="mt-2 surface border-border text-foreground" />
+            <p className="text-xs text-muted-foreground mt-1">Comma-separated. Copied on this organization's assignment, critical-task and reminder emails.</p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
