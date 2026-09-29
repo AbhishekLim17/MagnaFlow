@@ -10,9 +10,11 @@
 // 2. With filters present the queries had no orderBy (to dodge composite
 //    indexes) but still had a limit, so once a result set exceeded the limit
 //    Firestore returned an arbitrary slice by document id - not the newest. The
-//    query now orders by createdAt desc. If the index for that combination has
-//    not been deployed yet the server answers `failed-precondition`; we then fall
-//    back to the old unordered read instead of breaking the screen.
+//    read is now plain while it fits (complete, and it keeps documents that have
+//    no createdAt); only when the bound is reached is it repeated newest-first.
+//    If the index for that combination has not been deployed yet the server
+//    answers `failed-precondition` and the plain slice is kept rather than
+//    breaking the screen.
 import { query, orderBy, limit as firestoreLimit, getDocs } from 'firebase/firestore';
 
 const MAX_IN_VALUES = 10;
@@ -40,16 +42,24 @@ const createdMs = (d) => {
 export async function runBoundedQuery({ collectionRef, constraints = [], multi = null, boundedAt }) {
   const runOne = async (extra) => {
     const base = [...constraints, ...extra];
+
+    // Plain read first. When the result fits inside the bound it is COMPLETE, and
+    // that includes documents with no createdAt (accounts created by hand in the
+    // console, for instance) which an orderBy would silently exclude.
+    const plain = (await getDocs(query(collectionRef, ...base, firestoreLimit(boundedAt)))).docs;
+    if (plain.length < boundedAt) return { docs: plain, hitBound: false };
+
+    // Bound reached: the plain read is an arbitrary slice by document id, so ask
+    // for the newest rows instead. A missing index is not fatal: keep the slice.
     try {
       const snap = await getDocs(
-        query(collectionRef, ...base, orderBy('createdAt', 'desc'), firestoreLimit(boundedAt))
+        query(collectionRef, ...base, orderBy("createdAt", "desc"), firestoreLimit(boundedAt))
       );
-      return snap.docs;
+      return { docs: snap.docs, hitBound: true };
     } catch (error) {
-      if (error?.code !== 'failed-precondition') throw error;
-      console.warn('Missing Firestore index for an ordered query; falling back to unordered read.');
-      const snap = await getDocs(query(collectionRef, ...base, firestoreLimit(boundedAt)));
-      return snap.docs;
+      if (error?.code !== "failed-precondition") throw error;
+      console.warn("Missing Firestore index for an ordered query; returning an unordered slice.");
+      return { docs: plain, hitBound: true };
     }
   };
 
@@ -59,12 +69,12 @@ export async function runBoundedQuery({ collectionRef, constraints = [], multi =
   const results = await Promise.all(parts.map(runOne));
 
   const byId = new Map();
-  for (const docs of results) for (const d of docs) byId.set(d.id, d);
+  for (const { docs } of results) for (const d of docs) byId.set(d.id, d);
   const merged = [...byId.values()];
   // Each chunk is newest-first on its own; interleave them by date.
   if (results.length > 1 || merged.length > 1) merged.sort((a, b) => createdMs(b) - createdMs(a));
 
   // Hitting the bound - in any chunk, or after merging - means there may be more.
-  const truncated = results.some((docs) => docs.length >= boundedAt) || merged.length > boundedAt;
+  const truncated = results.some((r) => r.hitBound) || merged.length > boundedAt;
   return { docs: merged.slice(0, boundedAt), truncated };
 }
