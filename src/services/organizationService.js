@@ -197,6 +197,16 @@ export const getProjects = async (orgId) => {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 };
 
+// Fetch specific projects by id. Clients may only read the projects they are
+// linked to, and a list query cannot prove that to the security rules, so they
+// must be read one document at a time.
+export const getProjectsByIds = async (orgId, projectIds = []) => {
+  const snaps = await Promise.all(
+    [...new Set(projectIds)].map((id) => getDoc(doc(db, ORGS_COLLECTION, orgId, 'projects', id)))
+  );
+  return snaps.filter((s) => s.exists()).map((s) => ({ id: s.id, ...s.data() }));
+};
+
 export const createProject = async (
   orgId,
   { name, departmentId, memberUserIds = [], budget = 0, currency = 'USD', budgetNotes = '' }

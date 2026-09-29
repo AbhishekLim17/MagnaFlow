@@ -9,9 +9,12 @@ import {
   addDoc,
   updateDoc, 
   deleteDoc,
-  Timestamp 
+  query,
+  where,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { getCallerProfile } from '@/services/userService';
 
 // Collection reference
 const DESIGNATIONS_COLLECTION = 'designations';
@@ -42,7 +45,15 @@ export const getAllDesignations = async () => {
   try {
     console.log("📥 Fetching all designations from Firestore...");
     
-    const designationsRef = collection(db, DESIGNATIONS_COLLECTION);
+    // Designations are per-organization. The query must carry the org filter or
+    // the security rules cannot prove it is allowed; master-admin (no org) sees
+    // all of them.
+    const caller = await getCallerProfile();
+    let designationsRef = collection(db, DESIGNATIONS_COLLECTION);
+    if (caller && caller.role !== 'master-admin') {
+      if (!caller.orgId) return [];
+      designationsRef = query(designationsRef, where('orgId', '==', caller.orgId));
+    }
     const snapshot = await getDocs(designationsRef);
     
     console.log("📊 Received snapshot with", snapshot.size, "documents");
@@ -82,9 +93,11 @@ export const getAllDesignations = async () => {
 export const createDesignation = async (designationData) => {
   try {
     const { name, description } = designationData;
-    
+    const caller = await getCallerProfile();
+
     const designationDoc = {
       name: name || '',
+      orgId: designationData.orgId ?? caller?.orgId ?? null,
       description: description || '',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),

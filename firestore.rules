@@ -23,45 +23,91 @@ service cloud.firestore {
     // Client: external stakeholder, read-only, scoped to their assigned projects.
     function isClient() { return isSignedIn() && myRole() == 'client'; }
 
+    // ---- Task-scoped helpers ------------------------------------------------
+    function taskData(taskId) {
+      return get(/databases/$(database)/documents/tasks/$(taskId)).data;
+    }
+    // Same visibility as the tasks read rule, over any task data map.
+    function taskVisible(t) {
+      return isOrgAdmin(t.get('orgId', null))
+        || isMasterAdmin()
+        || isDeptMember(t.get('orgId', null), t.get('departmentId', null))
+        || isProjectMember(t.get('orgId', null), t.get('projectId', null))
+        || t.get('assignedTo', null) == request.auth.uid
+        || t.get('createdBy', null) == request.auth.uid;
+    }
+    // Child documents (subtasks, comments, attachments) carry only a taskId, so
+    // access is derived from the parent task instead of trusting a client field.
+    // Clients never see internal task conversation.
+    function canSeeTask(taskId) {
+      return isSignedIn() && !isClient() && taskVisible(taskData(taskId));
+    }
+    function projectDept(orgId, projId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/projects/$(projId)).data.get('departmentId', null);
+    }
+    // Is (dept, proj) inside the caller's own scope? Org-admins: always.
+    // A manager owns their projects (and the project's department is implied);
+    // a department head owns their departments and every project inside them.
+    function inScope(orgId, deptId, projId) {
+      return isOrgAdmin(orgId)
+        || ((projId == null || projId in myProjectIds()
+              || (isDeptHead() && projectDept(orgId, projId) in myDeptIds()))
+            && (deptId == null || deptId in myDeptIds()
+              || (projId != null && projId in myProjectIds())));
+    }
+    function scopeUnchangedOrOk(orgId) {
+      return (request.resource.data.get('departmentId', null) == resource.data.get('departmentId', null)
+              && request.resource.data.get('projectId', null) == resource.data.get('projectId', null))
+        || inScope(orgId, request.resource.data.get('departmentId', null), request.resource.data.get('projectId', null));
+    }
+    function canManageProjectMoney(orgId, projId) {
+      return isMasterAdmin()
+        || isOrgAdmin(orgId)
+        || (isManager() && isProjectMember(orgId, projId))
+        || (isDeptHead() && isOrgMember(orgId) && projectDept(orgId, projId) in myDeptIds());
+    }
+
     // Organizations
     match /organizations/{orgId} {
-      // Clients may read their own org document (to display org name in the portal header).
-      allow read: if isOrgMember(orgId) || isMasterAdmin() || (isClient() && isOrgMember(orgId));
+      // Every member (clients included) may read their own org document; the
+      // portal header shows the organization name.
+      allow read: if isOrgMember(orgId) || isMasterAdmin();
       allow write: if isMasterAdmin();
 
       // Reading is scoped to the organization, not to the individual
-      // department or project.
+      // department or project. (Testing `deptId in myDeptIds()` here used to
+      // evaluate `null in [...]` on list queries and surface as
+      // permission-denied, so dropdowns came back empty.) Both collections hold
+      // names/metadata only; what needs finer scoping is the tasks and users
+      // inside them, and that is enforced on those collections.
       //
-      // These used to test `deptId in myDeptIds()`. On a list query there is no
-      // document id to bind the wildcard to, so that comparison evaluated
-      // `null in [...]` and raised "Null value error" â€” which surfaces as
-      // permission-denied. A department head or manager therefore could not
-      // enumerate departments or projects at all, and every dropdown that
-      // needed them came back empty.
-      //
-      // Both collections hold names only. What actually needs scoping is the
-      // tasks and users inside them, and that is enforced on those collections.
-      // Cross-organization isolation is unchanged: isOrgMember still gates it.
+      // Clients are org members too, so they are carved out of the org-wide
+      // branch: a client may only read the projects they are linked to, and
+      // must fetch them by id (a list query cannot prove `projId in ids`).
       match /departments/{deptId} {
-        allow read: if isOrgMember(orgId) || isMasterAdmin();
+        allow read: if (isOrgMember(orgId) && !isClient()) || isMasterAdmin();
         allow write: if isOrgAdmin(orgId) || isMasterAdmin();
       }
       match /projects/{projId} {
-        // Clients may read project names for projects they are linked to.
-        allow read: if isOrgMember(orgId) || isMasterAdmin() || (isClient() && isOrgMember(orgId) && projId in myProjectIds());
+        allow read: if (isOrgMember(orgId) && !isClient())
+          || isMasterAdmin()
+          || (isClient() && isOrgMember(orgId) && projId in myProjectIds());
         allow write: if isOrgAdmin(orgId) || isMasterAdmin();
 
-        // Budget expenses — org members (non-client) can read and write their org's expenses.
-        // Clients have no visibility into financial data.
+        // Budget expenses are financial data: org-admins, plus the manager of
+        // this project and the head of its department. Staff and clients have
+        // no access.
         match /expenses/{expId} {
-          allow read: if (isOrgMember(orgId) && !isClient()) || isMasterAdmin();
-          allow create: if (isOrgMember(orgId) && !isClient())
+          allow read: if canManageProjectMoney(orgId, projId);
+          allow create: if canManageProjectMoney(orgId, projId)
+            && request.resource.data.addedBy == request.auth.uid
             && request.resource.data.amount is number
             && request.resource.data.amount >= 0
             && request.resource.data.description is string;
           allow update: if isOrgAdmin(orgId) || isMasterAdmin();
           allow delete: if isOrgAdmin(orgId) || isMasterAdmin()
-            || resource.data.addedBy == request.auth.uid;
+            || (resource.data.get('addedBy', null) == request.auth.uid
+                && canManageProjectMoney(orgId, projId));
         }
       }
     }
@@ -143,93 +189,117 @@ service cloud.firestore {
             && request.resource.data.get('projectIds', []) == resource.data.get('projectIds', []));
     }
 
-    // Tasks â€” primary collection for the admin/staff app.
+    // Tasks - primary collection for the admin/staff app.
     // Org-scoped the same way as users; department-heads/managers get scoped
     // read + content/status update access but cannot reassign a task's
     // department/project outside their own scope.
     match /tasks/{taskId} {
       allow read: if isSignedIn() && (
-        isOrgAdmin(resource.data.get('orgId', null))
-        || isMasterAdmin()
-        || isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
-        || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null))
-        || resource.data.assignedTo == request.auth.uid
-        || resource.data.createdBy == request.auth.uid
+        taskVisible(resource.data)
         // Clients: read-only access to tasks in their assigned projects only.
         || (isClient()
             && isOrgMember(resource.data.get('orgId', null))
             && resource.data.get('projectId', null) in myProjectIds())
       );
-      // Creation is always confined to the creator's OWN organization. A bare
-      // `createdBy == uid` check would otherwise let any signed-in user plant a
-      // task inside another organization simply by naming themselves as author.
-      // (isOrgAdmin / isDeptMember / isProjectMember all imply org membership,
-      // so org membership + self-authorship is the complete condition.)
+      // Creation is confined to the creator's OWN organization, and to their own
+      // department/project scope (an org-admin may place a task anywhere in the
+      // org). A bare `createdBy == uid` check would otherwise let any signed-in
+      // user plant a task inside another organization or another team's project.
       // Clients have no write access to tasks whatsoever.
       allow create: if isSignedIn() && !isClient() && (
         isMasterAdmin()
         || (isOrgMember(request.resource.data.get('orgId', null))
-            && request.resource.data.createdBy == request.auth.uid)
+            && request.resource.data.createdBy == request.auth.uid
+            && inScope(request.resource.data.get('orgId', null),
+                       request.resource.data.get('departmentId', null),
+                       request.resource.data.get('projectId', null)))
       );
 
       // Only a master-admin may move a task between organizations.
+      //  - org-admin: anything within the org.
+      //  - dept-head / manager on a task in their scope, and the task's creator:
+      //    may edit, but the task must stay inside their scope and its
+      //    author is fixed.
+      //  - the assignee: may update progress on the task but cannot re-home or
+      //    reassign it.
       allow update: if isSignedIn() && !isClient() && (
         isMasterAdmin()
         || (
           request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
           && (
             isOrgAdmin(resource.data.get('orgId', null))
-            || ((isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
-                 || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null)))
+            || (request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
+                && scopeUnchangedOrOk(resource.data.get('orgId', null))
+                && (isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
+                    || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null))
+                    || resource.data.get('createdBy', null) == request.auth.uid))
+            || (resource.data.get('assignedTo', null) == request.auth.uid
+                && request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
+                && request.resource.data.get('assignedTo', null) == resource.data.get('assignedTo', null)
                 && request.resource.data.get('departmentId', null) == resource.data.get('departmentId', null)
                 && request.resource.data.get('projectId', null) == resource.data.get('projectId', null))
-            || resource.data.assignedTo == request.auth.uid
-            || resource.data.createdBy == request.auth.uid
           )
         )
       );
       // Department-heads and managers own the tasks inside their scope, so they
-      // may delete them â€” not just the ones they personally created.
+      // may delete them - not just the ones they personally created.
       allow delete: if isSignedIn() && !isClient() && (
         isOrgAdmin(resource.data.get('orgId', null))
         || isMasterAdmin()
         || isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
         || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null))
-        || resource.data.createdBy == request.auth.uid
+        || resource.data.get('createdBy', null) == request.auth.uid
       );
     }
 
-    // Subtasks
+    // Subtasks, comments and attachments belong to a task and inherit its
+    // visibility (see canSeeTask). Previously any signed-in user of any
+    // organization could read and write every one of them.
     match /subtasks/{subtaskId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read: if canSeeTask(resource.data.get('taskId', null));
+      allow create: if canSeeTask(request.resource.data.get('taskId', null));
+      allow update: if canSeeTask(resource.data.get('taskId', null))
+        && request.resource.data.get('taskId', null) == resource.data.get('taskId', null);
+      allow delete: if canSeeTask(resource.data.get('taskId', null));
     }
 
-    // Task comments
+    // Task comments. Clients cannot read or write comments; the portal shows
+    // task status and timeline only.
     match /task_comments/{commentId} {
-      // Clients cannot read or write comments; the portal shows task status and timeline only.
-      allow read: if isSignedIn() && !isClient();
-      allow create: if isSignedIn() && !isClient();
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if canSeeTask(resource.data.get('taskId', null));
+      allow create: if canSeeTask(request.resource.data.get('taskId', null))
+        && request.resource.data.get('userId', null) == request.auth.uid;
+      allow update: if resource.data.get('userId', null) == request.auth.uid
+        && canSeeTask(resource.data.get('taskId', null))
+        && request.resource.data.get('taskId', null) == resource.data.get('taskId', null)
+        && request.resource.data.get('userId', null) == resource.data.get('userId', null);
       allow delete: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isMasterAdmin()
+        resource.data.get('userId', null) == request.auth.uid || isMasterAdmin()
       );
     }
 
-    // Task attachments
+    // Task attachments (metadata; the files live in Storage, see storage.rules)
     match /task_attachments/{attachmentId} {
-      // Clients cannot access internal attachments.
-      allow read: if isSignedIn() && !isClient();
-      allow create: if isSignedIn() && !isClient();
+      allow read: if canSeeTask(resource.data.get('taskId', null));
+      allow create: if canSeeTask(request.resource.data.get('taskId', null))
+        && request.resource.data.get('uploadedBy', null) == request.auth.uid;
       allow delete: if isSignedIn() && (
-        resource.data.uploadedBy == request.auth.uid || isMasterAdmin()
+        resource.data.get('uploadedBy', null) == request.auth.uid || isMasterAdmin()
       );
     }
 
-    // Notifications
+    // @mention notifications. A notification may only be addressed to someone in
+    // the sender's own organization and attributed to the sender; the recipient
+    // may then read it, flip its `read` flag, or delete it - nothing else.
     match /comment_notifications/{notificationId} {
-      allow read, write: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn();
+      allow read, delete: if isSignedIn() && resource.data.get('userId', null) == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.get('userId', null) == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create: if isSignedIn() && !isClient()
+        && request.resource.data.get('mentionedBy', null) == request.auth.uid
+        && request.resource.data.get('userId', null) is string
+        && get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.get('orgId', null) == myOrgId();
     }
 
     // Org usage stats â€” master-admin only
@@ -301,13 +371,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Designations â€” kept global (not per-org) to minimize scope.
+    // Designations (job titles) are per-organization. A designation without an
+    // orgId is legacy data awaiting scripts/admin/backfill-designation-org.mjs.
     match /designations/{designationId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn()
+        && (isMasterAdmin() || isOrgMember(resource.data.get('orgId', null)));
       // Heads and managers hire into their own scope, so they need to be able
       // to add the job title they are hiring for without waiting on an admin.
-      allow write: if isSignedIn()
-        && myRole() in ['admin', 'org-admin', 'master-admin', 'department-head', 'manager'];
+      allow create: if isSignedIn()
+        && myRole() in ['admin', 'org-admin', 'master-admin', 'department-head', 'manager']
+        && (isMasterAdmin() || request.resource.data.get('orgId', null) == myOrgId());
+      allow update: if isSignedIn()
+        && myRole() in ['admin', 'org-admin', 'master-admin', 'department-head', 'manager']
+        && (isMasterAdmin() || resource.data.get('orgId', null) == myOrgId())
+        && request.resource.data.get('orgId', null) == resource.data.get('orgId', null);
+      allow delete: if isSignedIn()
+        && myRole() in ['admin', 'org-admin', 'master-admin', 'department-head', 'manager']
+        && (isMasterAdmin() || resource.data.get('orgId', null) == myOrgId());
     }
 
     // Email logs

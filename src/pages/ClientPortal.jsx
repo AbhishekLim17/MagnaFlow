@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getProjects } from "@/services/organizationService";
+import { getProjectsByIds } from "@/services/organizationService";
 import { getAllTasks } from "@/services/taskService";
 import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
 import { reportError } from "@/lib/reportError";
@@ -49,7 +49,7 @@ const ClientPortal = () => {
       try {
         setLoading(true);
         const [allProjects, taskResult] = await Promise.all([
-          getProjects(currentUser.orgId),
+          getProjectsByIds(currentUser.orgId, currentUser.projectIds),
           getAllTasks({
             orgId: currentUser.orgId,
             projectIds: currentUser.projectIds,

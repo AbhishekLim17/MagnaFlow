@@ -35,6 +35,8 @@ const MGR_A = 'mgrA';
 const STAFF_A = 'staffA';
 const STAFF_B = 'staffB';
 const STAFF_SCOPED = 'staffScoped'; // in HEAD_A's dept and MGR_A's project
+const CLIENT_A = 'clientA'; // external stakeholder linked to PROJ_A only
+const PROJ_A2 = 'projA2'; // second project in org A, not linked to the client
 
 const USERS = {
   [MASTER]: { role: 'master-admin', email: 'master@x.com', status: 'active' },
@@ -44,6 +46,7 @@ const USERS = {
   [MGR_A]: { role: 'manager', orgId: ORG_A, departmentIds: [], projectIds: [PROJ_A], email: 'm@x.com', status: 'active' },
   [STAFF_A]: { role: 'staff', orgId: ORG_A, departmentIds: [], projectIds: [], email: 's@x.com', status: 'active' },
   [STAFF_B]: { role: 'staff', orgId: ORG_B, departmentIds: [], projectIds: [], email: 'sb@x.com', status: 'active' },
+  [CLIENT_A]: { role: 'client', orgId: ORG_A, departmentIds: [], projectIds: [PROJ_A], email: 'c@x.com', status: 'active' },
   [STAFF_SCOPED]: { role: 'staff', orgId: ORG_A, departmentIds: [DEPT_A], projectIds: [PROJ_A], email: 'ss@x.com', status: 'active' },
 };
 
@@ -79,6 +82,17 @@ beforeEach(async () => {
     }
     await setDoc(doc(db, 'organizations', ORG_A), { name: 'Org A', status: 'active' });
     await setDoc(doc(db, 'organizations', ORG_B), { name: 'Org B', status: 'active' });
+
+    await setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A), { name: 'P1', departmentId: DEPT_A, budget: 1000 });
+    await setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A2), { name: 'P2', departmentId: 'deptOther', budget: 5000 });
+    await setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A, 'expenses', 'exp1'), { amount: 10, description: 'x', addedBy: ADMIN_A });
+    await setDoc(doc(db, 'subtasks', 'subA'), { taskId: 'taskA', title: 's', completed: false });
+    await setDoc(doc(db, 'subtasks', 'subB'), { taskId: 'taskB', title: 's', completed: false });
+    await setDoc(doc(db, 'task_comments', 'comA'), { taskId: 'taskA', userId: STAFF_A, text: 'hi', deleted: false });
+    await setDoc(doc(db, 'task_comments', 'comB'), { taskId: 'taskB', userId: STAFF_B, text: 'hi', deleted: false });
+    await setDoc(doc(db, 'designations', 'desA'), { name: 'Dev', orgId: ORG_A });
+    await setDoc(doc(db, 'designations', 'desB'), { name: 'Dev', orgId: ORG_B });
+    await setDoc(doc(db, 'comment_notifications', 'notifA'), { userId: STAFF_A, taskId: 'taskA', mentionedBy: ADMIN_A, read: false });
 
     // A task in each org.
     await setDoc(doc(db, 'tasks', 'taskA'), {
@@ -423,11 +437,11 @@ describe('scoped admin powers for heads and managers', () => {
   });
 
   test('a head CAN add a designation', async () => {
-    await assertSucceeds(setDoc(doc(asUser(HEAD_A), 'designations', 'd-new'), { name: 'Tech Lead' }));
+    await assertSucceeds(setDoc(doc(asUser(HEAD_A), 'designations', 'd-new'), { name: 'Tech Lead', orgId: ORG_A }));
   });
 
   test('a manager CAN add a designation', async () => {
-    await assertSucceeds(setDoc(doc(asUser(MGR_A), 'designations', 'd-new2'), { name: 'Scrum Master' }));
+    await assertSucceeds(setDoc(doc(asUser(MGR_A), 'designations', 'd-new2'), { name: 'Scrum Master', orgId: ORG_A }));
   });
 
   test('plain staff cannot add a designation', async () => {
@@ -572,3 +586,164 @@ describe('client portal access', () => {
   });
 });
 
+
+
+describe('client role is confined to its linked projects', () => {
+  test('client CAN read a linked project by id', async () => {
+    await assertSucceeds(getDoc(doc(asUser(CLIENT_A), 'organizations', ORG_A, 'projects', PROJ_A)));
+  });
+  test('client cannot read a project they are not linked to (budget leak)', async () => {
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'organizations', ORG_A, 'projects', PROJ_A2)));
+  });
+  test('client cannot list all projects', async () => {
+    await assertFails(getDocs(collection(asUser(CLIENT_A), 'organizations', ORG_A, 'projects')));
+  });
+  test('client cannot list departments', async () => {
+    await assertFails(getDocs(collection(asUser(CLIENT_A), 'organizations', ORG_A, 'departments')));
+  });
+  test('client cannot read expenses', async () => {
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'organizations', ORG_A, 'projects', PROJ_A, 'expenses', 'exp1')));
+  });
+  test('client cannot read subtasks or comments', async () => {
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'subtasks', 'subA')));
+    await assertFails(getDoc(doc(asUser(CLIENT_A), 'task_comments', 'comA')));
+  });
+  test('org member (staff) can still list projects for dropdowns', async () => {
+    await assertSucceeds(getDocs(collection(asUser(STAFF_A), 'organizations', ORG_A, 'projects')));
+  });
+});
+
+describe('subtasks, comments and attachments inherit task visibility', () => {
+  test('assignee can read and add a subtask on their task', async () => {
+    await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'subtasks', 'subA')));
+    await assertSucceeds(setDoc(doc(asUser(STAFF_A), 'subtasks', 'new'), { taskId: 'taskA', title: 'n', completed: false }));
+  });
+  test('other org cannot read or write a subtask', async () => {
+    await assertFails(getDoc(doc(asUser(STAFF_B), 'subtasks', 'subA')));
+    await assertFails(updateDoc(doc(asUser(ADMIN_B), 'subtasks', 'subA'), { completed: true }));
+    await assertFails(deleteDoc(doc(asUser(ADMIN_B), 'subtasks', 'subA')));
+    await assertFails(setDoc(doc(asUser(STAFF_B), 'subtasks', 'plant'), { taskId: 'taskA', title: 'x', completed: false }));
+  });
+  test('same-org staff who cannot see the task cannot read its subtasks', async () => {
+    await assertFails(getDoc(doc(asUser(STAFF_SCOPED), 'subtasks', 'subB')));
+  });
+  test('subtask cannot be re-parented to a task the caller cannot see', async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'subtasks', 'subA'), { taskId: 'taskB' }));
+  });
+  test('cross-org comment read/create denied', async () => {
+    await assertFails(getDoc(doc(asUser(STAFF_B), 'task_comments', 'comA')));
+    await assertFails(setDoc(doc(asUser(STAFF_B), 'task_comments', 'x'), { taskId: 'taskA', userId: STAFF_B, text: 'x' }));
+  });
+  test('comment must be authored as the caller', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'task_comments', 'forge'), { taskId: 'taskA', userId: ADMIN_A, text: 'x' }));
+    await assertSucceeds(setDoc(doc(asUser(STAFF_A), 'task_comments', 'ok'), { taskId: 'taskA', userId: STAFF_A, text: 'x' }));
+  });
+  test('cannot edit someone elses comment', async () => {
+    await assertFails(updateDoc(doc(asUser(ADMIN_A), 'task_comments', 'comA'), { text: 'edited' }));
+  });
+  test('cross-org attachment metadata denied', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_B), 'task_attachments', 'a1'), { taskId: 'taskA', uploadedBy: STAFF_B }));
+  });
+});
+
+describe('notifications', () => {
+  test('recipient can read and mark their notification read', async () => {
+    await assertSucceeds(getDoc(doc(asUser(STAFF_A), 'comment_notifications', 'notifA')));
+    await assertSucceeds(updateDoc(doc(asUser(STAFF_A), 'comment_notifications', 'notifA'), { read: true }));
+  });
+  test('recipient cannot rewrite other notification fields', async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'comment_notifications', 'notifA'), { userId: ADMIN_A }));
+  });
+  test('cannot notify a user in another org', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'comment_notifications', 'n2'), { userId: STAFF_B, mentionedBy: STAFF_A, read: false }));
+  });
+  test('cannot send a notification attributed to someone else', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'comment_notifications', 'n3'), { userId: ADMIN_A, mentionedBy: STAFF_B, read: false }));
+  });
+  test('can notify a colleague in the same org', async () => {
+    await assertSucceeds(setDoc(doc(asUser(STAFF_A), 'comment_notifications', 'n4'), { userId: ADMIN_A, mentionedBy: STAFF_A, read: false }));
+  });
+});
+
+describe('designations are per organization', () => {
+  test('manager can read their own org designations but not another org', async () => {
+    await assertSucceeds(getDoc(doc(asUser(MGR_A), 'designations', 'desA')));
+    await assertFails(getDoc(doc(asUser(MGR_A), 'designations', 'desB')));
+  });
+  test("manager cannot edit or delete another org's designation", async () => {
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'designations', 'desB'), { name: 'hacked' }));
+    await assertFails(deleteDoc(doc(asUser(MGR_A), 'designations', 'desB')));
+  });
+  test('manager cannot create a designation in another org', async () => {
+    await assertFails(setDoc(doc(asUser(MGR_A), 'designations', 'x'), { name: 'x', orgId: ORG_B }));
+  });
+  test('manager CAN create a designation in their own org', async () => {
+    await assertSucceeds(setDoc(doc(asUser(MGR_A), 'designations', 'x'), { name: 'x', orgId: ORG_A }));
+  });
+  test('staff cannot write designations', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'designations', 'x'), { name: 'x', orgId: ORG_A }));
+  });
+});
+
+describe('task scope enforcement', () => {
+  test('assignee cannot move their task to another project', async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { projectId: PROJ_A2 }));
+  });
+  test('assignee cannot reassign or re-author their task', async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { assignedTo: ADMIN_A }));
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { createdBy: STAFF_A }));
+  });
+  test('assignee CAN update status', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { status: 'in-progress' }));
+  });
+  test('staff without scope cannot create a task inside a project', async () => {
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'tasks', 'p'), {
+      title: 'p', orgId: ORG_A, projectId: PROJ_A, departmentId: DEPT_A, createdBy: STAFF_A, assignedTo: STAFF_A, status: 'pending',
+    }));
+  });
+  test('manager can create a task in their project, not in another', async () => {
+    await assertSucceeds(setDoc(doc(asUser(MGR_A), 'tasks', 'mp'), {
+      title: 'm', orgId: ORG_A, projectId: PROJ_A, departmentId: DEPT_A, createdBy: MGR_A, assignedTo: STAFF_SCOPED, status: 'pending',
+    }));
+    await assertFails(setDoc(doc(asUser(MGR_A), 'tasks', 'mp2'), {
+      title: 'm', orgId: ORG_A, projectId: PROJ_A2, departmentId: 'deptOther', createdBy: MGR_A, assignedTo: STAFF_SCOPED, status: 'pending',
+    }));
+  });
+  test('department head can create a task in a project inside their department', async () => {
+    await assertSucceeds(setDoc(doc(asUser(HEAD_A), 'tasks', 'hp'), {
+      title: 'h', orgId: ORG_A, projectId: PROJ_A, departmentId: DEPT_A, createdBy: HEAD_A, assignedTo: STAFF_SCOPED, status: 'pending',
+    }));
+    await assertFails(setDoc(doc(asUser(HEAD_A), 'tasks', 'hp2'), {
+      title: 'h', orgId: ORG_A, projectId: PROJ_A2, departmentId: 'deptOther', createdBy: HEAD_A, assignedTo: STAFF_SCOPED, status: 'pending',
+    }));
+  });
+  test('org-admin can place a task in any project of the org', async () => {
+    await assertSucceeds(setDoc(doc(asUser(ADMIN_A), 'tasks', 'ap'), {
+      title: 'a', orgId: ORG_A, projectId: PROJ_A2, departmentId: 'deptOther', createdBy: ADMIN_A, assignedTo: STAFF_A, status: 'pending',
+    }));
+  });
+});
+
+describe('project expenses are financial data', () => {
+  const EXP = (uid) => ({ amount: 5, description: 'd', addedBy: uid });
+  const expPath = (db, id, proj = PROJ_A) => doc(db, 'organizations', ORG_A, 'projects', proj, 'expenses', id);
+  test('staff cannot read or create expenses', async () => {
+    await assertFails(getDoc(expPath(asUser(STAFF_A), 'exp1')));
+    await assertFails(setDoc(expPath(asUser(STAFF_A), 'e'), EXP(STAFF_A)));
+  });
+  test('org-admin and project manager can read; manager of another project cannot', async () => {
+    await assertSucceeds(getDoc(expPath(asUser(ADMIN_A), 'exp1')));
+    await assertSucceeds(getDoc(expPath(asUser(MGR_A), 'exp1')));
+    await assertFails(getDoc(expPath(asUser(MGR_A), 'x', PROJ_A2)));
+  });
+  test('department head can read expenses of a project in their department', async () => {
+    await assertSucceeds(getDoc(expPath(asUser(HEAD_A), 'exp1')));
+  });
+  test('expense must be recorded under the caller', async () => {
+    await assertFails(setDoc(expPath(asUser(MGR_A), 'e'), EXP(ADMIN_A)));
+    await assertSucceeds(setDoc(expPath(asUser(MGR_A), 'e'), EXP(MGR_A)));
+  });
+  test('other org cannot read expenses', async () => {
+    await assertFails(getDoc(expPath(asUser(ADMIN_B), 'exp1')));
+  });
+});
