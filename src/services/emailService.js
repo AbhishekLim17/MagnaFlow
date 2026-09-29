@@ -125,6 +125,31 @@ export const sendTaskStatusChangedEmail = async (params) =>
     { type: 'task_status_changed', taskId: params.taskId, source: params.source || 'manual' }
   );
 
+const clip = (value, max) => {
+  const s = String(value ?? '');
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+};
+
+export const sendMentionEmail = async (params) =>
+  queueEmail(
+    {
+      to_email: params.toEmail,
+      to_name: params.toName,
+      notification_type: 'Mention',
+      notification_icon: '💬',
+      notification_color: '#3e30d9',
+      title: clip(`You were mentioned on: ${params.taskTitle || 'a task'}`, 280),
+      message: clip(`${params.mentionedBy || 'A teammate'} mentioned you in a comment`, 500),
+      detail_1_label: 'Task', detail_1_value: clip(params.taskTitle, 300),
+      detail_2_label: 'Comment', detail_2_value: clip(params.commentText, 500),
+      detail_3_label: 'From', detail_3_value: clip(params.mentionedBy, 200),
+      button_text: 'Open Task',
+      button_link: APP_URL,
+      footer_text: 'Log in to MagnaFlow to reply.',
+    },
+    { type: 'mention', taskId: params.taskId, source: 'mention' }
+  );
+
 export const sendCriticalTaskAlert = async (params) =>
   queueEmail(
     {

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { createComment, extractMentions, getUserIdsByUsernames } from '../../services/commentService';
+import { createComment } from '../../services/commentService';
+import { sendMentionEmail } from '../../services/emailService';
+import { resolveMentions, mergePeople, mentionToken } from '../../lib/mentions';
 import { createNotificationsForMentions } from '../../services/notificationService';
 import { getAllUsers } from '../../services/userService';
 import { Send, Users } from 'lucide-react';
@@ -9,28 +11,32 @@ import { motion } from 'framer-motion';
  * CommentInput Component
  * Textarea for posting new comments with @mention support
  */
-const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
+const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail, people = [] }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [users, setUsers] = useState([]);
+  const [directory, setDirectory] = useState([]);
   const [showUsers, setShowUsers] = useState(false);
 
   const maxLength = 5000;
   const remainingChars = maxLength - text.length;
 
-  // Load users once for mention suggestions
+  // Load users once for mention suggestions. What this returns depends on the
+  // caller's role (the security rules only let org-admins list everyone), so it
+  // is merged with the people already visible on the task - its commenters.
   useEffect(() => {
     const loadUsers = async () => {
       try {
         const allUsers = await getAllUsers();
-        setUsers(allUsers.filter(u => u.id !== userId)); // Exclude current user
-      } catch (err) {
-        console.error('Error loading users:', err);
+        setDirectory(allUsers.map((u) => ({ id: u.id, name: u.name, email: u.email })));
+      } catch {
+        // Expected for roles that cannot list users; commenters still work.
       }
     };
     loadUsers();
   }, [userId]);
+
+  const users = mergePeople(directory, people).filter((u) => u.id !== userId && u.name);
 
   // Handle comment submission
   const handleSubmit = async (e) => {
@@ -45,13 +51,9 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
     setError(null);
 
     try {
-      // Extract @mentions from text
-      const mentionedUsernames = extractMentions(text);
-      
-      // Get user IDs for mentioned usernames
-      const mentionedUserIds = mentionedUsernames.length > 0 
-        ? await getUserIdsByUsernames(mentionedUsernames)
-        : [];
+      // Resolve @mentions against the people the picker offered
+      const mentioned = resolveMentions(text, users);
+      const mentionedUserIds = mentioned.map((p) => p.id);
 
       // Create comment
       const newComment = await createComment(
@@ -78,12 +80,20 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
 
           console.log(`✅ Created notifications for ${mentionedUserIds.length} users`);
 
-          // Send email notifications (don't wait for completion)
-          mentionedUserIds.forEach(async (mentionedUserId) => {
-            // TODO: Get user email from Firestore users collection
-            // For now, we'll skip email notification or implement in next iteration
-            console.log(`📧 Would send email to user ${mentionedUserId}`);
-          });
+          // Queue an email for everyone whose address we know (delivery is by the
+          // scheduled job, which re-checks the recipient belongs to the task's org).
+          await Promise.all(
+            mentioned
+              .filter((p) => p.email)
+              .map((p) => sendMentionEmail({
+                toEmail: p.email,
+                toName: p.name,
+                taskTitle,
+                commentText: text,
+                mentionedBy: userName,
+                taskId,
+              }))
+          );
         } catch (notifError) {
           console.error('⚠️ Failed to create notifications:', notifError);
           // Don't fail the whole operation if notifications fail
@@ -107,7 +117,7 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Write a comment... Use @username to mention someone"
+          placeholder="Write a comment... Pick a name below to @mention someone"
           className="w-full px-4 py-3 bg-muted border border-border text-foreground rounded-xl focus:ring-2 ring-primary focus:border-transparent resize-none"
           rows="3"
           maxLength={maxLength}
@@ -172,7 +182,7 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail }) => {
                 key={user.id}
                 onClick={() => {
                   const atSymbol = text.endsWith('@') ? '' : '@';
-                  setText(text + atSymbol + user.name);
+                  setText(text + atSymbol + mentionToken(user.name) + ' ');
                 }}
                 className="text-xs px-2 py-1 bg-muted text-primary rounded cursor-pointer hover:bg-muted transition-colors"
               >

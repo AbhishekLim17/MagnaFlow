@@ -41,6 +41,12 @@ const CommentSection = ({ taskId, taskTitle }) => {
     };
   }, [taskId]);
 
+  // People already visible on this task, usable as @mention targets even when
+  // the caller's role cannot list users.
+  const people = comments
+    .filter((c) => c.userId && c.userName)
+    .map((c) => ({ id: c.userId, name: c.userName, email: c.userEmail }));
+
   if (!currentUser) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -89,6 +95,7 @@ const CommentSection = ({ taskId, taskTitle }) => {
         userId={currentUser.uid}
         userName={currentUser.displayName || currentUser.email}
         userEmail={currentUser.email}
+        people={people}
       />
     </div>
   );

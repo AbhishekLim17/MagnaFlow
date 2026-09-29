@@ -13,7 +13,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { sendTaskAssignedEmail } from './emailService';
+import { sendMentionEmail } from './emailService';
 import { safeListen } from '@/lib/safeUnsubscribe';
 
 /**
@@ -206,16 +206,13 @@ export const getNotifications = async (userId, limitCount = 20) => {
 // Send email notification for @mention — routes through emailService.js
 export const sendEmailNotification = async (toEmail, toName, mentionedByName, taskTitle, commentText, taskId) => {
   try {
-    return await sendTaskAssignedEmail({
+    return await sendMentionEmail({
       toEmail,
       toName,
-      taskTitle: `You were mentioned in: ${taskTitle}`,
-      taskDescription: commentText,
-      taskPriority: 'Medium',
-      dueDate: '',
-      assignedBy: mentionedByName,
+      taskTitle,
+      commentText,
+      mentionedBy: mentionedByName,
       taskId,
-      source: 'mention',
     });
   } catch (error) {
     console.error('❌ Error sending mention email notification:', error);

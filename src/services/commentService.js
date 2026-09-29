@@ -159,50 +159,11 @@ export const getCommentById = async (commentId) => {
   }
 };
 
-// Extract @mentions from text
-export const extractMentions = (text) => {
-  // Match @username pattern (alphanumeric + underscore)
-  const mentionRegex = /@(\w+)/g;
-  const matches = [...text.matchAll(mentionRegex)];
-  return matches.map(match => match[1]); // Return array of usernames without @
-};
-
-// Get user IDs from usernames (for @mentions)
-export const getUserIdsByUsernames = async (usernames) => {
-  try {
-    if (usernames.length === 0) return [];
-
-    const usersRef = collection(db, 'users');
-    const userIds = [];
-
-    // Firestore doesn't support case-insensitive queries, so we fetch all users
-    // and filter in-memory (for small user base this is acceptable)
-    const snapshot = await getDocs(usersRef);
-    
-    snapshot.forEach(doc => {
-      const userData = doc.data();
-      const userName = userData.name?.toLowerCase() || '';
-      
-      // Check if any username matches (case-insensitive)
-      if (usernames.some(username => userName.includes(username.toLowerCase()))) {
-        userIds.push(doc.id);
-      }
-    });
-
-    return userIds;
-  } catch (error) {
-    console.error('❌ Error getting user IDs:', error);
-    return [];
-  }
-};
-
 export default {
   createComment,
   updateComment,
   deleteComment,
   subscribeToComments,
   getCommentCount,
-  getCommentById,
-  extractMentions,
-  getUserIdsByUsernames
+  getCommentById
 };
