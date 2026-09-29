@@ -4,18 +4,17 @@
 import { 
   collection, 
   doc, 
-  getDoc, 
-  getDocs, 
+  getDoc,
   addDoc,
   updateDoc, 
   deleteDoc,
-  query,
+  arrayRemove,
   where,
-  orderBy,
-  limit as firestoreLimit,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { runBoundedQuery } from '@/lib/firestoreQuery';
+import { wouldCreateCycle, unfinishedBlockers } from '@/lib/dependencies';
 import { sendCriticalTaskAlert } from './emailService';
 import { deleteAllSubtasksForTask } from './subtaskService';
 import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
@@ -56,80 +55,51 @@ export const getAllTasks = async (filters = {}) => {
   try {
     const constraints = [];
 
-    // Apply filters
-    if (filters.assignedTo) {
-      constraints.push(where('assignedTo', '==', filters.assignedTo));
-    }
-    if (filters.status) {
-      constraints.push(where('status', '==', filters.status));
-    }
-    if (filters.priority) {
-      constraints.push(where('priority', '==', filters.priority));
-    }
-    if (filters.createdBy) {
-      constraints.push(where('createdBy', '==', filters.createdBy));
-    }
-    if (filters.orgId) {
-      constraints.push(where('orgId', '==', filters.orgId));
-    }
-    if (filters.departmentId) {
-      constraints.push(where('departmentId', '==', filters.departmentId));
-    }
+    if (filters.assignedTo) constraints.push(where('assignedTo', '==', filters.assignedTo));
+    if (filters.status) constraints.push(where('status', '==', filters.status));
+    if (filters.priority) constraints.push(where('priority', '==', filters.priority));
+    if (filters.createdBy) constraints.push(where('createdBy', '==', filters.createdBy));
+    if (filters.orgId) constraints.push(where('orgId', '==', filters.orgId));
+    if (filters.departmentId) constraints.push(where('departmentId', '==', filters.departmentId));
+    if (filters.projectId) constraints.push(where('projectId', '==', filters.projectId));
+
+    // A list-valued filter (a department head's departments, a manager's
+    // projects) may exceed Firestore's 10-value limit; runBoundedQuery splits it
+    // into chunks instead of silently dropping everything past the tenth.
+    let multi = null;
     if (filters.departmentIds?.length) {
-      constraints.push(where('departmentId', 'in', filters.departmentIds.slice(0, 10)));
-    }
-    if (filters.projectId) {
-      constraints.push(where('projectId', '==', filters.projectId));
+      multi = { values: filters.departmentIds, build: (c) => where('departmentId', 'in', c) };
     }
     if (filters.projectIds?.length) {
-      constraints.push(where('projectId', 'in', filters.projectIds.slice(0, 10)));
-    }
-
-    // Only use orderBy when there are no filters to avoid composite index requirement
-    // When filters are present, sort in memory instead
-    let hasOrderBy = false;
-    if (constraints.length === 0) {
-      constraints.push(orderBy('createdAt', 'desc'));
-      hasOrderBy = true;
+      if (multi) constraints.push(where('projectId', 'in', filters.projectIds.slice(0, 10)));
+      else multi = { values: filters.projectIds, build: (c) => where('projectId', 'in', c) };
     }
 
     // Always bound the read. Firestore bills per document returned, and an
     // unbounded collection scan gets slower and more expensive as the data
     // grows. Callers that need more can raise `limit` explicitly.
     const boundedAt = filters.limit ?? DEFAULT_TASK_LIMIT;
-    constraints.push(firestoreLimit(boundedAt));
-
-    const q = query(collection(db, TASKS_COLLECTION), ...constraints);
-    const snapshot = await getDocs(q);
-
-    const tasks = [];
-    snapshot.forEach((doc) => {
-      tasks.push({ id: doc.id, ...doc.data() });
+    const { docs, truncated } = await runBoundedQuery({
+      collectionRef: collection(db, TASKS_COLLECTION),
+      constraints,
+      multi,
+      boundedAt,
     });
 
-    // If we have filters and no orderBy, sort in memory by createdAt (newest first)
-    if (!hasOrderBy) {
-      tasks.sort((a, b) => {
-        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return bTime - aTime; // desc order
-      });
-    }
+    const tasks = docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    // Hitting the bound exactly means there may be more rows this call never
-    // saw — the org has genuinely outgrown a single unpaginated read. Flagged
-    // on the array itself (not thrown, not logged) so a screen that cares can
-    // show it and one that doesn't is unaffected; this used to fail
-    // completely silently; a company with more than 500 tasks would see a
-    // task list that looked complete but wasn't, with nothing to suggest why.
-    tasks.truncated = tasks.length >= boundedAt;
+    // Hitting the bound means there may be more rows this call never saw - the
+    // org has outgrown a single unpaginated read. The rows returned are the
+    // NEWEST ones (see runBoundedQuery). Flagged on the array itself (not thrown)
+    // so a screen that cares can show it and one that doesn't is unaffected.
+    tasks.truncated = truncated;
 
     return tasks;
   } catch (error) {
     console.error('Error getting tasks:', error);
     // Nearly every dashboard's task list passes through here, which makes
     // this (with getAllUsers) one of the two places most likely to actually
-    // observe a poisoned Firestore client — see the note in
+    // observe a poisoned Firestore client - see the note in
     // firestoreRecovery for why a global handler alone misses this.
     if (isFirestoreInternalAssertion(error)) recoverFromFirestoreFailure();
     throw error;
@@ -212,12 +182,51 @@ export const createTask = async (taskData) => {
  * @param {Object} updates - Fields to update
  * @returns {Promise<Object>} Updated task data
  */
+// Statuses that mean work has begun on a task.
+const STARTED_STATUSES = new Set(['in-progress', 'review', 'completed']);
+
+const taskError = (code, message) => Object.assign(new Error(message), { code });
+
+// Dependencies are enforced here, in the one place every screen (list, Kanban,
+// staff and admin dashboards, edit dialogs) goes through, rather than in each
+// component. Previously only the staff dashboard checked, so an admin could
+// drag a blocked task straight to Done.
+const assertDependenciesAllow = async (taskId, currentTask, updates) => {
+  if (Array.isArray(updates.blockedBy)) {
+    const hasCycle = await wouldCreateCycle(taskId, updates.blockedBy, async (id) => {
+      const t = await getTaskById(id).catch(() => null);
+      return t?.blockedBy || [];
+    });
+    if (hasCycle) {
+      throw taskError('dependency-cycle', 'That dependency would create a loop: a task cannot (indirectly) depend on itself.');
+    }
+  }
+
+  const movingToStarted = updates.status && updates.status !== currentTask.status && STARTED_STATUSES.has(updates.status);
+  if (movingToStarted) {
+    const blockers = Array.isArray(updates.blockedBy) ? updates.blockedBy : (currentTask.blockedBy || []);
+    if (blockers.length > 0) {
+      const loaded = new Map();
+      await Promise.all(blockers.map(async (id) => {
+        loaded.set(id, await getTaskById(id).catch(() => null));
+      }));
+      const open = unfinishedBlockers(blockers, (id) => loaded.get(id));
+      if (open.length > 0) {
+        throw taskError('task-blocked', `This task is blocked: ${open.length} prerequisite task${open.length > 1 ? 's' : ''} must be completed first.`);
+      }
+    }
+  }
+};
+
 export const updateTask = async (taskId, updates) => {
   try {
     const taskRef = doc(db, TASKS_COLLECTION, taskId);
     
     // Get the current task data to check priority changes
     const currentTask = await getTaskById(taskId);
+    if (!currentTask) throw taskError('task-not-found', 'This task no longer exists.');
+
+    await assertDependenciesAllow(taskId, currentTask, updates);
     
     const updatedData = {
       ...updates,
@@ -227,6 +236,9 @@ export const updateTask = async (taskId, updates) => {
     // If status is changed to 'completed', set completedAt timestamp
     if (updates.status === 'completed' && !updates.completedAt) {
       updatedData.completedAt = Timestamp.now();
+    } else if (updates.status && updates.status !== 'completed' && currentTask.status === 'completed') {
+      // Reopened: it is no longer finished.
+      updatedData.completedAt = null;
     }
     
     // Convert deadline to Timestamp if it's a string
@@ -291,10 +303,25 @@ export const updateTask = async (taskId, updates) => {
  * @param {string} taskId - Task ID
  * @returns {Promise<void>}
  */
-export const deleteTask = async (taskId) => {
+export const deleteTask = async (taskId, { dependentTaskIds = [] } = {}) => {
   try {
     // First, delete all associated subtasks
     await deleteAllSubtasksForTask(taskId);
+
+    // Anything that was waiting on this task must not keep a dangling
+    // prerequisite. The caller passes the dependents it can see (a list query
+    // for them would be refused by the rules for scoped roles); one that cannot
+    // be updated is skipped rather than blocking the delete.
+    await Promise.all(dependentTaskIds.map(async (depId) => {
+      try {
+        await updateDoc(doc(db, TASKS_COLLECTION, depId), {
+          blockedBy: arrayRemove(taskId),
+          updatedAt: Timestamp.now(),
+        });
+      } catch (e) {
+        console.warn('Could not detach dependent task', depId, e?.code || e?.message);
+      }
+    }));
     
     // Then delete the task itself
     await deleteDoc(doc(db, TASKS_COLLECTION, taskId));

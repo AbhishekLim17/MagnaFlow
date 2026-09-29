@@ -167,6 +167,9 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
     const map = {};
     COLUMNS.forEach((c) => { map[c.id] = []; });
     tasks.forEach((t) => {
+      // Cancelled work is not part of the flow; it used to fall through to Todo and
+      // look like something still to do. It is counted and mentioned below instead.
+      if (t.status === 'cancelled') return;
       const col = COLUMNS.find((c) => c.id === t.status);
       if (col) {
         map[col.id].push(t);
@@ -177,6 +180,8 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
     });
     return map;
   }, [tasks]);
+
+  const cancelledCount = useMemo(() => tasks.filter((t) => t.status === 'cancelled').length, [tasks]);
 
   // Find which column a task belongs to
   const findColumnOfTask = (taskId) => {
@@ -224,6 +229,11 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      {cancelledCount > 0 && (
+        <p className="text-xs text-muted-foreground mb-2">
+          {cancelledCount} cancelled task{cancelledCount > 1 ? 's are' : ' is'} hidden from the board.
+        </p>
+      )}
       {/* Horizontal scrollable board */}
       <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-0.5 -mx-0.5">
         {COLUMNS.map((col) => (

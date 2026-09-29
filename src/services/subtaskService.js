@@ -40,6 +40,19 @@ export const addSubtask = async (taskId, title, createdBy) => {
     };
 
     const docRef = await addDoc(collection(db, SUBTASKS_COLLECTION), subtaskData);
+
+    // A new, unfinished subtask means the task is no longer finished: reopen a
+    // completed task instead of leaving it marked Done with open work under it.
+    try {
+      const all = await getDocs(query(collection(db, SUBTASKS_COLLECTION), where('taskId', '==', taskId)));
+      const total = all.size;
+      const done = all.docs.filter((d) => d.data().completed).length;
+      await recomputeTaskStatus(taskId, done, total);
+      window.dispatchEvent(new CustomEvent('taskStatusUpdated', { detail: { taskId, completedCount: done, totalCount: total } }));
+    } catch (statusError) {
+      console.error('Error syncing task status after adding a subtask:', statusError);
+    }
+
     return docRef.id;
   } catch (error) {
     console.error('Error adding subtask:', error);

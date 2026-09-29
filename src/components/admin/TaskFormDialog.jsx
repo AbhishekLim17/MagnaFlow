@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { dependsOn } from '@/lib/dependencies';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -44,11 +45,15 @@ const TaskFormDialog = ({
   staff = [],
   projects = [],
   tasks = [],
+  taskId,
   onSubmit,
   onCancel,
 }) => {
   const isAdd = mode === 'add';
   const set = (patch) => setFormData({ ...formData, ...patch });
+  // Candidate prerequisites: never the task itself, and never a task that already
+  // depends on it (directly or transitively) - that would be a loop.
+  const tasksById = Object.fromEntries(tasks.map((t) => [t.id, t]));
   const idFor = (name) => (isAdd ? name : `edit-${name}`);
 
   return (
@@ -137,6 +142,7 @@ const TaskFormDialog = ({
                 id={idFor('deadline')}
                 type="date"
                 value={formData.deadline}
+                min={formData.startDate || undefined}
                 onChange={(e) => set({ deadline: e.target.value })}
                 className={FIELD_CLASS}
               />
@@ -190,7 +196,7 @@ const TaskFormDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   {tasks
-                    .filter((t) => t.id !== (formData.id || '') && !(formData.blockedBy || []).includes(t.id) && (!formData.projectId || !t.projectId || t.projectId === formData.projectId))
+                    .filter((t) => (!taskId || !dependsOn(t.id, taskId, tasksById)) && !(formData.blockedBy || []).includes(t.id) && (!formData.projectId || !t.projectId || t.projectId === formData.projectId))
                     .map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                     ))}

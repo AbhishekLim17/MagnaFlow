@@ -272,6 +272,20 @@ const TaskManagement = () => {
     return { ...formData, projectId, departmentId };
   };
 
+  // A deadline before the start date makes a nonsense Gantt bar (it is silently
+  // clamped to a one-day task), so refuse it up front.
+  const datesAreInvalid = () => {
+    if (formData.startDate && formData.deadline && formData.deadline < formData.startDate) {
+      toast({
+        title: "Check the dates",
+        description: "The deadline cannot be earlier than the start date.",
+        variant: "destructive",
+      });
+      return true;
+    }
+    return false;
+  };
+
   const handleAddTask = async () => {
     if (!formData.title || !formData.assignedTo) {
       toast({
@@ -281,6 +295,8 @@ const TaskManagement = () => {
       });
       return;
     }
+
+    if (datesAreInvalid()) return;
 
     try {
       await createTask(buildTaskPayload());
@@ -300,6 +316,8 @@ const TaskManagement = () => {
       });
       return;
     }
+
+    if (datesAreInvalid()) return;
 
     try {
       await updateTask(selectedTask.id, buildTaskPayload());
@@ -584,6 +602,7 @@ const TaskManagement = () => {
 
       <TaskFormDialog
         mode="edit"
+        taskId={selectedTask?.id}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         formData={formData}

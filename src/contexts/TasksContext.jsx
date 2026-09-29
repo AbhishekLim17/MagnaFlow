@@ -246,9 +246,11 @@ export const TasksProvider = ({ children }) => {
       return updatedTask;
     } catch (error) {
       console.error("❌ Error updating task:", error);
+      // Dependency problems are the user's to fix, so say exactly what they are.
+      const explainable = error?.code === 'task-blocked' || error?.code === 'dependency-cycle' || error?.code === 'task-not-found';
       toast({
-        title: "Error",
-        description: "Failed to update task. Please try again.",
+        title: error?.code === 'task-blocked' ? "Task is blocked" : "Error",
+        description: explainable ? error.message : "Failed to update task. Please try again.",
         variant: "destructive",
       });
       throw error;
@@ -262,9 +264,20 @@ export const TasksProvider = ({ children }) => {
     try {
       console.log("🗑️  Deleting task:", taskId);
       
-      await deleteTaskService(taskId);
+      // Tasks that were waiting on this one are detached from it. Use the list
+      // already in memory: it is scoped to what this user may touch, which a fresh
+      // query for dependents could not prove to the security rules.
+      const dependentTaskIds = tasks
+        .filter((t) => Array.isArray(t.blockedBy) && t.blockedBy.includes(taskId))
+        .map((t) => t.id);
+
+      await deleteTaskService(taskId, { dependentTaskIds });
       
-      setTasks(prev => prev.filter(t => t.id !== taskId));
+      setTasks(prev => prev
+        .filter(t => t.id !== taskId)
+        .map(t => (Array.isArray(t.blockedBy) && t.blockedBy.includes(taskId)
+          ? { ...t, blockedBy: t.blockedBy.filter((id) => id !== taskId) }
+          : t)));
       
       // Refresh statistics
       await refreshStatistics();

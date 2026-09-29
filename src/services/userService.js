@@ -14,7 +14,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
   limit as firestoreLimit,
   Timestamp
 } from 'firebase/firestore';
@@ -26,6 +25,7 @@ import {
 } from 'firebase/auth';
 import { auth, db, secondaryAuth } from '@/config/firebase';
 import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
+import { runBoundedQuery } from '@/lib/firestoreQuery';
 
 // Collection reference
 const USERS_COLLECTION = 'users';
@@ -146,8 +146,6 @@ const normalizeUser = (user) => {
  */
 export const getAllUsers = async (filters = {}) => {
   try {
-    let q = collection(db, USERS_COLLECTION);
-
     // Auto-resolve orgId from the caller's own profile when not explicitly
     // specified, so org-scoping applies even to callers that don't pass it.
     let orgId = filters.orgId;
@@ -156,68 +154,44 @@ export const getAllUsers = async (filters = {}) => {
       if (caller && caller.role !== 'master-admin') orgId = caller.orgId;
     }
 
-    // Apply filters if provided
     const constraints = [];
-    if (filters.role) {
-      constraints.push(where('role', '==', filters.role));
-    }
-    if (filters.status) {
-      constraints.push(where('status', '==', filters.status));
-    }
-    if (filters.designation) {
-      constraints.push(where('designation', '==', filters.designation));
-    }
-    if (orgId !== undefined) {
-      constraints.push(where('orgId', '==', orgId));
-    }
+    if (filters.role) constraints.push(where('role', '==', filters.role));
+    if (filters.status) constraints.push(where('status', '==', filters.status));
+    if (filters.designation) constraints.push(where('designation', '==', filters.designation));
+    if (orgId !== undefined) constraints.push(where('orgId', '==', orgId));
+
+    // List-valued scope filters are chunked past Firestore's 10-value limit
+    // instead of being truncated (see runBoundedQuery).
+    let multi = null;
     if (filters.departmentIds?.length) {
-      constraints.push(where('departmentIds', 'array-contains-any', filters.departmentIds.slice(0, 10)));
+      multi = { values: filters.departmentIds, build: (c) => where('departmentIds', 'array-contains-any', c) };
     }
     if (filters.projectIds?.length) {
-      constraints.push(where('projectIds', 'array-contains-any', filters.projectIds.slice(0, 10)));
+      if (multi) constraints.push(where('projectIds', 'array-contains-any', filters.projectIds.slice(0, 10)));
+      else multi = { values: filters.projectIds, build: (c) => where('projectIds', 'array-contains-any', c) };
     }
 
-    // Only add ordering if no filters (to avoid index requirement)
-    // If filters exist, we'll sort in memory
-    let hasOrderBy = false;
-    if (constraints.length === 0) {
-      constraints.push(orderBy('createdAt', 'desc'));
-      hasOrderBy = true;
-    }
-
-    // Always bound the read — see the note in taskService.
+    // Always bound the read - see the note in taskService.
     const boundedAt = filters.limit ?? DEFAULT_USER_LIMIT;
-    constraints.push(firestoreLimit(boundedAt));
-
-    q = query(collection(db, USERS_COLLECTION), ...constraints);
-
-    const snapshot = await getDocs(q);
-    const users = [];
-    snapshot.forEach((doc) => {
-      users.push({ id: doc.id, ...doc.data() });
+    const { docs, truncated } = await runBoundedQuery({
+      collectionRef: collection(db, USERS_COLLECTION),
+      constraints,
+      multi,
+      boundedAt,
     });
 
-    // Sort in memory if we didn't use orderBy
-    if (!hasOrderBy) {
-      users.sort((a, b) => {
-        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return bTime - aTime;
-      });
-    }
+    const users = docs.map((d) => ({ id: d.id, ...d.data() }));
 
     // See the identical note in taskService's getAllTasks: hitting the bound
-    // exactly means the org may have more than this call returned, and that
-    // used to have zero visible signal — a staff list could quietly stop
-    // being the whole staff list.
-    users.truncated = users.length >= boundedAt;
+    // means the org may have more than this call returned.
+    users.truncated = truncated;
 
     return users;
   } catch (error) {
     console.error('Error getting users:', error);
     // Nearly every screen's staff/user list passes through here, which makes
     // this one of the two places (see the identical check in taskService)
-    // most likely to actually observe a poisoned Firestore client — see the
+    // most likely to actually observe a poisoned Firestore client - see the
     // note in firestoreRecovery for why a global handler alone misses this.
     if (isFirestoreInternalAssertion(error)) recoverFromFirestoreFailure();
     throw error;
