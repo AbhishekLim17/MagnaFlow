@@ -159,12 +159,13 @@ async function seed() {
 
   console.log('Creating designations…');
   for (const name of ['Senior Developer', 'QA Engineer', 'Accounts Executive', 'Project Manager', 'Engineering Head']) {
-    await db.collection('designations').add({ name, description: `${name} role`, createdAt: day(-80) });
+    await db.collection('designations').add({ name, description: `${name} role`, orgId: ORG_ID, createdAt: day(-80) });
   }
 
   console.log('Creating tasks…');
+  const taskRefs = {};
   for (const [title, status, priority, assignedTo, departmentId, projectId, start, due] of TASKS) {
-    await db.collection('tasks').add({
+    const ref = await db.collection('tasks').add({
       title,
       description: `${title} — seeded sample task for local testing.`,
       status,
