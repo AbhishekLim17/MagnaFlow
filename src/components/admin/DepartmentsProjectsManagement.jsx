@@ -8,6 +8,10 @@ import { Building2, FolderKanban, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -39,6 +43,8 @@ const DepartmentsProjectsManagement = () => {
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
   const [newProject, setNewProject] = useState({ name: '', departmentId: '', budget: '', currency: 'USD' });
+  const [deptToDelete, setDeptToDelete] = useState(null);   // fix #11
+  const [projectToDelete, setProjectToDelete] = useState(null); // fix #11
 
   useEffect(() => {
     loadAll();
@@ -77,12 +83,18 @@ const DepartmentsProjectsManagement = () => {
   };
 
   const handleDeleteDept = async (dept) => {
-    if (!window.confirm(`Delete department "${dept.name}"? This does not delete its projects or staff.`)) return;
+    // fix #11: opens AlertDialog instead of window.confirm
+    setDeptToDelete(dept);
+  };
+  const confirmDeleteDept = async () => {
+    if (!deptToDelete) return;
     try {
-      await deleteDepartment(user.orgId, dept.id);
+      await deleteDepartment(user.orgId, deptToDelete.id);
       loadAll();
     } catch (error) {
       reportError(error, { title: 'Failed to delete department' });
+    } finally {
+      setDeptToDelete(null);
     }
   };
 
@@ -105,13 +117,19 @@ const DepartmentsProjectsManagement = () => {
     }
   };
 
-  const handleDeleteProject = async (project) => {
-    if (!window.confirm(`Delete project "${project.name}"?`)) return;
+  const handleDeleteProject = (project) => {
+    // fix #11, #16: open AlertDialog with orphan warning instead of window.confirm
+    setProjectToDelete(project);
+  };
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
     try {
-      await deleteProject(user.orgId, project.id);
+      await deleteProject(user.orgId, projectToDelete.id);
       loadAll();
     } catch (error) {
       reportError(error, { title: 'Failed to delete project' });
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -133,6 +151,7 @@ const DepartmentsProjectsManagement = () => {
   }
 
   return (
+    <>
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="mb-8">
         <p className="text-muted-foreground">Create the departments and projects that Department Heads and Managers get assigned to.</p>
@@ -269,7 +288,47 @@ const DepartmentsProjectsManagement = () => {
         </DialogContent>
       </Dialog>
     </motion.div>
+      {/* Fix #11: Department delete confirmation */}
+      <AlertDialog open={!!deptToDelete} onOpenChange={(o) => !o && setDeptToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Department</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &quot;{deptToDelete?.name}&quot;? This does not delete its projects or tasks, but staff members
+              will lose their department assignment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteDept} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Fix #11, #16: Project delete confirmation with orphan warning */}
+      <AlertDialog open={!!projectToDelete} onOpenChange={(o) => !o && setProjectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &quot;{projectToDelete?.name}&quot;?
+              {' '}Any tasks, budget expenses, and client accounts linked to this project will become
+              orphaned ? they will still exist in the database but no longer appear in any project view.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
+
+// Fix #11 confirm dialogs - rendered at module level to avoid nesting issues
+// They are appended via a sibling render pattern instead.
+// (Added to DepartmentsProjectsManagement return as siblings)
 
 export default DepartmentsProjectsManagement;

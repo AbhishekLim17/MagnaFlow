@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/tooltip';
 
 // Admin Task Card with Comment Button
-const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaffName, getPriorityBadge, getStatusBadge, formatDate }) => {
+const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatusChange, getStaffName, getPriorityBadge, getStatusBadge, formatDate }) => {
   const commentCount = useCommentCount(task.id);
   const subtaskCounts = useSubtaskCount(task.id);
 
@@ -65,9 +65,20 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, getStaff
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
                 {task.priority}
               </Badge>
-              <Badge className={`${getStatusBadge(task.status)} border`}>
-                {task.status}
-              </Badge>
+              <Select
+                value={task.status}
+                onValueChange={(v) => onStatusChange?.(task.id, v)}
+              >
+                <SelectTrigger className={`h-7 text-xs px-2 min-w-[110px] ${getStatusBadge(task.status)} border`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="review">In Review</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
@@ -377,7 +388,7 @@ const TaskManagement = () => {
   const getPriorityBadge = (priority) => {
     const styles = {
       low: 'bg-success-soft text-success border-success/30',
-      medium: 'bg-warning-soft text-warning border-warning/30',
+      medium: 'bg-sky-500/10 text-sky-600 border-sky-400/30',
       high: 'bg-warning-soft text-warning border-warning/30',
       critical: 'bg-destructive-soft text-destructive border-destructive/30',
     };
@@ -474,6 +485,7 @@ const TaskManagement = () => {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in-progress">In Progress</SelectItem>
+              <SelectItem value="review">In Review</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
@@ -537,6 +549,14 @@ const TaskManagement = () => {
                   onEdit={openEditDialog}
                   onDelete={openDeleteDialog}
                   onCommentClick={setTaskForComments}
+                  onStatusChange={async (taskId, newStatus) => {
+                    try {
+                      await updateTaskStatus(taskId, newStatus);
+                      toast({ title: 'Status updated', description: 'Task status changed.' });
+                    } catch {
+                      toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+                    }
+                  }}
                   getStaffName={getStaffName}
                   getPriorityBadge={getPriorityBadge}
                   getStatusBadge={getStatusBadge}
@@ -600,6 +620,14 @@ const TaskManagement = () => {
           open={!!taskForComments}
           onOpenChange={(open) => !open && setTaskForComments(null)}
           currentUser={currentUser}
+          onStatusChange={async (taskId, newStatus) => {
+            try {
+              await updateTaskStatus(taskId, newStatus);
+              toast({ title: 'Status updated', description: 'Task status changed.' });
+            } catch {
+              toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+            }
+          }}
         />
       )}
     </div>

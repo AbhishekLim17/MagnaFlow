@@ -1,4 +1,4 @@
-// KanbanBoard.jsx — Full Kanban board with 4 columns and drag-and-drop
+// KanbanBoard.jsx ï¿½ Full Kanban board with 4 columns and drag-and-drop
 // Reusable across Admin Task Management and Staff Dashboard.
 // Columns: Todo (pending) | In Progress (in-progress) | Review (review) | Done (completed)
 
@@ -13,6 +13,7 @@ import {
   useSensor,
   useSensors,
   defaultDropAnimation,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -71,9 +72,14 @@ const COLUMNS = [
 // -----------------------------------------------------------------------------
 const KanbanColumn = ({ column, tasks, staffMap, onCardClick, onAddTask, canAdd }) => {
   const taskIds = tasks.map((t) => t.id);
+  // Fix #1: column is its own droppable target so empty columns accept card drops
+  const { setNodeRef: setColRef, isOver } = useDroppable({ id: column.id });
 
   return (
-    <div className={`flex flex-col rounded-2xl border bg-gradient-to-b ${column.colorClass} ${column.borderClass} min-w-[280px] max-w-[320px] flex-1`}>
+    <div
+      ref={setColRef}
+      className={`flex flex-col rounded-2xl border bg-gradient-to-b ${column.colorClass} ${column.borderClass} min-w-[280px] max-w-[320px] flex-1 transition-colors duration-150 ${isOver ? 'ring-2 ring-primary/50' : ''}`}
+    >
       {/* Column header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-inherit">
         <div className="flex items-center gap-2">
@@ -143,8 +149,8 @@ const KanbanColumn = ({ column, tasks, staffMap, onCardClick, onAddTask, canAdd 
  * @param {Object[]} props.tasks          - All task objects already filtered by parent
  * @param {Object}   props.staffMap       - { [userId]: name }
  * @param {Function} props.onStatusChange - async (taskId, newStatus) => void
- * @param {Function} props.onCardClick    - (task) => void — open task details
- * @param {Function} props.onAddTask      - (defaultStatus) => void — open add dialog (admin only)
+ * @param {Function} props.onCardClick    - (task) => void ï¿½ open task details
+ * @param {Function} props.onAddTask      - (defaultStatus) => void ï¿½ open add dialog (admin only)
  * @param {boolean}  props.canAdd         - Whether to show + button per column (admin)
  */
 const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, onAddTask, canAdd = false }) => {
@@ -233,7 +239,7 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
         ))}
       </div>
 
-      {/* Drag overlay — floating clone while dragging */}
+      {/* Drag overlay ï¿½ floating clone while dragging */}
       <DragOverlay dropAnimation={dropAnimation}>
         {activeTask ? (
           <KanbanCard

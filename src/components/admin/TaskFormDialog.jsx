@@ -190,7 +190,7 @@ const TaskFormDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   {tasks
-                    .filter((t) => t.id !== (formData.id || '') && !(formData.blockedBy || []).includes(t.id))
+                    .filter((t) => t.id !== (formData.id || '') && !(formData.blockedBy || []).includes(t.id) && (!formData.projectId || !t.projectId || t.projectId === formData.projectId))
                     .map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                     ))}

@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTasks } from '@/contexts/TasksContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getAllUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
@@ -61,12 +61,14 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
     }).length;
 
     const inProgress = tasks.filter(t => t.status === 'in-progress').length;
+    const review = tasks.filter(t => t.status === 'review').length;
     const pending = tasks.filter(t => t.status === 'pending').length;
 
     return {
       completedToday,
       overdue,
       inProgress,
+      review,
       pending,
       total: tasks.length
     };
@@ -74,8 +76,11 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
   // Listen to recent activity
   useEffect(() => {
+    // Fix #3: scope activity to current org so multi-tenant rules don't block it
+    if (!currentUser?.orgId) return;
     const q = query(
       collection(db, 'tasks'),
+      where('orgId', '==', currentUser.orgId),
       orderBy('updatedAt', 'desc'),
       limit(10)
     );

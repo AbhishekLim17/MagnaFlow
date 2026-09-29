@@ -1,18 +1,18 @@
-// KanbanCard.jsx — individual draggable task card for the Kanban board
+// KanbanCard.jsx ï¿½ individual draggable task card for the Kanban board
 // Uses @dnd-kit/sortable for drag-and-drop integration
 
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
-import { Calendar, User, MessageSquare, ListChecks, AlertCircle, GripVertical } from 'lucide-react';
+import { Calendar, User, MessageSquare, ListChecks, AlertCircle, GripVertical, Lock } from 'lucide-react';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 
 const PRIORITY_STYLES = {
   critical: { bg: 'bg-destructive-soft border-destructive/40 text-destructive', dot: 'bg-destructive', label: 'Critical' },
   high:     { bg: 'bg-warning-soft border-warning/40 text-warning',             dot: 'bg-warning',     label: 'High'     },
-  medium:   { bg: 'bg-amber-500/10 border-amber-500/30 text-amber-600',         dot: 'bg-amber-500',   label: 'Medium'   },
+  medium:   { bg: 'bg-sky-500/10 border-sky-500/30 text-sky-600',             dot: 'bg-sky-500',     label: 'Medium'   },
   low:      { bg: 'bg-success-soft border-success/40 text-success',             dot: 'bg-success',     label: 'Low'      },
 };
 
@@ -61,6 +61,8 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
     ? Math.round((subtaskCounts.completed / subtaskCounts.total) * 100)
     : null;
   const assigneeName = task.assignedTo ? staffMap[task.assignedTo] || 'Unknown' : null;
+  // Fix #13: show a locked badge when predecessor tasks are still open
+  const isBlocked = Array.isArray(task.blockedBy) && task.blockedBy.length > 0 && task.status !== 'completed';
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -77,7 +79,7 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
           {...listeners}
           {...attributes}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-50 cursor-grab active:cursor-grabbing p-0.5 rounded hover:opacity-80 transition-opacity"
+          className="absolute top-3 right-3 opacity-30 group-hover:opacity-70 cursor-grab active:cursor-grabbing p-0.5 rounded hover:opacity-90 transition-opacity"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </div>
@@ -112,6 +114,11 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 mt-3 pl-4">
           <div className="flex items-center gap-2 flex-wrap">
+            {isBlocked && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium bg-destructive/10 text-destructive border-destructive/30">
+                <Lock className="w-2.5 h-2.5" />Blocked
+              </span>
+            )}
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium ${priority.bg}`}>
               {priority.label}
             </span>

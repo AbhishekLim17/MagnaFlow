@@ -5,11 +5,12 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, CheckCircle2, Clock, AlertTriangle, LogOut } from "lucide-react";
+import { FolderOpen, CheckCircle2, Clock, AlertTriangle, LogOut, Sun, Moon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { getProjects } from "@/services/organizationService";
 import { getAllTasks } from "@/services/taskService";
 import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
@@ -30,6 +31,7 @@ const isOverdue = (task) => {
 
 const ClientPortal = () => {
   const { currentUser, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -116,6 +118,9 @@ const ClientPortal = () => {
             <span className="text-sm text-muted-foreground hidden sm:block">
               {currentUser?.name}
             </span>
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="h-8 w-8">
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
             <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign out</span>
@@ -175,7 +180,7 @@ const ClientPortal = () => {
                 </div>
 
                 {/* ── Summary cards ────────────────────────────────── */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                   {[
                     {
                       label: "Total Tasks",
@@ -194,6 +199,12 @@ const ClientPortal = () => {
                       value: activeTasks.filter((t) => t.status === "in-progress").length,
                       icon: Clock,
                       color: "text-blue-500",
+                    },
+                    {
+                      label: "In Review",
+                      value: activeTasks.filter((t) => t.status === "review").length,
+                      icon: Clock,
+                      color: "text-amber-500",
                     },
                     {
                       label: "Overdue",
@@ -244,9 +255,11 @@ const ClientPortal = () => {
                     <div className="space-y-2">
                       {activeTasks.map((task) => {
                         const overdue = isOverdue(task);
+                        // Fix #12: add review status style
                         const statusStyles = {
                           completed: "bg-success/10 text-success border-success/20",
                           "in-progress": "bg-blue-500/10 text-blue-500 border-blue-500/20",
+                          review: "bg-amber-500/10 text-amber-600 border-amber-400/30",
                           pending: "bg-muted text-muted-foreground",
                           cancelled: "bg-muted text-muted-foreground line-through",
                         };
@@ -260,25 +273,41 @@ const ClientPortal = () => {
                         return (
                           <div
                             key={task.id}
-                            className="flex items-center gap-3 rounded-lg border px-4 py-3"
+                            className="rounded-lg border overflow-hidden"
                           >
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate ${task.status === "cancelled" ? "line-through text-muted-foreground" : ""}`}>
-                                {task.title}
-                              </p>
-                              {dl && (
-                                <p className={`text-xs mt-0.5 ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
-                                  {overdue ? "Overdue · " : "Due "}
-                                  {dl}
-                                </p>
+                            {/* Fix #15: expandable task row with description */}
+                            <details>
+                              <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer list-none hover:bg-muted/30 transition-colors">
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium truncate ${task.status === "cancelled" ? "line-through text-muted-foreground" : ""}`}>
+                                    {task.title}
+                                  </p>
+                                  {dl && (
+                                    <p className={`text-xs mt-0.5 ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
+                                      {overdue ? "Overdue ?? " : "Due "}
+                                      {dl}
+                                    </p>
+                                  )}
+                                </div>
+                                {/* Fix #10: status badge then overdue line separately */}
+                                <div className="flex flex-col items-end gap-0.5 shrink-0">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-xs capitalize ${statusStyles[task.status] ?? ""}`}
+                                  >
+                                    {task.status === "in-progress" ? "In Progress" : task.status === "review" ? "In Review" : task.status}
+                                  </Badge>
+                                  {overdue && (
+                                    <span className="text-[10px] font-medium text-destructive">Overdue</span>
+                                  )}
+                                </div>
+                              </summary>
+                              {task.description && (
+                                <div className="px-4 pb-3 border-t border-border text-xs text-muted-foreground">
+                                  {task.description}
+                                </div>
                               )}
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className={`text-xs capitalize shrink-0 ${statusStyles[task.status] ?? ""}`}
-                            >
-                              {task.status === "in-progress" ? "In Progress" : task.status}
-                            </Badge>
+                            </details>
                           </div>
                         );
                       })}

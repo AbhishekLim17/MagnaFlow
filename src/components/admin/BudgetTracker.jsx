@@ -520,7 +520,7 @@ const BudgetTracker = () => {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmt(v, currency)} width={70} />
                       <RechartTooltip formatter={(val) => fmt(val, currency)} />
-                      <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                      <Bar dataKey="amount" radius={[6, 6, 0, 0]} barSize={40} maxBarSize={60}>
                         {barData.map((entry, i) => (
                           <Cell key={i} fill={entry.fill} />
                         ))}

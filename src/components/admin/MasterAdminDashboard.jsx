@@ -61,7 +61,7 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Pencil className="w-5 h-5" /> Edit Organization
@@ -166,7 +166,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building2 className="w-5 h-5" /> Provision New Organization

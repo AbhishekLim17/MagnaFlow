@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ListChecks, Plus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle , DialogDescription} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import SubtaskList from '../SubtaskList';
@@ -15,7 +15,7 @@ const TaskSubtasksDialog = ({ open, onOpenChange, task }) => {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">

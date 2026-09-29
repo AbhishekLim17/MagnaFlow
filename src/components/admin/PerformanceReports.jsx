@@ -63,6 +63,7 @@ const PerformanceReports = () => {
     const memberTasks = tasks.filter(t => t.assignedTo === member.id);
     const completedTasks = memberTasks.filter(t => t.status === 'completed');
     const inProgressTasks = memberTasks.filter(t => t.status === 'in-progress');
+    const reviewTasks = memberTasks.filter(t => t.status === 'review');
     const pendingTasks = memberTasks.filter(t => t.status === 'pending');
     
     return {
@@ -79,7 +80,8 @@ const PerformanceReports = () => {
   const taskStatusData = [
     { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: '#10B981' },
     { name: 'In Progress', value: tasks.filter(t => t.status === 'in-progress').length, color: '#3B82F6' },
-    { name: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: '#F59E0B' }
+    { name: 'Review', value: tasks.filter(t => t.status === 'review').length, color: '#F59E0B' },
+    { name: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: '#8B5CF6' }
   ];
 
   // Priority distribution
@@ -174,6 +176,7 @@ const PerformanceReports = () => {
         ['Total Tasks', tasks.length.toString()],
         ['Completed Tasks', tasks.filter(t => t.status === 'completed').length.toString()],
         ['In Progress Tasks', tasks.filter(t => t.status === 'in-progress').length.toString()],
+        ['In Review Tasks', tasks.filter(t => t.status === 'review').length.toString()],
         ['Pending Tasks', tasks.filter(t => t.status === 'pending').length.toString()],
         ['Completion Rate', `${completionRate}%`],
         ['Active Staff', activeStaffList.length.toString()],

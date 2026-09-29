@@ -34,7 +34,7 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">

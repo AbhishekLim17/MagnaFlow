@@ -33,7 +33,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
     const badges = {
       critical: 'bg-destructive-soft text-destructive border-destructive/30',
       high: 'bg-warning-soft text-warning border-warning/30',
-      medium: 'bg-warning-soft text-warning border-warning/30',
+      medium: 'bg-sky-500/10 text-sky-600 border-sky-400/30',
       low: 'bg-success-soft text-success border-success/30',
     };
     return badges[priority] || badges.medium;
@@ -177,6 +177,24 @@ const StaffDashboard = () => {
 
 
   const handleStatusChange = async (taskId, newStatus) => {
+    // Fix #4: Warn when trying to start/finish a task whose prerequisites aren't done
+    if (newStatus === 'in-progress' || newStatus === 'completed' || newStatus === 'review') {
+      const taskObj = tasks.find((t) => t.id === taskId);
+      if (taskObj?.blockedBy?.length) {
+        const unfinished = taskObj.blockedBy.filter((depId) => {
+          const dep = tasks.find((t) => t.id === depId);
+          return dep && dep.status !== 'completed';
+        });
+        if (unfinished.length > 0) {
+          toast({
+            title: 'Task is blocked',
+            description: `${unfinished.length} prerequisite task${unfinished.length > 1 ? 's' : ''} must be completed first.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
     try {
       await updateTaskStatus(taskId, newStatus);
       toast({

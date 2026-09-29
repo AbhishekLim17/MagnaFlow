@@ -55,7 +55,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-bold text-foreground mb-4">
           Task Details
         </DialogTitle>
@@ -129,6 +129,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               <SelectContent>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="review">In Review</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>

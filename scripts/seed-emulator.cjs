@@ -179,6 +179,24 @@ async function seed() {
       createdAt: day(start),
       ...(status === 'completed' ? { completedAt: day(due) } : {}),
     });
+    taskRefs[title] = ref.id;
+  }
+
+  // Fix #17: Wire up representative dependencies between Apollo tasks
+  // Chain: Billing reconciliation -> Migrate warehouse -> Rewrite onboarding emails
+  const depChain = [
+    ['Rewrite the onboarding emails', 'Migrate the reporting warehouse'],
+    ['Migrate the reporting warehouse', 'Ship the billing reconciliation job'],
+    ['Instrument the checkout funnel', 'Migrate the reporting warehouse'],
+    ['Draft the accessibility statement', 'Rewrite the onboarding emails'],
+    ['Refresh the design tokens', 'Draft the accessibility statement'],
+  ];
+  for (const [blocked, blocker] of depChain) {
+    if (taskRefs[blocked] && taskRefs[blocker]) {
+      await db.collection('tasks').doc(taskRefs[blocked]).update({
+        blockedBy: [taskRefs[blocker]]
+      });
+    }
   }
 
   console.log('Creating audit and error log entries…');

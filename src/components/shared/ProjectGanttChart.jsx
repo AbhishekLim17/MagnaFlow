@@ -23,14 +23,14 @@ const startOfDay = (d) =>
 const STATUS_STYLES = {
   completed:     { bar: 'bg-success-accent',    label: 'Completed' },
   'in-progress': { bar: 'bg-primary',           label: 'In Progress' },
-  pending:       { bar: 'bg-muted-foreground',  label: 'Pending' },
+  pending:       { bar: 'bg-slate-500 dark:bg-slate-400',  label: 'Pending' },
   review:        { bar: 'bg-blue-400',           label: 'Review' },
-  cancelled:     { bar: 'bg-muted',             label: 'Cancelled' },
+  cancelled:     { bar: 'bg-slate-400 dark:bg-slate-500',  label: 'Cancelled' },
   overdue:       { bar: 'bg-destructive',       label: 'Overdue' },
 };
 
 const CRITICAL_EXTRA =
-  'ring-2 ring-amber-400 ring-offset-0 shadow-[0_0_8px_2px_rgba(251,191,36,0.45)]';
+  'shadow-[0_0_14px_5px_rgba(251,191,36,0.55)] brightness-110';
 
 const fmt = (d) =>
   d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -149,8 +149,8 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
 
         {/* ── Timeline header ── */}
         <div className="flex">
-          <div className="w-56 flex-shrink-0" />
-          <div className="relative flex-1 h-6 border-b border-border">
+          <div className="w-56 flex-shrink-0 sticky left-0 z-10 bg-card" />
+          <div className="relative flex-1 h-6 border-b border-border overflow-hidden pr-2">
             {ticks.map((t, i) => (
               <div
                 key={i}
@@ -167,7 +167,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
         <div className="flex">
 
           {/* Label column — fixed 14rem (w-56) */}
-          <div className="w-56 flex-shrink-0">
+          <div className="w-56 flex-shrink-0 sticky left-0 z-10 bg-card">
             {rows.map((r) => (
               <div
                 key={r.id}
@@ -290,6 +290,9 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                     const predGeo = barPx(predRow);
                     const succGeo = barPx(succRow);
 
+                    // Skip backward dependencies — pred timeline after succ
+                    if (predRow.start >= succRow.end) return null;
+
                     // Arrow: right edge of predecessor → left edge of successor
                     const x1 = predGeo.rightPx;
                     const y1 = predIdx * ROW_H + ROW_H / 2;
@@ -307,30 +310,29 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                       : 'url(#dep-arrow-normal)';
                     const strokeW = isCriticalEdge ? 2 : 1.5;
 
-                    // Classic Gantt finish-to-start connector:
-                    //  1. Exit from the BOTTOM of the pred bar (right side)
-                    //  2. Drop straight down into the row-gap below the pred row
-                    //  3. Travel right (or left if needed) to line up with the succ bar
-                    //  4. Rise to the vertical centre of the successor row
-                    //  5. Arrive at the left edge of the succ bar — arrowhead →
-                    const BAR_H     = 20;                              // h-5 = 20px
-                    const barTop    = predIdx * ROW_H + (ROW_H - BAR_H) / 2;
-                    const barBottom = barTop + BAR_H;
-                    const exitX     = predGeo.rightPx;
-                    const exitY     = barBottom;
-                    // Row-gap: 4 px below pred row border (visually between rows)
-                    const rowGapY   = predIdx * ROW_H + ROW_H + 4;
-                    const entryX    = succGeo.leftPx;
-                    const entryY    = succIdx  * ROW_H + ROW_H / 2;
-                    // If the successor starts too close/before pred ends, extend 14px past pred
-                    const turnX     = entryX < exitX + 14 ? exitX + 14 : entryX;
+                    // Finish-to-start elbow connector (matches reference design):
+                    //  Exit mid-height right edge of pred bar →
+                    //  step right by ELBOW px →
+                    //  travel vertically to succ row mid-height →
+                    //  arrive at left edge of succ bar ←
+                    const ELBOW   = 12;   // horizontal step before turning
+                    const exitX   = predGeo.rightPx;
+                    const exitY   = predIdx * ROW_H + ROW_H / 2;
+                    const entryX  = succGeo.leftPx;
+                    const entryY  = succIdx * ROW_H + ROW_H / 2;
+                    // If succ starts before/near pred end, step further right first
+                    const stepX   = Math.max(exitX + ELBOW, entryX + ELBOW);
 
+                    // Forward path (pred→succ) with rightward final approach:
+                    //   pred right → step right → vertical to succ row
+                    //   → come from right → final 10px RIGHT → arrowhead points →
+                    const APPROACH = 10; // final rightward segment length
                     const d =
-                      `M ${exitX} ${exitY} ` +   // bottom of pred bar (right edge)
-                      `V ${rowGapY} ` +            // down into the row gap
-                      `H ${turnX} ` +              // right toward (or past) succ
-                      `V ${entryY} ` +             // up to succ bar mid-height
-                      `H ${entryX}`;              // into succ bar left edge
+                      `M ${exitX} ${exitY} ` +               // right edge of pred bar
+                      `H ${stepX} ` +                          // step right (elbow)
+                      `V ${entryY} ` +                          // vertical to succ row
+                      `H ${entryX - APPROACH} ` +              // approach from right
+                      `H ${entryX}`;                            // final RIGHT step → arrowhead →
 
                     return (
                       <path
