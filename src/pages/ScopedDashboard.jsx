@@ -34,6 +34,9 @@ import { getAllUsers, createUser, deleteUser, resetUserPassword } from '@/servic
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import StatCard from '@/components/shared/StatCard';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
+import PasswordField from '@/components/shared/PasswordField';
+import FieldError from '@/components/shared/FieldError';
+import { validateNewAccount } from '@/lib/accountForm';
 import { EmptyState, LoadingState } from '@/components/shared/States';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
@@ -63,17 +66,31 @@ export const SCOPE_CONFIG = {
 
 const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, scopeId, noun }) => {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const change = (field, value) => {
+    setForm((p) => ({ ...p, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const { [field]: _fixed, ...rest } = prev;
+      return rest;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.password) return;
+    const problems = validateNewAccount(form);
+    if (Object.keys(problems).length > 0) {
+      setErrors(problems);
+      return;
+    }
     setLoading(true);
     try {
       await createUser({
-        name: form.name,
-        email: form.email,
+        name: form.name.trim(),
+        email: form.email.trim(),
         password: form.password,
         role: 'staff',
         designation: 'Staff',
@@ -85,6 +102,7 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
         description: `${form.name} has been added to your ${noun.toLowerCase()}.`,
       });
       setForm({ name: '', email: '', password: '' });
+      setErrors({});
       onOpenChange(false);
       onCreated();
     } catch (error) {
@@ -101,22 +119,30 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
         <DialogHeader>
           <DialogTitle>Add Staff Member</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 py-2">
           <div>
-            <Label className="text-foreground">Name *</Label>
-            <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="mt-2 surface border-border text-foreground" required />
+            <Label htmlFor="add-staff-name" className="text-foreground">Name *</Label>
+            <Input id="add-staff-name" value={form.name} onChange={(e) => change('name', e.target.value)}
+              autoComplete="off" className="mt-2 surface border-border text-foreground"
+              aria-invalid={errors.name ? true : undefined} aria-describedby={errors.name ? 'add-staff-name-error' : undefined} />
+            <FieldError id="add-staff-name-error">{errors.name}</FieldError>
           </div>
           <div>
-            <Label className="text-foreground">Email *</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              className="mt-2 surface border-border text-foreground" required />
+            <Label htmlFor="add-staff-email" className="text-foreground">Email *</Label>
+            <Input id="add-staff-email" type="email" value={form.email} onChange={(e) => change('email', e.target.value)}
+              autoComplete="off" placeholder="name@company.com" className="mt-2 surface border-border text-foreground"
+              aria-invalid={errors.email ? true : undefined} aria-describedby={errors.email ? 'add-staff-email-error' : undefined} />
+            <FieldError id="add-staff-email-error">{errors.email}</FieldError>
           </div>
-          <div>
-            <Label className="text-foreground">Password *</Label>
-            <Input type="password" minLength={6} value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-              className="mt-2 surface border-border text-foreground" required />
-          </div>
+          <PasswordField
+            id="add-staff-password"
+            value={form.password}
+            onChange={(v) => change('password', v)}
+            email={form.email}
+            error={errors.password}
+            generate
+            hint="At least 8 characters. Share it with them securely; they can change it after signing in."
+          />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
             <Button type="submit" disabled={loading}>

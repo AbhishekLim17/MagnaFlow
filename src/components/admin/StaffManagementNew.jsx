@@ -29,6 +29,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import StaffFormDialog from '@/components/admin/StaffFormDialog';
+import { validateNewAccount, clearEditedErrors } from '@/lib/accountForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
@@ -77,6 +78,13 @@ const StaffManagement = () => {
     departmentId: '',
     projectId: '',
   });
+
+  const [formErrors, setFormErrors] = useState({});
+  // Editing a field clears that field's error, and only that one.
+  const updateForm = (next) => {
+    setFormErrors((prev) => clearEditedErrors(prev, formData, next));
+    setFormData(next);
+  };
 
   // Departments/projects a staff member can be assigned to. Without an
   // assignment, department heads and managers can't see their own people.
@@ -150,18 +158,17 @@ const StaffManagement = () => {
   };
 
   const handleAddStaff = async () => {
-    if (!formData.name || !formData.email || !formData.password) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
+    const problems = validateNewAccount(formData);
+    if (Object.keys(problems).length > 0) {
+      setFormErrors(problems);
       return;
     }
 
     try {
       await createUser({
         ...formData,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
         ...scopeFields(),
         role: 'staff',
       });
@@ -174,8 +181,6 @@ const StaffManagement = () => {
       setIsAddDialogOpen(false);
       resetForm();
       
-      // Wait a bit for Firestore to propagate, then reload
-      await new Promise(resolve => setTimeout(resolve, 500));
       await loadStaff();
     } catch (error) {
       // Simple error message for duplicate email
@@ -368,6 +373,7 @@ const StaffManagement = () => {
       departmentId: '',
       projectId: '',
     });
+    setFormErrors({});
     setSelectedStaff(null);
   };
 
@@ -561,7 +567,8 @@ const StaffManagement = () => {
         open={isAddDialogOpen}
         onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}
         formData={formData}
-        setFormData={setFormData}
+        setFormData={updateForm}
+        errors={formErrors}
         designations={designations}
         departments={departments}
         projects={projects}

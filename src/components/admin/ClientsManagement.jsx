@@ -29,6 +29,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getProjects } from "@/services/organizationService";
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { reportError } from "@/lib/reportError";
+import { generatePassword } from "@/lib/password";
+import { emailProblem, nameProblem } from "@/lib/accountForm";
 import {
   getAllUsers,
   createUser,
@@ -46,14 +48,6 @@ const EMPTY_FORM = {
   email: "",
   password: "",
   projectIds: [],
-};
-
-const generateTempPassword = () => {
-  const chars =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#";
-  return Array.from({ length: 12 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join("");
 };
 
 // ─── project picker sub-component (defined at module level) ───────────────────
@@ -234,8 +228,9 @@ const ClientsManagement = () => {
   };
 
   const handleAdd = async () => {
-    if (!formData.name.trim() || !formData.email.trim()) {
-      toast({ title: "Name and email are required.", variant: "destructive" });
+    const problem = nameProblem(formData.name) || emailProblem(formData.email);
+    if (problem) {
+      toast({ title: problem, variant: "destructive" });
       return;
     }
     if (formData.projectIds.length === 0) {
@@ -244,7 +239,8 @@ const ClientsManagement = () => {
     }
     try {
       setSaving(true);
-      const tempPassword = generateTempPassword();
+      // Never shown or sent: the client sets their own through the reset email below.
+      const tempPassword = generatePassword(20);
       await createUser({
         name: formData.name.trim(),
         email: formData.email.trim(),

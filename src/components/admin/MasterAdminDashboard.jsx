@@ -20,6 +20,9 @@ import { createUser, getUsersByIds } from '@/services/userService';
 import { getErrorLogs } from '@/services/errorLogService';
 import { reportError } from '@/lib/reportError';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
+import PasswordField from '@/components/shared/PasswordField';
+import FieldError from '@/components/shared/FieldError';
+import { validateNewAccount } from '@/lib/accountForm';
 
 const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
   const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '', ccEmails: '' });
@@ -129,14 +132,34 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
     name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '', ccEmails: '',
     adminName: '', adminEmail: '', adminPassword: '',
   });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const { [field]: _fixed, ...rest } = prev;
+      return rest;
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.adminName.trim() || !form.adminEmail.trim() || !form.adminPassword) return;
+    // The first admin's fields are validated like any other new account; the
+    // organization needs a name.
+    const account = validateNewAccount({ name: form.adminName, email: form.adminEmail, password: form.adminPassword });
+    const problems = {
+      ...(!form.name.trim() && { name: 'Enter the organization\'s name.' }),
+      ...(account.name && { adminName: account.name }),
+      ...(account.email && { adminEmail: account.email }),
+      ...(account.password && { adminPassword: account.password }),
+    };
+    if (Object.keys(problems).length > 0) {
+      setErrors(problems);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -165,6 +188,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 
       toast({ title: 'Organization provisioned', description: `${form.name} is live with ${form.adminName} as its org-admin.` });
       setForm({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '', ccEmails: '', adminName: '', adminEmail: '', adminPassword: '' });
+      setErrors({});
       onOpenChange(false);
       onCreated();
     } catch (error) {
@@ -182,11 +206,13 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
             <Building2 className="w-5 h-5" /> Provision New Organization
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} noValidate className="max-h-[75vh] space-y-4 overflow-y-auto py-2 pr-1">
           <div>
-            <Label className="text-foreground">Organization Name *</Label>
-            <Input value={form.name} onChange={(e) => handleChange('name', e.target.value)}
-              className="mt-2 surface border-border text-foreground" placeholder="Acme Inc." required />
+            <Label htmlFor="prov-org-name" className="text-foreground">Organization Name *</Label>
+            <Input id="prov-org-name" value={form.name} onChange={(e) => handleChange('name', e.target.value)}
+              className="mt-2 surface border-border text-foreground" placeholder="Acme Inc."
+              aria-invalid={errors.name ? true : undefined} aria-describedby={errors.name ? 'prov-org-name-error' : undefined} />
+            <FieldError id="prov-org-name-error">{errors.name}</FieldError>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -213,20 +239,28 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
           <hr className="border-border" />
           <p className="text-sm text-muted-foreground">First Org-Admin Account</p>
           <div>
-            <Label className="text-foreground">Name *</Label>
-            <Input value={form.adminName} onChange={(e) => handleChange('adminName', e.target.value)}
-              className="mt-2 surface border-border text-foreground" required />
+            <Label htmlFor="prov-admin-name" className="text-foreground">Name *</Label>
+            <Input id="prov-admin-name" value={form.adminName} onChange={(e) => handleChange('adminName', e.target.value)}
+              autoComplete="off" className="mt-2 surface border-border text-foreground"
+              aria-invalid={errors.adminName ? true : undefined} aria-describedby={errors.adminName ? 'prov-admin-name-error' : undefined} />
+            <FieldError id="prov-admin-name-error">{errors.adminName}</FieldError>
           </div>
           <div>
-            <Label className="text-foreground">Email *</Label>
-            <Input type="email" value={form.adminEmail} onChange={(e) => handleChange('adminEmail', e.target.value)}
-              className="mt-2 surface border-border text-foreground" required />
+            <Label htmlFor="prov-admin-email" className="text-foreground">Email *</Label>
+            <Input id="prov-admin-email" type="email" value={form.adminEmail} onChange={(e) => handleChange('adminEmail', e.target.value)}
+              autoComplete="off" placeholder="name@company.com" className="mt-2 surface border-border text-foreground"
+              aria-invalid={errors.adminEmail ? true : undefined} aria-describedby={errors.adminEmail ? 'prov-admin-email-error' : undefined} />
+            <FieldError id="prov-admin-email-error">{errors.adminEmail}</FieldError>
           </div>
-          <div>
-            <Label className="text-foreground">Password *</Label>
-            <Input type="password" minLength={6} value={form.adminPassword} onChange={(e) => handleChange('adminPassword', e.target.value)}
-              className="mt-2 surface border-border text-foreground" required />
-          </div>
+          <PasswordField
+            id="prov-admin-password"
+            value={form.adminPassword}
+            onChange={(v) => handleChange('adminPassword', v)}
+            email={form.adminEmail}
+            error={errors.adminPassword}
+            generate
+            hint="At least 8 characters. Pass it on securely; they can change it after signing in."
+          />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
             <Button type="submit" disabled={loading}>

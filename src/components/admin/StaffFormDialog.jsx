@@ -18,6 +18,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import PasswordField from '@/components/shared/PasswordField';
+import FieldError from '@/components/shared/FieldError';
 import {
   Select,
   SelectContent,
@@ -36,6 +38,7 @@ const FIELD_CLASS = 'bg-muted border-border';
  * @param {Array} departments    [{id, name}]
  * @param {Array} projects       [{id, name}]
  * @param {Function} onSubmit
+ * @param {{name?: string, email?: string, password?: string}} [errors]  inline messages, shown beside each field
  */
 const StaffFormDialog = ({
   open,
@@ -48,6 +51,7 @@ const StaffFormDialog = ({
   projects = [],
   onSubmit,
   onCancel,
+  errors = {},
 }) => {
   const isAdd = mode === 'add';
   const set = (patch) => setFormData({ ...formData, ...patch });
@@ -55,7 +59,7 @@ const StaffFormDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isAdd ? 'Add New Staff Member' : 'Edit Staff Member'}</DialogTitle>
           <DialogDescription>
@@ -65,7 +69,12 @@ const StaffFormDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* A real form, so Enter submits and errors can sit beside the fields. */}
+        <form
+          className="space-y-4"
+          noValidate
+          onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
+        >
           <div>
             <Label htmlFor={idFor('name')}>Name *</Label>
             <Input
@@ -74,7 +83,11 @@ const StaffFormDialog = ({
               onChange={(e) => set({ name: e.target.value })}
               placeholder="Enter full name"
               className={FIELD_CLASS}
+              autoComplete="off"
+              aria-invalid={errors.name ? true : undefined}
+              aria-describedby={errors.name ? idFor('name-error') : undefined}
             />
+            <FieldError id={idFor('name-error')}>{errors.name}</FieldError>
           </div>
 
           <div>
@@ -84,26 +97,28 @@ const StaffFormDialog = ({
               type="email"
               value={formData.email}
               onChange={(e) => set({ email: e.target.value })}
-              placeholder="Enter email address"
+              placeholder="name@company.com"
               className={FIELD_CLASS}
+              autoComplete="off"
+              aria-invalid={errors.email ? true : undefined}
+              aria-describedby={errors.email ? idFor('email-error') : undefined}
               // The email IS the Firebase Auth identity; changing it here would
               // desync the profile from the sign-in.
               disabled={!isAdd}
             />
+            <FieldError id={idFor('email-error')}>{errors.email}</FieldError>
           </div>
 
           {isAdd && (
-            <div>
-              <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => set({ password: e.target.value })}
-                placeholder="Enter password"
-                className={FIELD_CLASS}
-              />
-            </div>
+            <PasswordField
+              id="staff-password"
+              value={formData.password}
+              onChange={(password) => set({ password })}
+              email={formData.email}
+              error={errors.password}
+              generate
+              hint="At least 8 characters. Share it with them securely; they can change it after signing in."
+            />
           )}
 
           <div>
@@ -112,7 +127,7 @@ const StaffFormDialog = ({
               value={formData.designation}
               onValueChange={(value) => set({ designation: value })}
             >
-              <SelectTrigger className={FIELD_CLASS}>
+              <SelectTrigger id={idFor('designation')} className={FIELD_CLASS}>
                 <SelectValue placeholder="Select designation" />
               </SelectTrigger>
               <SelectContent>
@@ -127,7 +142,7 @@ const StaffFormDialog = ({
             <div>
               <Label htmlFor="edit-status">Status</Label>
               <Select value={formData.status} onValueChange={(value) => set({ status: value })}>
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id="edit-status" className={FIELD_CLASS}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -138,14 +153,14 @@ const StaffFormDialog = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor={idFor('department')}>Department</Label>
               <Select
                 value={formData.departmentId || 'none'}
                 onValueChange={(v) => set({ departmentId: v === 'none' ? '' : v })}
               >
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('department')} className={FIELD_CLASS}>
                   <SelectValue placeholder="No department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,7 +177,7 @@ const StaffFormDialog = ({
                 value={formData.projectId || 'none'}
                 onValueChange={(v) => set({ projectId: v === 'none' ? '' : v })}
               >
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('project')} className={FIELD_CLASS}>
                   <SelectValue placeholder="No project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -178,12 +193,12 @@ const StaffFormDialog = ({
           <p className="text-xs text-muted-foreground">
             Assigning a department or project lets that Department Head / Manager see this person on their dashboard.
           </p>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={onSubmit}>{isAdd ? 'Add Staff' : 'Save Changes'}</Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button type="submit">{isAdd ? 'Add Staff' : 'Save Changes'}</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

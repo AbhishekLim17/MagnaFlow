@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Plus, Edit, Trash2, KeyRound, Mail, User, Eye, EyeOff } from 'lucide-react';
+import { Shield, Plus, Edit, Trash2, KeyRound, Mail, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -19,6 +19,9 @@ import { getAllUsers, createUser, updateUser, deleteUser, resetUserPassword } fr
 import { getDepartments, getProjects } from '@/services/organizationService';
 import { reportError } from '@/lib/reportError';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
+import PasswordField from '@/components/shared/PasswordField';
+import FieldError from '@/components/shared/FieldError';
+import { validateNewAccount, nameProblem } from '@/lib/accountForm';
 
 const ROLE_LABELS = {
   'department-head': 'Department Head',
@@ -38,7 +41,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
     departmentId: '',
     projectId: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -63,16 +66,22 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
         projectId: '',
       });
     }
-    setShowPassword(false);
+    setErrors({});
   }, [initialData, open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.email.trim()) {
-      return;
+    // Say what is wrong next to the field; "required" bubbles and silent returns left people guessing.
+    const problems = initialData
+      ? { ...(nameProblem(formData.name) && { name: nameProblem(formData.name) }) }
+      : validateNewAccount(formData);
+    if (!initialData) {
+      if (formData.role === 'department-head' && !formData.departmentId) problems.departmentId = 'Choose a department.';
+      if (formData.role === 'manager' && !formData.projectId) problems.projectId = 'Choose a project.';
     }
-    if (!initialData && !formData.password) {
+    if (Object.keys(problems).length > 0) {
+      setErrors(problems);
       return;
     }
 
@@ -83,6 +92,11 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const { [field]: _fixed, ...rest } = prev;
+      return rest;
+    });
   };
 
   return (
@@ -96,13 +110,13 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
             <span>{initialData ? 'Edit Account' : 'Add Department Head / Manager'}</span>
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-4 py-4">
             {!initialData && (
               <div>
-                <Label className="text-foreground">Role *</Label>
+                <Label htmlFor="admin-role" className="text-foreground">Role *</Label>
                 <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger id="admin-role" className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -115,9 +129,9 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 
             {!initialData && formData.role === 'department-head' && (
               <div>
-                <Label className="text-foreground">Department *</Label>
+                <Label htmlFor="admin-department" className="text-foreground">Department *</Label>
                 <Select value={formData.departmentId} onValueChange={(v) => handleChange('departmentId', v)}>
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger id="admin-department" className="mt-2" aria-invalid={errors.departmentId ? true : undefined} aria-describedby={errors.departmentId ? 'admin-department-error' : undefined}>
                     <SelectValue placeholder="Select a department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -126,14 +140,15 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldError id="admin-department-error">{errors.departmentId}</FieldError>
               </div>
             )}
 
             {!initialData && formData.role === 'manager' && (
               <div>
-                <Label className="text-foreground">Project *</Label>
+                <Label htmlFor="admin-project" className="text-foreground">Project *</Label>
                 <Select value={formData.projectId} onValueChange={(v) => handleChange('projectId', v)}>
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger id="admin-project" className="mt-2" aria-invalid={errors.projectId ? true : undefined} aria-describedby={errors.projectId ? 'admin-project-error' : undefined}>
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -142,6 +157,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldError id="admin-project-error">{errors.projectId}</FieldError>
               </div>
             )}
 
@@ -157,9 +173,12 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                   onChange={(e) => handleChange('name', e.target.value)}
                   className="pl-10 surface border-border text-foreground"
                   placeholder="e.g., John Doe"
-                  required
+                  autoComplete="off"
+                  aria-invalid={errors.name ? true : undefined}
+                  aria-describedby={errors.name ? 'admin-name-error' : undefined}
                 />
               </div>
+              <FieldError id="admin-name-error">{errors.name}</FieldError>
             </div>
 
             <div>
@@ -174,43 +193,29 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   className="pl-10 surface border-border text-foreground"
-                  placeholder="admin@example.com"
-                  required
+                  placeholder="name@company.com"
+                  autoComplete="off"
+                  aria-invalid={errors.email ? true : undefined}
+                  aria-describedby={errors.email ? 'admin-email-error' : undefined}
                   disabled={!!initialData}
                 />
               </div>
+              <FieldError id="admin-email-error">{errors.email}</FieldError>
               {initialData && (
                 <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
               )}
             </div>
 
             {!initialData && (
-              <div>
-                <Label htmlFor="admin-password" className="text-foreground">
-                  Password *
-                </Label>
-                <div className="relative mt-2">
-                  <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="admin-password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={(e) => handleChange('password', e.target.value)}
-                    className="pl-10 pr-10 surface border-border text-foreground"
-                    placeholder="Enter strong password"
-                    required={!initialData}
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Minimum 6 characters</p>
-              </div>
+              <PasswordField
+                id="admin-password"
+                value={formData.password}
+                onChange={(password) => handleChange('password', password)}
+                email={formData.email}
+                error={errors.password}
+                generate
+                hint="At least 8 characters. Share it with them securely; they can change it after signing in."
+              />
             )}
 
             <div>
@@ -223,7 +228,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 className="mt-2 surface border-border text-foreground"
-                placeholder="+1 (555) 000-0000"
+                placeholder="+91 98765 43210"
               />
             </div>
           </div>
