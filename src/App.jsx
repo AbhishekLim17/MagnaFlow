@@ -24,6 +24,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import LoginPage from "@/pages/LoginPage";
 import SessionProblem from "@/components/shared/SessionProblem";
+import { ConfirmProvider } from "@/components/shared/ConfirmDialog";
 
 // Dashboards are code-split: a signed-in user only downloads the one for their
 // own role, instead of all five plus their charting/PDF dependencies up front.
@@ -181,10 +182,12 @@ function App() {
                       content="Streamline your project management with role-based access, task tracking, and performance analytics."
                     />
                   </Helmet>
-                  <div className="min-h-screen">
-                    <AppRoutes />
-                    <Toaster />
-                  </div>
+                  <ConfirmProvider>
+                    <div className="min-h-screen">
+                      <AppRoutes />
+                      <Toaster />
+                    </div>
+                  </ConfirmProvider>
                 </Router>
               </DesignationsProvider>
             </TasksProvider>

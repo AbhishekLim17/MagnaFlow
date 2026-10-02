@@ -20,6 +20,7 @@ import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import KanbanBoard from '@/components/shared/KanbanBoard';
 import StatCard from '@/components/shared/StatCard';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -153,6 +154,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
 };
 
 const StaffDashboard = () => {
+  const confirm = useConfirm();
   const { user, currentUser } = useAuth();
   const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
   const { toast } = useToast();
@@ -193,9 +195,13 @@ const StaffDashboard = () => {
   };
 
   const handleDeleteTask = async (taskId, taskTitle) => {
-    if (!window.confirm(`Are you sure you want to delete "${taskTitle}"?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Delete “${taskTitle}”?`,
+      description: <p>The task, its subtasks and comments are removed. This cannot be undone.</p>,
+      confirmLabel: 'Delete task',
+      destructive: true,
+    });
+    if (!ok) return;
 
     // deleteTask reports its own outcome and returns whether it worked.
     if (await deleteTask(taskId)) setSelectedTask(null);

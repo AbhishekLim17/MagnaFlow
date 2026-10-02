@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getAllUsers, createUser, updateUser, deleteUser, resetUserPassword } from '@/services/userService';
 import { getDepartments, getProjects } from '@/services/organizationService';
 import { reportError } from '@/lib/reportError';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 
 const ROLE_LABELS = {
   'department-head': 'Department Head',
@@ -244,6 +245,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
 };
 
 const AdminManagement = () => {
+  const confirm = useConfirm();
   const { currentUser } = useAuth();
   const [admins, setAdmins] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -349,9 +351,13 @@ const AdminManagement = () => {
   };
 
   const handleDelete = async (admin) => {
-    if (!window.confirm(`Are you sure you want to delete "${admin.name}"? This action cannot be undone.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Delete ${admin.name}?`,
+      description: <p>Their account is removed and they lose access immediately. This cannot be undone.</p>,
+      confirmLabel: 'Delete account',
+      destructive: true,
+    });
+    if (!ok) return;
 
     try {
       await deleteUser(admin.id);
@@ -368,9 +374,12 @@ const AdminManagement = () => {
   };
 
   const handleResetPassword = async (admin) => {
-    if (!window.confirm(`Send password reset email to ${admin.email}?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Send a password reset email?',
+      description: <p>{admin.name} ({admin.email}) will receive a link to choose a new password.</p>,
+      confirmLabel: 'Send link',
+    });
+    if (!ok) return;
 
     try {
       await resetUserPassword(admin.email);

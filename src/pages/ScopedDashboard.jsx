@@ -33,6 +33,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getAllUsers, createUser, deleteUser, resetUserPassword } from '@/services/userService';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import StatCard from '@/components/shared/StatCard';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { EmptyState, LoadingState } from '@/components/shared/States';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
@@ -129,6 +130,7 @@ const AddStaffDialog = ({ open, onOpenChange, onCreated, orgId, scopeIdsKey, sco
 };
 
 const ScopedDashboard = ({ scope }) => {
+  const confirm = useConfirm();
   const cfg = SCOPE_CONFIG[scope];
   const { user } = useAuth();
   const { tasks, statistics, loading: tasksLoading } = useTasks();
@@ -146,6 +148,12 @@ const ScopedDashboard = ({ scope }) => {
   // someone without waiting on an org admin. Both are limited to staff inside
   // that scope by the security rules, not just by this UI.
   const handleResetPassword = async (member) => {
+    const ok = await confirm({
+      title: 'Send a password reset email?',
+      description: <p>{member.name} ({member.email}) will receive a link to choose a new password.</p>,
+      confirmLabel: 'Send link',
+    });
+    if (!ok) return;
     setBusyStaffId(member.id);
     try {
       await resetUserPassword(member.email);
@@ -161,7 +169,13 @@ const ScopedDashboard = ({ scope }) => {
   };
 
   const handleRemoveStaff = async (member) => {
-    if (!window.confirm(`Remove ${member.name}? They lose access immediately.`)) return;
+    const ok = await confirm({
+      title: `Remove ${member.name}?`,
+      description: <p>Their account is deleted and they lose access immediately. Tasks assigned to them stay assigned until you reassign them.</p>,
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (!ok) return;
     setBusyStaffId(member.id);
     try {
       await deleteUser(member.id);

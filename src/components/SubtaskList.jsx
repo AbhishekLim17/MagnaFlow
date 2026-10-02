@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
+import { useToast } from '@/components/ui/use-toast';
+import { toUserMessage } from '@/lib/errorMessages';
 import {
   subscribeToSubtasks,
   toggleSubtaskCompletion,
@@ -13,6 +16,8 @@ import {
 } from '../services/subtaskService';
 
 const SubtaskList = ({ taskId, currentUser }) => {
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [subtasks, setSubtasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -80,15 +85,18 @@ const SubtaskList = ({ taskId, currentUser }) => {
   };
 
   const handleDelete = async (subtaskId) => {
-    if (!window.confirm('Are you sure you want to delete this subtask?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Delete this subtask?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
 
     try {
       await deleteSubtask(subtaskId);
     } catch (error) {
       console.error('Error deleting subtask:', error);
-      alert('Failed to delete subtask');
+      toast({ title: "Couldn't delete the subtask", description: toUserMessage(error, 'Please try again.'), variant: 'destructive' });
     }
   };
 

@@ -30,6 +30,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import StaffFormDialog from '@/components/admin/StaffFormDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTasks } from '@/contexts/TasksContext';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { getDepartments, getProjects } from '@/services/organizationService';
 import { reportError } from '@/lib/reportError';
 import {
@@ -45,6 +47,10 @@ import {
 } from '@/services/userService';
 
 const StaffManagement = () => {
+  const confirm = useConfirm();
+  const { tasks: allTasks } = useTasks();
+  // The person whose Deactivate / Reset is in flight, so a double click cannot fire twice.
+  const [busyId, setBusyId] = useState(null);
   const [staff, setStaff] = useState([]);
   // Set when getAllUsers hit its read bound — see the comment on that flag
   // in userService. Without this, a company that outgrew a single
@@ -256,8 +262,38 @@ const StaffManagement = () => {
   };
 
   const handleToggleStatus = async (staffMember) => {
+    if (busyId) return;
+    const deactivating = staffMember.status !== 'inactive';
+
+    if (deactivating) {
+      // One click used to cut someone off with no confirmation and no mention that their
+      // work stays assigned to an account that can no longer sign in.
+      const open = (allTasks || []).filter(
+        (t) => t.assignedTo === staffMember.id && t.status !== 'completed' && t.status !== 'cancelled'
+      ).length;
+      const ok = await confirm({
+        title: `Deactivate ${staffMember.name}?`,
+        description: (
+          <>
+            <p>They will be signed out and blocked from MagnaFlow straight away.</p>
+            {open > 0 && (
+              <p>
+                <strong>{open} open task{open > 1 ? 's' : ''}</strong> stay assigned to them until you reassign
+                {open > 1 ? ' them' : ' it'}.
+              </p>
+            )}
+            <p>You can reactivate the account at any time.</p>
+          </>
+        ),
+        confirmLabel: 'Deactivate',
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+
+    setBusyId(staffMember.id);
     try {
-      if (staffMember.status === 'active') {
+      if (deactivating) {
         await deactivateUser(staffMember.id);
         toast({
           title: "Staff Deactivated",
@@ -271,31 +307,35 @@ const StaffManagement = () => {
         });
       }
       
-      // Wait for Firestore to propagate
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // (An artificial 500 ms wait used to sit here "for Firestore to propagate".
+      // Reads after a write are consistent; it only made the button feel slow.)
       await loadStaff();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update staff status.",
-        variant: "destructive",
-      });
+      reportError(error, { title: "Couldn't update the account" });
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleResetPassword = async (staffMember) => {
+    if (busyId) return;
+    const ok = await confirm({
+      title: 'Send a password reset email?',
+      description: <p>{staffMember.name} ({staffMember.email}) will receive a link to choose a new password.</p>,
+      confirmLabel: 'Send link',
+    });
+    if (!ok) return;
+    setBusyId(staffMember.id);
     try {
       await resetUserPassword(staffMember.email);
       toast({
-        title: "Password Reset Email Sent",
+        title: "Reset link sent",
         description: `A password reset link has been sent to ${staffMember.email}.`,
       });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send password reset email.",
-        variant: "destructive",
-      });
+      reportError(error, { title: "Couldn't send the reset link" });
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -446,8 +486,8 @@ const StaffManagement = () => {
                             <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
-                        <Badge className={member.status === 'active' ? 'bg-success-soft text-success border-success/30' : 'bg-destructive-soft text-destructive border-destructive/30'}>
-                          {member.status || 'active'}
+                        <Badge className={member.status !== 'inactive' ? 'bg-success-soft text-success border-success/30' : 'bg-destructive-soft text-destructive border-destructive/30'}>
+                          {member.status !== 'inactive' ? 'Active' : 'Deactivated'}
                         </Badge>
                       </div>
                       
@@ -475,8 +515,10 @@ const StaffManagement = () => {
                             variant="outline"
                             className="border-destructive/30 text-destructive hover:bg-destructive-soft"
                             onClick={() => openDeleteDialog(member)}
+                            aria-label={`Delete ${member.name}`}
+                            title="Delete"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
                           </Button>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -485,6 +527,7 @@ const StaffManagement = () => {
                             variant="outline"
                             className={`flex-1 ${member.status === 'active' ? 'border-warning/30 text-warning hover:bg-warning-soft' : 'border-success/30 text-success hover:bg-success-soft'}`}
                             onClick={() => handleToggleStatus(member)}
+                            disabled={busyId === member.id}
                           >
                             {member.status === 'active' ? (
                               <><UserX className="w-4 h-4 mr-1" />Deactivate</>
@@ -497,9 +540,10 @@ const StaffManagement = () => {
                             variant="outline"
                             className="flex-1 border-primary/30 text-primary hover:bg-primary-soft"
                             onClick={() => handleResetPassword(member)}
+                            disabled={busyId === member.id}
                           >
                             <KeyRound className="w-4 h-4 mr-1" />
-                            Reset
+                            Reset password
                           </Button>
                         </div>
                       </div>

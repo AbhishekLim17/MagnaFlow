@@ -19,6 +19,7 @@ import { getAllOrganizations, generateOrgId, provisionOrganization, updateOrgani
 import { createUser, getUsersByIds } from '@/services/userService';
 import { getErrorLogs } from '@/services/errorLogService';
 import { reportError } from '@/lib/reportError';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 
 const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
   const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '', ccEmails: '' });
@@ -239,6 +240,7 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
 };
 
 const MasterAdminDashboard = () => {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const [organizations, setOrganizations] = useState([]);
   const [usageStats, setUsageStats] = useState({});
@@ -291,7 +293,13 @@ const MasterAdminDashboard = () => {
   };
 
   const handleSuspend = async (org) => {
-    if (!window.confirm(`Suspend "${org.name}"? Its org-admin and staff will be blocked at login.`)) return;
+    const ok = await confirm({
+      title: `Suspend ${org.name}?`,
+      description: <p>Everyone in this organization is signed out of their data straight away and cannot use MagnaFlow until you reactivate it.</p>,
+      confirmLabel: 'Suspend organization',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await suspendOrganization(org.id);
       toast({ title: 'Organization suspended', description: `${org.name} has been suspended.` });
@@ -322,7 +330,13 @@ const MasterAdminDashboard = () => {
         });
         return;
       }
-      if (!window.confirm(`Permanently delete "${org.name}"? This cannot be undone.`)) return;
+      const ok = await confirm({
+        title: `Permanently delete ${org.name}?`,
+        description: <p>The organization record is removed. This cannot be undone.</p>,
+        confirmLabel: 'Delete organization',
+        destructive: true,
+      });
+      if (!ok) return;
       await deleteOrganization(org.id);
       toast({ title: 'Organization deleted', description: `${org.name} has been removed.` });
       loadAll();

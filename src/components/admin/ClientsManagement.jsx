@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjects } from "@/services/organizationService";
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { reportError } from "@/lib/reportError";
 import {
   getAllUsers,
@@ -171,6 +172,7 @@ const ClientFormDialog = ({
 // ─── main component ──────────────────────────────────────────────────────────
 
 const ClientsManagement = () => {
+  const confirm = useConfirm();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -324,6 +326,12 @@ const ClientsManagement = () => {
   // ─── password reset ────────────────────────────────────────────────────────
 
   const handleResetPassword = async (client) => {
+    const ok = await confirm({
+      title: 'Send a password reset email?',
+      description: <p>{client.name} ({client.email}) will receive a link to choose a new password.</p>,
+      confirmLabel: 'Send link',
+    });
+    if (!ok) return;
     try {
       await resetUserPassword(client.email);
       toast({
