@@ -1,8 +1,8 @@
 // Task Management Component - Admin can create, edit, delete, and assign tasks to staff
 // Includes task list, filters, search, and dialogs for CRUD operations
 
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,13 @@ import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { EmptyState, LoadingState } from '@/components/shared/States';
+import { formatDate as formatDay } from '@/lib/format';
+import { priorityLabel } from '@/lib/taskLabels';
+import { describeDeadline } from '@/lib/taskState';
+import {
+  SORT_OPTIONS, filterAndSortTasks, activeFilterCount, filtersFromParams, writeFilters,
+} from '@/lib/taskFilters';
 import KanbanBoard from '@/components/shared/KanbanBoard';
 import {
   Tooltip,
@@ -47,6 +54,7 @@ import {
 const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatusChange, getStaffName, getPriorityBadge, getStatusBadge, formatDate }) => {
   const commentCount = useCommentCount(task.id);
   const subtaskCounts = useSubtaskCount(task.id);
+  const deadline = describeDeadline(task);
 
   return (
     <motion.div
@@ -61,36 +69,42 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
               <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
               <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
             </div>
-            <div className="ml-4 flex space-x-2">
+            <div className="ml-4 flex flex-wrap items-start justify-end gap-2">
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
-                {task.priority}
+                {priorityLabel(task.priority)}
               </Badge>
               <Select
                 value={task.status}
                 onValueChange={(v) => onStatusChange?.(task.id, v)}
               >
-                <SelectTrigger className={`h-7 text-xs px-2 min-w-[110px] ${getStatusBadge(task.status)} border`}>
+                <SelectTrigger
+                  aria-label={`Status of ${task.title}`}
+                  className={`h-9 sm:h-7 text-xs px-2 min-w-[110px] ${getStatusBadge(task.status)} border`}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="review">In Review</SelectItem>
+                  <SelectItem value="in-progress">In progress</SelectItem>
+                  <SelectItem value="review">In review</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
-                <User className="w-4 h-4" />
+                <User className="w-4 h-4" aria-hidden="true" />
                 <span>{getStaffName(task.assignedTo)}</span>
               </div>
               <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-4 h-4" aria-hidden="true" />
                 <span>{formatDate(task.deadline)}</span>
+                {deadline.tone === 'danger' && (
+                  <span className="font-semibold text-destructive">· {deadline.label}</span>
+                )}
               </div>
               
               <TooltipProvider>
@@ -104,9 +118,10 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
                         e.stopPropagation();
                         onCommentClick(task);
                       }}
-                      className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all"
+                      aria-label={`Subtasks for ${task.title}: ${subtaskCounts.completed} of ${subtaskCounts.total} completed`}
+                      className="flex min-h-10 items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all sm:min-h-0"
                     >
-                      <ListChecks className="w-4 h-4" />
+                      <ListChecks className="w-4 h-4" aria-hidden="true" />
                       <span className="text-xs font-medium">{subtaskCounts.completed}/{subtaskCounts.total}</span>
                     </motion.button>
                   </TooltipTrigger>
@@ -122,9 +137,10 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onCommentClick(task)}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all"
+                aria-label={`Comments on ${task.title}: ${commentCount}`}
+                className="flex min-h-10 items-center space-x-1 px-3 py-1.5 rounded-xl bg-primary-soft border border-primary/30 text-primary hover:bg-primary-soft transition-all sm:min-h-0"
               >
-                <MessageSquare className="w-4 h-4" />
+                <MessageSquare className="w-4 h-4" aria-hidden="true" />
                 <span className="text-xs font-medium">{commentCount}</span>
               </motion.button>
                   </TooltipTrigger>
@@ -139,19 +155,22 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
               <Button
                 size="sm"
                 variant="outline"
-                className="border-primary/30 text-primary hover:bg-primary-soft"
+                className="min-h-10 border-primary/30 text-primary hover:bg-primary-soft sm:min-h-0"
                 onClick={() => onEdit(task)}
+                aria-label={`Edit ${task.title}`}
               >
-                <Edit className="w-4 h-4 mr-1" />
+                <Edit className="w-4 h-4 mr-1" aria-hidden="true" />
                 Edit
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="border-destructive/30 text-destructive hover:bg-destructive-soft"
+                className="min-h-10 min-w-10 border-destructive/30 text-destructive hover:bg-destructive-soft sm:min-h-0 sm:min-w-0"
                 onClick={() => onDelete(task)}
+                aria-label={`Delete ${task.title}`}
+                title="Delete"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </Button>
             </div>
           </div>
@@ -165,12 +184,14 @@ const TaskManagement = () => {
   const { tasks, tasksTruncated, loading, createTask, updateTask, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
   const { currentUser } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [staff, setStaff] = useState([]);        // assignable in this scope
   const [projects, setProjects] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  // Filters live in the URL (?q=&status=&assignee=&project=&sort=), so a filtered list can be
+  // bookmarked, shared and survives Back and a refresh. They used to reset on every visit.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
+  const setFilters = (patch) =>
+    setSearchParams((prev) => writeFilters(prev, { ...filtersFromParams(prev), ...patch }), { replace: true });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -220,7 +241,8 @@ const TaskManagement = () => {
   useEffect(() => {
     if (new URLSearchParams(location.search).get('new') === '1') {
       setIsAddDialogOpen(true);
-      navigate(location.pathname, { replace: true });
+      // strip only this parameter; the filters in the URL stay
+      setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete('new'); return next; }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
@@ -379,15 +401,7 @@ const TaskManagement = () => {
     return date.toISOString().split('T')[0];
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'No deadline';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
+  const formatDate = (timestamp) => formatDay(timestamp, 'No deadline');
 
   // A scoped manager/department-head can only read user docs inside their own
   // scope (enforced by the Firestore rules), so a task assigned to someone
@@ -427,14 +441,13 @@ const TaskManagement = () => {
     return m;
   }, [staff]);
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (task.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
+  const filteredTasks = useMemo(
+    () => filterAndSortTasks(tasks, filters, { me: currentUser?.uid, getName: getStaffName }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, filters, staff, currentUser?.uid]
+  );
+  const filterCount = activeFilterCount(filters);
+  const clearFilters = () => setFilters({ q: '', status: 'all', priority: 'all', assignee: 'all', project: 'all' });
 
   return (
     <div className="space-y-6">
@@ -450,15 +463,19 @@ const TaskManagement = () => {
               className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => switchView('list')}
               title="List view"
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
             >
-              <List className="w-4 h-4" />
+              <List className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => switchView('kanban')}
               title="Kanban view"
+              aria-label="Board view"
+              aria-pressed={viewMode === 'kanban'}
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
           <Button onClick={() => setIsAddDialogOpen(true)} variant="success">
@@ -483,41 +500,99 @@ const TaskManagement = () => {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="relative sm:col-span-2">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              type="search"
+              placeholder="Search title, description or person…"
+              aria-label="Search tasks"
+              value={filters.q}
+              onChange={(e) => setFilters({ q: e.target.value })}
               className="pl-10 bg-muted border-border"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-muted">
-              <SelectValue placeholder="Filter by Status" />
+          <Select value={filters.status} onValueChange={(v) => setFilters({ status: v })}>
+            <SelectTrigger className="w-full bg-muted" aria-label="Filter by status">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="open">Open (not finished)</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="review">In Review</SelectItem>
+              <SelectItem value="in-progress">In progress</SelectItem>
+              <SelectItem value="review">In review</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-muted">
-              <SelectValue placeholder="Filter by Priority" />
+          <Select value={filters.priority} onValueChange={(v) => setFilters({ priority: v })}>
+            <SelectTrigger className="w-full bg-muted" aria-label="Filter by priority">
+              <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="all">All priorities</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filters.assignee} onValueChange={(v) => setFilters({ assignee: v })}>
+            <SelectTrigger className="w-full bg-muted" aria-label="Filter by assignee">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Everyone</SelectItem>
+              <SelectItem value="me">Assigned to me</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {staff.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.name || member.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filters.sort} onValueChange={(v) => setFilters({ sort: v })}>
+            <SelectTrigger className="w-full bg-muted" aria-label="Sort tasks">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
+        {projects.length > 0 && (
+          <div className="mt-3 max-w-xs">
+            <Select value={filters.project} onValueChange={(v) => setFilters({ project: v })}>
+              <SelectTrigger className="w-full bg-muted" aria-label="Filter by project">
+                <SelectValue placeholder="Project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All projects</SelectItem>
+                <SelectItem value="none">No project</SelectItem>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {!loading && tasks.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground" aria-live="polite">
+            <span>
+              Showing {filteredTasks.length} of {tasks.length} task{tasks.length === 1 ? '' : 's'}
+            </span>
+            {filterCount > 0 && (
+              <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+                Clear {filterCount} filter{filterCount > 1 ? 's' : ''}
+              </Button>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Kanban View */}
@@ -546,14 +621,21 @@ const TaskManagement = () => {
       <Card>
         <div className="p-6">
           {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
-              <p className="mt-4 text-muted-foreground">Loading tasks...</p>
-            </div>
+            <LoadingState label="Loading tasks…" rows={4} />
+          ) : tasks.length === 0 ? (
+            <EmptyState
+              icon={Plus}
+              title="No tasks yet"
+              hint="Create the first task and assign it to someone on your team."
+              action={<Button onClick={() => setIsAddDialogOpen(true)}>Create a task</Button>}
+            />
           ) : filteredTasks.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No tasks found</p>
-            </div>
+            <EmptyState
+              icon={Search}
+              title="No tasks match these filters"
+              hint="Try a different search, or clear the filters to see everything."
+              action={<Button variant="outline" onClick={clearFilters}>Clear filters</Button>}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {filteredTasks.map((task, index) => (
