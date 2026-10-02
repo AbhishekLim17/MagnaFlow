@@ -131,7 +131,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
               onValueChange={(value) => onStatusChange(task.id, value)}
               onClick={(e) => e.stopPropagation()}
             >
-              <SelectTrigger className={`w-[140px] ${getStatusBadge(task.status)} border`}>
+              <SelectTrigger className={`w-[140px] ${getStatusBadge(task.status)} border`} aria-label={`Status of ${task.title}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -259,7 +259,7 @@ const StaffDashboard = () => {
       onTabChange={() => {}}
       title="My Tasks"
     >
-      <main className="space-y-6">
+      <div className="space-y-6">
         {/* The header already greets the user by name. */}
         <p className="text-sm text-muted-foreground">Manage your tasks and track your progress</p>
 
@@ -339,7 +339,7 @@ const StaffDashboard = () => {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-muted">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted" aria-label="Filter by status">
                   <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -351,7 +351,7 @@ const StaffDashboard = () => {
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-muted">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted" aria-label="Filter by priority">
                   <SelectValue placeholder="Filter by Priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -414,7 +414,7 @@ const StaffDashboard = () => {
             }
           </div>
         </Card>
-      </main>
+      </div>
 
       {/* Dialogs */}
       <AddTaskDialog

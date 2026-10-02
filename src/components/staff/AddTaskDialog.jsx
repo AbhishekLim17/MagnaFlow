@@ -148,9 +148,9 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-foreground">Priority</Label>
+              <Label htmlFor="add-task-priority" className="text-foreground">Priority</Label>
               <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
-                <SelectTrigger>
+                <SelectTrigger id="add-task-priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

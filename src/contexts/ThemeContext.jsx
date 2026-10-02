@@ -9,6 +9,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'magnaflow-theme';
 
+// The browser toolbar colour on phones follows the page background (the pre-paint script in
+// index.html sets the dark one on load; this keeps it right when the toggle is used).
+const THEME_COLORS = { light: '#f1f3f7', dark: '#10121e' };
+
 const ThemeContext = createContext({ theme: 'light', setTheme: () => {}, toggleTheme: () => {} });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -35,6 +39,7 @@ export const ThemeProvider = ({ children }) => {
     // Literal class names, so Tailwind's scanner can see them.
     root.classList.toggle('dark', theme === 'dark');
     root.style.colorScheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme]);
     try {
       window.localStorage.setItem(STORAGE_KEY, theme);
     } catch {

@@ -182,13 +182,18 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail, people =
           rows="3"
           maxLength={MAX_LENGTH}
           disabled={loading}
-          role="combobox"
-          aria-expanded={open}
+          // A textarea cannot take role=combobox (ARIA in HTML), so it stays a textbox that
+          // points at the list; the count below is announced when the list opens.
+          aria-haspopup="listbox"
           aria-controls={open ? listId : undefined}
           aria-activedescendant={open ? optionId(active) : undefined}
           aria-autocomplete="list"
           aria-invalid={error ? true : undefined}
         />
+
+        <p className="sr-only" role="status">
+          {open ? `${suggestions.length} ${suggestions.length === 1 ? 'person' : 'people'} to mention. Use the up and down arrow keys, then Enter.` : ''}
+        </p>
 
         {/* Mention suggestions */}
         {open && (

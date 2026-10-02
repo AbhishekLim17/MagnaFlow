@@ -94,7 +94,7 @@ const TaskFormDialog = ({
             <div>
               <Label htmlFor={idFor('assignedTo')}>Assign To *</Label>
               <Select value={formData.assignedTo} onValueChange={(v) => set({ assignedTo: v })}>
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('assignedTo')} className={FIELD_CLASS}>
                   <SelectValue placeholder={isAdd ? 'Select a person' : undefined} />
                 </SelectTrigger>
                 <SelectContent>
@@ -114,7 +114,7 @@ const TaskFormDialog = ({
             <div>
               <Label htmlFor={idFor('priority')}>Priority</Label>
               <Select value={formData.priority} onValueChange={(v) => set({ priority: v })}>
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('priority')} className={FIELD_CLASS}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -131,7 +131,7 @@ const TaskFormDialog = ({
             <div>
               <Label htmlFor={idFor('status')}>Status</Label>
               <Select value={formData.status} onValueChange={(v) => set({ status: v })}>
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('status')} className={FIELD_CLASS}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -172,7 +172,7 @@ const TaskFormDialog = ({
                 value={formData.projectId || 'none'}
                 onValueChange={(v) => set({ projectId: v === 'none' ? '' : v })}
               >
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('project')} className={FIELD_CLASS}>
                   <SelectValue placeholder="No project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -189,7 +189,7 @@ const TaskFormDialog = ({
           {/* Depends On (blockedBy) multi-select */}
           {tasks.length > 0 && (
             <div>
-              <Label>Depends On <span className="text-muted-foreground text-xs font-normal">(blocked by)</span></Label>
+              <Label htmlFor={idFor('blockedBy')}>Depends On <span className="text-muted-foreground text-xs font-normal">(blocked by)</span></Label>
               <Select
                 value=""
                 onValueChange={(v) => {
@@ -197,7 +197,7 @@ const TaskFormDialog = ({
                   if (!current.includes(v)) set({ blockedBy: [...current, v] });
                 }}
               >
-                <SelectTrigger className={FIELD_CLASS}>
+                <SelectTrigger id={idFor('blockedBy')} className={FIELD_CLASS}>
                   <SelectValue placeholder="Add a prerequisite task…" />
                 </SelectTrigger>
                 <SelectContent>

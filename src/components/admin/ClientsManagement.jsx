@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Plus, Search, Edit, Trash2, UserCheck, UserX, KeyRound,
-  Globe, FolderOpen, AlertTriangle,
+  Globe, FolderOpen, AlertTriangle, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,8 +53,8 @@ const EMPTY_FORM = {
 // ─── project picker sub-component (defined at module level) ───────────────────
 
 const ProjectPicker = ({ projects, selectedIds, onToggle }) => (
-  <div className="space-y-2">
-    <Label>Projects this client can see *</Label>
+  <div className="space-y-2" role="group" aria-labelledby="client-projects-label">
+    <p id="client-projects-label" className="text-sm font-medium leading-none">Projects this client can see *</p>
     {projects.length === 0 ? (
       <p className="text-sm text-muted-foreground">
         No projects found. Create projects in Departments &amp; Projects first.
@@ -67,6 +67,7 @@ const ProjectPicker = ({ projects, selectedIds, onToggle }) => (
             <button
               key={p.id}
               type="button"
+              aria-pressed={selected}
               onClick={() => onToggle(p.id)}
               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors ${
                 selected
@@ -74,8 +75,9 @@ const ProjectPicker = ({ projects, selectedIds, onToggle }) => (
                   : "bg-muted hover:bg-muted/70"
               }`}
             >
-              <FolderOpen className="w-4 h-4 shrink-0" />
-              {p.name}
+              <FolderOpen className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">{p.name}</span>
+              {selected && <Check className="w-4 h-4 shrink-0" aria-hidden="true" />}
             </button>
           );
         })}

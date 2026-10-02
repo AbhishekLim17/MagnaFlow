@@ -2,7 +2,7 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content="MagnaFlow" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="theme-color" content="#f1f3f7" />
@@ -13,9 +13,70 @@
 			rel="stylesheet"
 		/>
 		<title>MagnaFlow</title>
+
+		<!-- Apply the saved theme before the first paint. ThemeContext does this too, but only
+		     after React has loaded, so a returning dark-mode user used to get a white flash
+		     (and a white browser toolbar on phones) on every page load. Keep the storage key
+		     in step with src/contexts/ThemeContext.jsx. -->
+		<script>
+			(function () {
+				try {
+					if (localStorage.getItem('magnaflow-theme') === 'dark') {
+						var root = document.documentElement;
+						root.classList.add('dark');
+						root.style.colorScheme = 'dark';
+						var meta = document.querySelector('meta[name="theme-color"]');
+						if (meta) meta.setAttribute('content', '#10121e');
+					}
+				} catch (e) {
+					/* storage blocked: the light default stands */
+				}
+			})();
+		</script>
+
+		<noscript><style>#root { display: none; }</style></noscript>
+
+		<!-- What the page shows until the app's own styles and scripts arrive. Colours are the
+		     background tokens in src/index.css (light and dark). -->
+		<style>
+			html { background: #f1f3f7; }
+			html.dark { background: #10121e; }
+			.boot {
+				display: grid;
+				place-items: center;
+				align-content: center;
+				gap: 14px;
+				min-height: 100vh;
+				font-family: Urbanist, system-ui, -apple-system, 'Segoe UI', sans-serif;
+				font-size: 14px;
+				color: #5b6275;
+			}
+			html.dark .boot { color: #a3a9bb; }
+			.boot-ring {
+				width: 36px;
+				height: 36px;
+				border-radius: 50%;
+				border: 3px solid rgba(62, 48, 217, 0.2);
+				border-top-color: #3e30d9;
+				animation: boot-spin 0.8s linear infinite;
+			}
+			html.dark .boot-ring { border-color: rgba(138, 128, 245, 0.25); border-top-color: #8a80f5; }
+			@keyframes boot-spin { to { transform: rotate(360deg); } }
+			@media (prefers-reduced-motion: reduce) { .boot-ring { animation-duration: 3s; } }
+		</style>
 	</head>
 	<body>
-		<div id="root"></div>
+		<div id="root">
+			<div class="boot" role="status">
+				<div class="boot-ring" aria-hidden="true"></div>
+				<span>Loading MagnaFlow…</span>
+			</div>
+		</div>
+		<noscript>
+			<div class="boot">
+				<span>MagnaFlow needs JavaScript. Turn it on in your browser settings, then reload this page.</span>
+			</div>
+		</noscript>
 		<script type="module" src="/src/main.jsx"></script>
 	</body>
 </html>

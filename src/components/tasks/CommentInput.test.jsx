@@ -26,7 +26,7 @@ const people = [
 const setup = () => {
   const user = userEvent.setup();
   render(<CommentInput taskId="t1" taskTitle="Ship it" userId="u1" userName="Me" userEmail="me@x.co" people={people} />);
-  return { user, box: screen.getByRole('combobox') };
+  return { user, box: screen.getByRole('textbox') };
 };
 
 beforeEach(() => {
@@ -37,6 +37,16 @@ beforeEach(() => {
 });
 
 describe('mention typeahead', () => {
+  test('a screen reader is told when the list opens, and how many people are in it', async () => {
+    const { user, box } = setup();
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    await user.type(box, '@ann');
+    expect(screen.getByRole('status')).toHaveTextContent('2 people to mention');
+    expect(box).toHaveAttribute('aria-controls', screen.getByRole('listbox').id);
+    await user.type(box, 'abel');
+    expect(screen.getByRole('status')).toHaveTextContent('1 person to mention');
+  });
+
   test('typing @ offers people, narrowing as you type', async () => {
     const { user, box } = setup();
     await user.type(box, 'hello @');

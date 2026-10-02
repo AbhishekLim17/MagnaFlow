@@ -76,15 +76,15 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div>
-            <Label className="text-foreground">Organization Name *</Label>
-            <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            <Label htmlFor="org-organization-name" className="text-foreground">Organization Name *</Label>
+            <Input id="org-organization-name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               className="mt-2 surface border-border text-foreground" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-foreground">Plan</Label>
+              <Label htmlFor="org-plan" className="text-foreground">Plan</Label>
               <Select value={form.plan} onValueChange={(v) => setForm((p) => ({ ...p, plan: v }))}>
-                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="org-plan" className="mt-2"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -92,26 +92,26 @@ const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
               </Select>
             </div>
             <div>
-              <Label className="text-foreground">Seat Limit</Label>
-              <Input type="number" min="1" value={form.seatLimit} onChange={(e) => setForm((p) => ({ ...p, seatLimit: e.target.value }))}
+              <Label htmlFor="org-seat-limit" className="text-foreground">Seat Limit</Label>
+              <Input id="org-seat-limit" type="number" min="1" value={form.seatLimit} onChange={(e) => setForm((p) => ({ ...p, seatLimit: e.target.value }))}
                 className="mt-2 surface border-border text-foreground" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-foreground">Storage (MB)</Label>
-              <Input type="number" min="0" value={form.storageQuotaMB} onChange={(e) => setForm((p) => ({ ...p, storageQuotaMB: e.target.value }))}
+              <Label htmlFor="org-storage-mb" className="text-foreground">Storage (MB)</Label>
+              <Input id="org-storage-mb" type="number" min="0" value={form.storageQuotaMB} onChange={(e) => setForm((p) => ({ ...p, storageQuotaMB: e.target.value }))}
                 className="mt-2 surface border-border text-foreground" />
             </div>
             <div>
-              <Label className="text-foreground">Billing Email</Label>
-              <Input type="email" value={form.billingEmail} onChange={(e) => setForm((p) => ({ ...p, billingEmail: e.target.value }))}
+              <Label htmlFor="org-billing-email" className="text-foreground">Billing Email</Label>
+              <Input id="org-billing-email" type="email" value={form.billingEmail} onChange={(e) => setForm((p) => ({ ...p, billingEmail: e.target.value }))}
                 className="mt-2 surface border-border text-foreground" />
             </div>
           </div>
           <div>
-            <Label className="text-foreground">CC on notification emails</Label>
-            <Input value={form.ccEmails} onChange={(e) => setForm((p) => ({ ...p, ccEmails: e.target.value }))}
+            <Label htmlFor="org-cc-on-notification-emails" className="text-foreground">CC on notification emails</Label>
+            <Input id="org-cc-on-notification-emails" value={form.ccEmails} onChange={(e) => setForm((p) => ({ ...p, ccEmails: e.target.value }))}
               placeholder="admin@company.com, manager@company.com"
               className="mt-2 surface border-border text-foreground" />
             <p className="text-xs text-muted-foreground mt-1">Comma-separated. Copied on this organization's assignment, critical-task and reminder emails.</p>
@@ -217,9 +217,9 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-foreground">Plan</Label>
+              <Label htmlFor="org-plan-2" className="text-foreground">Plan</Label>
               <Select value={form.plan} onValueChange={(v) => handleChange('plan', v)}>
-                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="org-plan-2" className="mt-2"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -227,14 +227,14 @@ const ProvisionOrgDialog = ({ open, onOpenChange, onCreated }) => {
               </Select>
             </div>
             <div>
-              <Label className="text-foreground">Seat Limit</Label>
-              <Input type="number" min="1" value={form.seatLimit} onChange={(e) => handleChange('seatLimit', e.target.value)}
+              <Label htmlFor="org-seat-limit-2" className="text-foreground">Seat Limit</Label>
+              <Input id="org-seat-limit-2" type="number" min="1" value={form.seatLimit} onChange={(e) => handleChange('seatLimit', e.target.value)}
                 className="mt-2 surface border-border text-foreground" />
             </div>
           </div>
           <div>
-            <Label className="text-foreground">Billing Email</Label>
-            <Input type="email" value={form.billingEmail} onChange={(e) => handleChange('billingEmail', e.target.value)}
+            <Label htmlFor="org-billing-email-2" className="text-foreground">Billing Email</Label>
+            <Input id="org-billing-email-2" type="email" value={form.billingEmail} onChange={(e) => handleChange('billingEmail', e.target.value)}
               className="mt-2 surface border-border text-foreground" placeholder="billing@acme.com" />
           </div>
           <hr className="border-border" />

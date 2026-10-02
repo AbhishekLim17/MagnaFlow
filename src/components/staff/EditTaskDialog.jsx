@@ -161,9 +161,9 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-foreground">Priority *</Label>
+              <Label htmlFor="edit-task-priority" className="text-foreground">Priority *</Label>
               <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
-                <SelectTrigger>
+                <SelectTrigger id="edit-task-priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -176,9 +176,9 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-foreground">Status *</Label>
+              <Label htmlFor="edit-task-status" className="text-foreground">Status *</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                <SelectTrigger>
+                <SelectTrigger id="edit-task-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

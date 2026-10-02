@@ -678,12 +678,12 @@ const BudgetTracker = () => {
               />
             </div>
             <div>
-              <Label>Category</Label>
+              <Label htmlFor="exp-category">Category</Label>
               <Select
                 value={expenseForm.category}
                 onValueChange={(v) => setExpenseForm((f) => ({ ...f, category: v }))}
               >
-                <SelectTrigger className="mt-1 bg-muted border-border">
+                <SelectTrigger id="exp-category" className="mt-1 bg-muted border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -749,12 +749,12 @@ const BudgetTracker = () => {
               />
             </div>
             <div>
-              <Label>Category</Label>
+              <Label htmlFor="edit-exp-category">Category</Label>
               <Select
                 value={expenseForm.category}
                 onValueChange={(v) => setExpenseForm((f) => ({ ...f, category: v }))}
               >
-                <SelectTrigger className="mt-1 bg-muted border-border">
+                <SelectTrigger id="edit-exp-category" className="mt-1 bg-muted border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -801,12 +801,12 @@ const BudgetTracker = () => {
                 />
               </div>
               <div>
-                <Label>Currency</Label>
+                <Label htmlFor="budget-currency">Currency</Label>
                 <Select
                   value={budgetForm.currency}
                   onValueChange={(v) => setBudgetForm((f) => ({ ...f, currency: v }))}
                 >
-                  <SelectTrigger className="mt-1 bg-muted border-border">
+                  <SelectTrigger id="budget-currency" className="mt-1 bg-muted border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

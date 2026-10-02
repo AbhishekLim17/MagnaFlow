@@ -235,8 +235,8 @@ const DepartmentsProjectsManagement = () => {
           <DialogHeader><DialogTitle>Add Department</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateDept} className="space-y-4 py-2">
             <div>
-              <Label className="text-foreground">Department Name *</Label>
-              <Input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)}
+              <Label htmlFor="dp-department-name" className="text-foreground">Department Name *</Label>
+              <Input id="dp-department-name" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)}
                 className="mt-2 surface border-border text-foreground" placeholder="e.g. Engineering" required />
             </div>
             <DialogFooter>
@@ -252,14 +252,14 @@ const DepartmentsProjectsManagement = () => {
           <DialogHeader><DialogTitle>Add Project</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateProject} className="space-y-4 py-2">
             <div>
-              <Label className="text-foreground">Project Name *</Label>
-              <Input value={newProject.name} onChange={(e) => setNewProject(p => ({ ...p, name: e.target.value }))}
+              <Label htmlFor="dp-project-name" className="text-foreground">Project Name *</Label>
+              <Input id="dp-project-name" value={newProject.name} onChange={(e) => setNewProject(p => ({ ...p, name: e.target.value }))}
                 className="mt-2 surface border-border text-foreground" placeholder="e.g. Website Redesign" required />
             </div>
             <div>
-              <Label className="text-foreground">Department *</Label>
+              <Label htmlFor="dp-department" className="text-foreground">Department *</Label>
               <Select value={newProject.departmentId} onValueChange={(v) => setNewProject(p => ({ ...p, departmentId: v }))}>
-                <SelectTrigger className="mt-2"><SelectValue placeholder="Select a department" /></SelectTrigger>
+                <SelectTrigger id="dp-department" className="mt-2"><SelectValue placeholder="Select a department" /></SelectTrigger>
                 <SelectContent>
                   {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
@@ -267,16 +267,16 @@ const DepartmentsProjectsManagement = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-foreground">Budget (optional)</Label>
-                <Input type="number" min="0" step="1" placeholder="e.g. 50000"
+                <Label htmlFor="dp-budget-optional" className="text-foreground">Budget (optional)</Label>
+                <Input id="dp-budget-optional" type="number" min="0" step="1" placeholder="e.g. 50000"
                   value={newProject.budget}
                   onChange={(e) => setNewProject(p => ({ ...p, budget: e.target.value }))}
                   className="mt-2 surface border-border text-foreground" />
               </div>
               <div>
-                <Label className="text-foreground">Currency</Label>
+                <Label htmlFor="dp-currency" className="text-foreground">Currency</Label>
                 <Select value={newProject.currency} onValueChange={(v) => setNewProject(p => ({ ...p, currency: v }))}>
-                  <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="dp-currency" className="mt-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
