@@ -90,10 +90,14 @@ export const toUserMessage = (error, fallback = GENERIC) => {
     return "You appear to be offline. Reconnect and try again — your changes weren't saved.";
   }
 
+  const message = typeof error?.message === 'string' ? error.message.trim() : '';
+
+  // Errors the app raised on purpose, already worded for a person (a blocked task,
+  // a seat limit), say exactly what is wrong; do not replace them with a generic line.
+  if (error?.userFacing === true && message) return message;
+
   const known = MESSAGES[getCode(error)];
   if (known) return known;
-
-  const message = typeof error?.message === 'string' ? error.message.trim() : '';
 
   // SDK internals. These are plain Errors with no `.code` and no "Firebase:"
   // prefix, so they slipped through the check below and put a stack trace in a

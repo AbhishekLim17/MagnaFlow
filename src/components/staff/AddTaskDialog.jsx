@@ -23,7 +23,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
-import { reportError } from '@/lib/reportError';
 
 const AddTaskDialog = ({ open, onOpenChange }) => {
   const { user } = useAuth();
@@ -87,11 +86,6 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
         deadline: formData.dueDate, // Changed from deadline to dueDate
       });
 
-      toast({
-        title: "Task Created",
-        description: "Your personal task has been created successfully.",
-      });
-
       // Reset form
       setFormData({
         title: '',
@@ -101,8 +95,9 @@ const AddTaskDialog = ({ open, onOpenChange }) => {
       });
       
       onOpenChange(false);
-    } catch (error) {
-      reportError(error, { title: "Error", fallback: "Failed to create task. Please try again." });
+    } catch {
+      // The task context has already told the user what went wrong; keep the dialog
+      // open so they can retry without retyping.
     }
   };
 

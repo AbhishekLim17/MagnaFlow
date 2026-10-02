@@ -152,9 +152,26 @@ describe('updateTask dependency guards', () => {
 
   test('a task with unfinished prerequisites cannot be started', async () => {
     tasksById.a = { id: 'a', status: 'pending', blockedBy: ['b'] };
-    tasksById.b = { id: 'b', status: 'in-progress' };
+    tasksById.b = { id: 'b', title: 'Write the spec', status: 'in-progress' };
     await expect(updateTask('a', { status: 'in-progress' })).rejects.toMatchObject({ code: 'task-blocked' });
     expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  // The user must be told WHICH task is in the way, not just that one is.
+  test('the error names the blocking task and its state', async () => {
+    tasksById.a = { id: 'a', status: 'pending', blockedBy: ['b'] };
+    tasksById.b = { id: 'b', title: 'Write the spec', status: 'in-progress' };
+    const error = await updateTask('a', { status: 'completed' }).catch((e) => e);
+    expect(error.message).toBe('Blocked by “Write the spec” (In progress). Finish it first.');
+    expect(error.userFacing).toBe(true);
+    expect(error.blockers).toEqual([{ id: 'b', title: 'Write the spec', status: 'in-progress' }]);
+  });
+
+  test('several blockers are summarised, naming up to three', async () => {
+    tasksById.a = { id: 'a', status: 'pending', blockedBy: ['b', 'c', 'd', 'e'] };
+    for (const [id, title] of [['b', 'One'], ['c', 'Two'], ['d', 'Three'], ['e', 'Four']]) tasksById[id] = { id, title, status: 'pending' };
+    const error = await updateTask('a', { status: 'in-progress' }).catch((e) => e);
+    expect(error.message).toContain('Blocked by 4 tasks: “One” (Pending), “Two” (Pending), “Three” (Pending) and 1 more.');
   });
 
   test('it can be started once prerequisites are completed or cancelled', async () => {

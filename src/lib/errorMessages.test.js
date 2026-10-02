@@ -12,6 +12,12 @@ afterEach(() => {
 });
 
 describe('toUserMessage', () => {
+  // A blocked task or a seat limit is worded for a person already; a generic line would hide it.
+  test('shows errors the app raised on purpose, even when they carry a code', () => {
+    const e = Object.assign(new Error('Blocked by “Spec” (In progress). Finish it first.'), { code: 'task-blocked', userFacing: true });
+    expect(toUserMessage(e)).toBe('Blocked by “Spec” (In progress). Finish it first.');
+  });
+
   // The bug that motivated this: recent Firebase returns invalid-credential
   // for a wrong password, the old hand-written mapper had no case for it, and
   // the user was shown "Firebase: Error (auth/invalid-credential)."

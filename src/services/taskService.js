@@ -17,6 +17,7 @@ import {
 import { db } from '@/config/firebase';
 import { runBoundedQuery } from '@/lib/firestoreQuery';
 import { wouldCreateCycle, unfinishedBlockers } from '@/lib/dependencies';
+import { statusLabel } from '@/lib/taskLabels';
 import { sendCriticalTaskAlert } from './emailService';
 import { deleteAllSubtasksForTask } from './subtaskService';
 import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
@@ -187,7 +188,17 @@ export const createTask = async (taskData) => {
 // Statuses that mean work has begun on a task.
 const STARTED_STATUSES = new Set(['in-progress', 'review', 'completed']);
 
-const taskError = (code, message) => Object.assign(new Error(message), { code });
+// "Blocked by “Rewrite the emails” (In progress). Finish it first." - the user needs to
+// know WHICH task is in the way, not just that one is.
+const describeBlockers = (blockers) => {
+  const named = blockers.map((b) => `“${b.title || 'Untitled task'}” (${statusLabel(b.status)})`);
+  if (named.length === 1) return `Blocked by ${named[0]}. Finish it first.`;
+  const shown = named.slice(0, 3).join(', ');
+  const more = named.length > 3 ? ` and ${named.length - 3} more` : '';
+  return `Blocked by ${named.length} tasks: ${shown}${more}. Finish them first.`;
+};
+
+const taskError = (code, message, extra = {}) => Object.assign(new Error(message), { code, userFacing: true, ...extra });
 
 // Dependencies are enforced here, in the one place every screen (list, Kanban,
 // staff and admin dashboards, edit dialogs) goes through, rather than in each
@@ -214,7 +225,9 @@ const assertDependenciesAllow = async (taskId, currentTask, updates) => {
       }));
       const open = unfinishedBlockers(blockers, (id) => loaded.get(id));
       if (open.length > 0) {
-        throw taskError('task-blocked', `This task is blocked: ${open.length} prerequisite task${open.length > 1 ? 's' : ''} must be completed first.`);
+        throw taskError('task-blocked', describeBlockers(open.map((id) => loaded.get(id))), {
+          blockers: open.map((id) => ({ id, title: loaded.get(id).title, status: loaded.get(id).status })),
+        });
       }
     }
   }

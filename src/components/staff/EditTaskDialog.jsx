@@ -102,18 +102,10 @@ const EditTaskDialog = ({ open, onOpenChange, task }) => {
         deadline: formData.dueDate,
       });
 
-      toast({
-        title: "Task Updated",
-        description: "Your task has been updated successfully.",
-      });
-      
       onOpenChange(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update task. Please try again.",
-        variant: "destructive",
-      });
+    } catch {
+      // The task context has already told the user what went wrong; keep the dialog
+      // open so they can retry without retyping.
     }
   };
 

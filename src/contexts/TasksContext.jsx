@@ -3,6 +3,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { toUserMessage } from '@/lib/errorMessages';
+import { statusLabel } from '@/lib/taskLabels';
 import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, getTaskStatistics } from '@/services/taskService';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
@@ -201,8 +203,8 @@ export const TasksProvider = ({ children }) => {
     } catch (error) {
       console.error("❌ Error creating task:", error);
       toast({
-        title: "Error",
-        description: "Failed to create task. Please try again.",
+        title: "Couldn't create the task",
+        description: toUserMessage(error, 'Please try again.'),
         variant: "destructive",
       });
       throw error;
@@ -210,34 +212,36 @@ export const TasksProvider = ({ children }) => {
   };
 
   /**
-   * Update an existing task
+   * Update an existing task. This context is the ONLY place that toasts for task
+   * writes: callers must not add a second success or error toast (every status change
+   * used to show two, and a blocked move showed a generic "Error" next to the real
+   * reason). Pass { successTitle, successDescription } to word the success toast, or
+   * { quiet: true } to suppress it.
    */
-  const updateTask = async (taskId, updates) => {
+  const updateTask = async (taskId, updates, options = {}) => {
     try {
-      console.log("✏️  Updating task:", taskId);
-      
       const updatedTask = await updateTaskService(taskId, updates);
-      
-      setTasks(prev => 
+
+      setTasks(prev =>
         prev.map(t => t.id === taskId ? updatedTask : t)
       );
-      
+
       // Refresh statistics
       await refreshStatistics();
-      
-      toast({
-        title: "Task Updated",
-        description: "Task has been updated successfully.",
-      });
-      
+
+      if (!options.quiet) {
+        toast({
+          title: options.successTitle || "Task updated",
+          description: options.successDescription || "Your changes were saved.",
+        });
+      }
+
       return updatedTask;
     } catch (error) {
       console.error("❌ Error updating task:", error);
-      // Dependency problems are the user's to fix, so say exactly what they are.
-      const explainable = error?.code === 'task-blocked' || error?.code === 'dependency-cycle' || error?.code === 'task-not-found';
       toast({
-        title: error?.code === 'task-blocked' ? "Task is blocked" : "Error",
-        description: explainable ? error.message : "Failed to update task. Please try again.",
+        title: error?.code === 'task-blocked' ? "Task is blocked" : "Couldn't update the task",
+        description: toUserMessage(error, 'Please try again.'),
         variant: "destructive",
       });
       throw error;
@@ -270,16 +274,16 @@ export const TasksProvider = ({ children }) => {
       await refreshStatistics();
       
       toast({
-        title: "Task Deleted",
-        description: "Task has been deleted successfully.",
+        title: "Task deleted",
+        description: "It has been removed.",
       });
       
       return true;
     } catch (error) {
       console.error("❌ Error deleting task:", error);
       toast({
-        title: "Error",
-        description: "Failed to delete task. Please try again.",
+        title: "Couldn't delete the task",
+        description: toUserMessage(error, 'Please try again.'),
         variant: "destructive",
       });
       return false;
@@ -290,12 +294,13 @@ export const TasksProvider = ({ children }) => {
    * Update task status
    */
   const updateTaskStatus = async (taskId, status) => {
-    try {
-      return await updateTask(taskId, { status });
-    } catch (error) {
-      console.error("❌ Error updating task status:", error);
-      throw error;
-    }
+    const title = tasks.find((t) => t.id === taskId)?.title;
+    return updateTask(taskId, { status }, {
+      successTitle: 'Status updated',
+      successDescription: title
+        ? `“${title}” is now ${statusLabel(status).toLowerCase()}.`
+        : `Status changed to ${statusLabel(status).toLowerCase()}.`,
+    });
   };
 
   /**

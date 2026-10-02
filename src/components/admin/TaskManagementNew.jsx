@@ -528,9 +528,8 @@ const TaskManagement = () => {
           onStatusChange={async (taskId, newStatus) => {
             try {
               await updateTaskStatus(taskId, newStatus);
-              toast({ title: 'Task moved', description: 'Status updated successfully.' });
             } catch {
-              toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+              // The task context has already explained what went wrong.
             }
           }}
           onCardClick={setTaskForComments}
@@ -568,9 +567,8 @@ const TaskManagement = () => {
                   onStatusChange={async (taskId, newStatus) => {
                     try {
                       await updateTaskStatus(taskId, newStatus);
-                      toast({ title: 'Status updated', description: 'Task status changed.' });
                     } catch {
-                      toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+                      // The task context has already explained what went wrong.
                     }
                   }}
                   getStaffName={getStaffName}
@@ -640,9 +638,8 @@ const TaskManagement = () => {
           onStatusChange={async (taskId, newStatus) => {
             try {
               await updateTaskStatus(taskId, newStatus);
-              toast({ title: 'Status updated', description: 'Task status changed.' });
             } catch {
-              toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+              // The task context has already explained what went wrong.
             }
           }}
         />

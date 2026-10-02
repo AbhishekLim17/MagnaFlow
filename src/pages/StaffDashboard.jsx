@@ -177,37 +177,13 @@ const StaffDashboard = () => {
   }, [user]);
 
 
+  // The task context toasts the outcome (and, when a prerequisite is unfinished,
+  // names it), so this only has to make the call.
   const handleStatusChange = async (taskId, newStatus) => {
-    // Fix #4: Warn when trying to start/finish a task whose prerequisites aren't done
-    if (newStatus === 'in-progress' || newStatus === 'completed' || newStatus === 'review') {
-      const taskObj = tasks.find((t) => t.id === taskId);
-      if (taskObj?.blockedBy?.length) {
-        const unfinished = taskObj.blockedBy.filter((depId) => {
-          const dep = tasks.find((t) => t.id === depId);
-          return dep && dep.status !== 'completed';
-        });
-        if (unfinished.length > 0) {
-          toast({
-            title: 'Task is blocked',
-            description: `${unfinished.length} prerequisite task${unfinished.length > 1 ? 's' : ''} must be completed first.`,
-            variant: 'destructive',
-          });
-          return;
-        }
-      }
-    }
     try {
       await updateTaskStatus(taskId, newStatus);
-      toast({
-        title: "Status Updated",
-        description: "Task status has been updated successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update task status.",
-        variant: "destructive",
-      });
+    } catch {
+      // already reported by the task context
     }
   };
 
@@ -221,20 +197,8 @@ const StaffDashboard = () => {
       return;
     }
 
-    try {
-      await deleteTask(taskId);
-      toast({
-        title: "Task Deleted",
-        description: "The task has been removed successfully.",
-      });
-      setSelectedTask(null);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete task. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // deleteTask reports its own outcome and returns whether it worked.
+    if (await deleteTask(taskId)) setSelectedTask(null);
   };
 
   // Filter tasks based on search and filters
