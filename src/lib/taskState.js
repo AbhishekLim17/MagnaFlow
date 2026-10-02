@@ -39,3 +39,21 @@ export const summarizeProject = (tasks, now = new Date()) => {
     percent: live.length > 0 ? Math.round((completed / live.length) * 100) : 0,
   };
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+/**
+ * A deadline in words: "Due today", "Due tomorrow", "Due in 5 days", "3 days overdue".
+ * Finished tasks are not "overdue" whatever the date says. `tone` is for styling.
+ */
+export const describeDeadline = (task, now = new Date()) => {
+  const deadline = toDate(task?.deadline);
+  if (!deadline) return { label: 'No deadline', tone: 'muted' };
+  if (FINISHED.has(task.status)) return { label: 'Finished', tone: 'muted' };
+  const days = Math.round((startOfDay(deadline).getTime() - startOfDay(now).getTime()) / DAY_MS);
+  if (days < 0) return { label: `${-days} day${-days > 1 ? 's' : ''} overdue`, tone: 'danger' };
+  if (days === 0) return { label: 'Due today', tone: 'warning' };
+  if (days === 1) return { label: 'Due tomorrow', tone: 'warning' };
+  return { label: `Due in ${days} days`, tone: 'muted' };
+};

@@ -472,7 +472,7 @@ const TaskManagement = () => {
           visible sign that bound was actually hit, so the list can look
           complete while quietly not being the whole list. */}
       {tasksTruncated && (
-        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning-foreground">
+        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-foreground">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Showing the first {tasks.length} tasks. There may be more — narrow the filters below to see a

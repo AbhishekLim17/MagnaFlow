@@ -433,7 +433,7 @@ const StaffManagement = () => {
       {/* A read this size is bounded (see userService); this is the only
           visible sign that bound was actually hit. */}
       {staffTruncated && (
-        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning-foreground">
+        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-foreground">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>Showing the first {staff.length} staff members. There may be more than fit in a single list.</span>
         </div>

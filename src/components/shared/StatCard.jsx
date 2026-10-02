@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/card';
 const TONES = {
   primary: 'text-primary bg-primary-soft',
   success: 'text-success bg-success-soft',
-  warning: 'text-warning-foreground bg-warning-soft',
+  warning: 'text-warning bg-warning-soft',
   danger: 'text-destructive bg-destructive-soft',
   neutral: 'text-muted-foreground bg-muted',
 };
