@@ -17,6 +17,11 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
   
   if (!task) return null;
 
+  // Editing and deleting are for whoever created the task (an errand of your own, or
+  // work you handed out). An assignee reports progress; they cannot retitle, re-date
+  // or delete work someone else gave them - the security rules refuse it too.
+  const canEditOrDelete = Boolean(currentUser?.uid) && task.createdBy === currentUser.uid;
+
   const formatDate = (timestamp) => {
     if (!timestamp) return 'No deadline';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -163,7 +168,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
           {/* Close Button */}
           <div className="flex justify-between items-center pt-4 border-t border-border">
             <div className="flex space-x-2">
-              {task.status !== 'completed' && (
+              {canEditOrDelete && task.status !== 'completed' && (
                 <>
                   <Button
                     onClick={() => {
@@ -191,7 +196,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                   </Button>
                 </>
               )}
-              {task.status === 'completed' && (
+              {canEditOrDelete && task.status === 'completed' && (
                 <Button
                   onClick={() => {
                     if (onDelete) {

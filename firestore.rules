@@ -131,6 +131,15 @@ service cloud.firestore {
               && !existsAfter(userPath(request.resource.data.lastSeatUid))));
     }
 
+    // The dept-head / manager whose scope a task sits in. Membership alone is NOT
+    // ownership: isDeptMember/isProjectMember are true for every person in the
+    // department or project, including ordinary staff, who must be able to see
+    // their team's tasks but not edit or delete each other's work.
+    function ownsScope(t) {
+      return (isDeptHead() && isDeptMember(t.get('orgId', null), t.get('departmentId', null)))
+        || (isManager() && isProjectMember(t.get('orgId', null), t.get('projectId', null)));
+    }
+
     // Who may clear a task's conversation when the task is removed: the admins and
     // the head/manager whose scope the task sits in.
     function canModerateTask(t) {
@@ -318,11 +327,13 @@ service cloud.firestore {
 
       // Only a master-admin may move a task between organizations.
       //  - org-admin: anything within the org.
-      //  - dept-head / manager on a task in their scope, and the task's creator:
-      //    may edit, but the task must stay inside their scope and its
+      //  - the dept-head / manager who owns the scope the task sits in, and the
+      //    task's creator: may edit it, but it must stay inside their scope and its
       //    author is fixed.
-      //  - the assignee: may update progress on the task but cannot re-home or
-      //    reassign it.
+      //  - the assignee: may only report progress (status and its timestamps). They
+      //    cannot retitle, reprioritize, move the deadline, re-home or reassign work
+      //    someone else gave them. (Being merely a member of the same department or
+      //    project grants nothing here.)
       allow update: if isSignedIn() && !isClient() && (
         isMasterAdmin()
         || (
@@ -331,24 +342,20 @@ service cloud.firestore {
             isOrgAdmin(resource.data.get('orgId', null))
             || (request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
                 && scopeUnchangedOrOk(resource.data.get('orgId', null))
-                && (isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
-                    || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null))
+                && (ownsScope(resource.data)
                     || resource.data.get('createdBy', null) == request.auth.uid))
             || (resource.data.get('assignedTo', null) == request.auth.uid
-                && request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
-                && request.resource.data.get('assignedTo', null) == resource.data.get('assignedTo', null)
-                && request.resource.data.get('departmentId', null) == resource.data.get('departmentId', null)
-                && request.resource.data.get('projectId', null) == resource.data.get('projectId', null))
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['status', 'completedAt', 'updatedAt']))
           )
         )
       );
-      // Department-heads and managers own the tasks inside their scope, so they
-      // may delete them - not just the ones they personally created.
+      // Admins, the owner of the scope the task sits in, and the task's creator may
+      // delete it. Ordinary members of the same department or project may not.
       allow delete: if isSignedIn() && !isClient() && (
         isOrgAdmin(resource.data.get('orgId', null))
         || isMasterAdmin()
-        || isDeptMember(resource.data.get('orgId', null), resource.data.get('departmentId', null))
-        || isProjectMember(resource.data.get('orgId', null), resource.data.get('projectId', null))
+        || ownsScope(resource.data)
         || resource.data.get('createdBy', null) == request.auth.uid
       );
     }

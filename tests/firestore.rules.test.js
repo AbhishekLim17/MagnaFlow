@@ -1022,3 +1022,83 @@ describe('deleting a task can clear its conversation', () => {
     await assertSucceeds(getDocs(query(collection(asUser(MGR_A), 'comment_notifications'), where('taskId', '==', 'taskA'))));
   });
 });
+
+// Membership in a department or project lets someone SEE its tasks. It does not let
+// them edit, reassign or delete each other's work - that is what the dept head,
+// manager and admin are for. (Regression: the rules used to treat any member, staff
+// included, as an owner, so one staff member could delete a task assigned to the
+// department head.)
+describe('ordinary members cannot touch each others tasks', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'tasks', 'personalA'), {
+        title: 'My own errand', orgId: ORG_A, createdBy: STAFF_A, assignedTo: STAFF_A, status: 'pending', priority: 'low',
+      });
+    });
+  });
+  const t = (db, id = 'taskA') => doc(db, 'tasks', id);
+
+  test('a teammate in the same project can still SEE the task', async () => {
+    await assertSucceeds(getDoc(t(asUser(STAFF_SCOPED))));
+  });
+  test('but cannot edit it (title, priority, status, assignee)', async () => {
+    const db = asUser(STAFF_SCOPED);
+    await assertFails(updateDoc(t(db), { title: 'EDITED BY A COLLEAGUE' }));
+    await assertFails(updateDoc(t(db), { priority: 'low' }));
+    await assertFails(updateDoc(t(db), { status: 'completed' }));
+    await assertFails(updateDoc(t(db), { assignedTo: STAFF_SCOPED }));
+  });
+  test('and cannot delete it', async () => {
+    await assertFails(deleteDoc(t(asUser(STAFF_SCOPED))));
+  });
+
+  test('the assignee can report progress: status and its timestamps', async () => {
+    const db = asUser(STAFF_A);
+    await assertSucceeds(updateDoc(t(db), { status: 'in-progress', updatedAt: 1 }));
+    await assertSucceeds(updateDoc(t(db), { status: 'completed', completedAt: 2, updatedAt: 3 }));
+    await assertSucceeds(updateDoc(t(db), { status: 'in-progress', completedAt: null, updatedAt: 4 }));
+  });
+  test('but not retitle, reprioritize, re-date, re-describe or re-wire work given to them', async () => {
+    const db = asUser(STAFF_A);
+    await assertFails(updateDoc(t(db), { title: 'renamed' }));
+    await assertFails(updateDoc(t(db), { priority: 'low' }));
+    await assertFails(updateDoc(t(db), { deadline: 9999999999 }));
+    await assertFails(updateDoc(t(db), { description: 'changed' }));
+    await assertFails(updateDoc(t(db), { blockedBy: [] }));
+    await assertFails(updateDoc(t(db), { status: 'completed', title: 'sneaky' }));
+  });
+  test('and cannot delete a task someone else created', async () => {
+    await assertFails(deleteDoc(t(asUser(STAFF_A))));
+  });
+
+  test('the creator of a task (a personal errand) can fully edit and delete it', async () => {
+    const db = asUser(STAFF_A);
+    await assertSucceeds(updateDoc(t(db, 'personalA'), { title: 'Renamed', priority: 'high', deadline: 5 }));
+    await assertSucceeds(deleteDoc(t(db, 'personalA')));
+  });
+  test('but the creator cannot re-author it or move it into a project they are not in', async () => {
+    const db = asUser(STAFF_A);
+    await assertFails(updateDoc(t(db, 'personalA'), { createdBy: ADMIN_A }));
+    await assertFails(updateDoc(t(db, 'personalA'), { projectId: PROJ_A, departmentId: DEPT_A }));
+  });
+
+  test('the manager and department head of the scope can edit and delete', async () => {
+    await assertSucceeds(updateDoc(t(asUser(MGR_A)), { title: 'Edited by the manager', priority: 'high' }));
+    await assertSucceeds(updateDoc(t(asUser(HEAD_A)), { title: 'Edited by the head' }));
+    await assertSucceeds(deleteDoc(t(asUser(MGR_A))));
+  });
+  test('the department head can delete too', async () => {
+    await assertSucceeds(deleteDoc(t(asUser(HEAD_A))));
+  });
+  test('a manager of a different project cannot touch it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'mgrOther'), { role: 'manager', orgId: ORG_A, departmentIds: [], projectIds: [PROJ_A2], status: 'active', email: 'mo@x.com' });
+    });
+    await assertFails(updateDoc(t(asUser('mgrOther')), { title: 'nope' }));
+    await assertFails(deleteDoc(t(asUser('mgrOther'))));
+  });
+  test('the org-admin can still do anything within the org', async () => {
+    await assertSucceeds(updateDoc(t(asUser(ADMIN_A)), { title: 'Admin edit', assignedTo: STAFF_SCOPED }));
+    await assertSucceeds(deleteDoc(t(asUser(ADMIN_A))));
+  });
+});
