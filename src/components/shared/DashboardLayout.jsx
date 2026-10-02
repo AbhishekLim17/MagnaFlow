@@ -12,7 +12,7 @@
 // its full width — on a 1280px laptop the old 256px sidebar was taking 20% of
 // the screen to repeat words already shown in the page title.
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -69,23 +69,32 @@ const DashboardLayout = ({
   // belongs to the shell rather than being re-added to each dashboard.
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
-  // Remembered, because a rail that springs back to icons on every page load
-  // is worse than one that never expands.
+  // Remembered, because a rail that springs back on every page load is worse than one
+  // that never changes. With no saved choice it opens WITH labels on a wide screen: it
+  // used to start as ten unlabeled icons that a new user had to hover one by one to
+  // learn, and only collapses once someone chooses that.
   const [isRailExpanded, setIsRailExpanded] = useState(() => {
     try {
-      return window.localStorage.getItem(RAIL_KEY) === 'expanded';
+      const saved = window.localStorage.getItem(RAIL_KEY);
+      if (saved === 'expanded') return true;
+      if (saved === 'collapsed') return false;
     } catch {
-      return false;
+      // fall through to the default
     }
+    return typeof window !== 'undefined' && window.innerWidth >= 1280;
   });
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(RAIL_KEY, isRailExpanded ? 'expanded' : 'collapsed');
-    } catch {
-      // Private mode; the rail just will not be remembered.
-    }
-  }, [isRailExpanded]);
+  const toggleRail = () => {
+    setIsRailExpanded((expanded) => {
+      const next = !expanded;
+      try {
+        window.localStorage.setItem(RAIL_KEY, next ? 'expanded' : 'collapsed');
+      } catch {
+        // Private mode; the rail just will not be remembered.
+      }
+      return next;
+    });
+  };
 
   const handleLogout = async () => {
     try {
@@ -180,7 +189,7 @@ const DashboardLayout = ({
 
         <div className={`flex flex-col gap-1 ${isRailExpanded ? 'px-3' : 'items-center'}`}>
           <button
-            onClick={() => setIsRailExpanded((v) => !v)}
+            onClick={toggleRail}
             aria-expanded={isRailExpanded}
             aria-label={isRailExpanded ? 'Collapse navigation' : 'Expand navigation'}
             className={`flex h-11 items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${
