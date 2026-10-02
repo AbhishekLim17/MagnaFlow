@@ -31,9 +31,9 @@ const { AuthProvider, useAuth } = await import('./AuthContext');
 const fbError = (code) => Object.assign(new Error(`Firebase: ${code}`), { code });
 
 const mount = async () => {
-  const hook = renderHook(() => useAuth(), { wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider> });
+  const utils = renderHook(() => useAuth(), { wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider> });
   await waitFor(() => expect(authListener).toBeTypeOf('function'));
-  return hook;
+  return utils;
 };
 
 beforeEach(() => {
