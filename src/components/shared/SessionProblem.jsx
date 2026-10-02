@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import Brandmark from '@/components/shared/Brandmark';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const COPY = {
   unreachable: {
@@ -31,6 +32,7 @@ const RETRY_EVERY_MS = 10000;
 
 const SessionProblem = () => {
   const { sessionProblem, retrySession, logout } = useAuth();
+  usePageTitle("Can't connect");
   const kind = sessionProblem?.kind || 'failed';
   const copy = COPY[kind] || COPY.failed;
   const Icon = copy.icon;

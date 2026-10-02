@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { reportError } from '@/lib/reportError';
 import NotificationBell from '@/components/shared/NotificationBell';
 import TaskDeepLink from '@/components/shared/TaskDeepLink';
+import { usePageTitle } from '@/lib/usePageTitle';
 import ChangePasswordDialog from '@/components/shared/ChangePasswordDialog';
 import Brandmark from '@/components/shared/Brandmark';
 
@@ -62,6 +63,7 @@ const DashboardLayout = ({
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
+  usePageTitle(title);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Changing your own password is an account action every role needs, so it
   // belongs to the shell rather than being re-added to each dashboard.

@@ -15,6 +15,7 @@ import { getProjectsByIds } from "@/services/organizationService";
 import { getAllTasks } from "@/services/taskService";
 import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
 import { reportError } from "@/lib/reportError";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { isOverdueTask, summarizeProject } from "@/lib/taskState";
 import { formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/taskLabels";
@@ -30,6 +31,7 @@ const byStatusGroup = (a, b) => (STATUS_ORDER[a.status] || 0) - (STATUS_ORDER[b.
 
 const ClientPortal = () => {
   const { currentUser, logout } = useAuth();
+  usePageTitle("Your projects");
   const { theme, toggleTheme } = useTheme();
 
   const [projects, setProjects] = useState([]);

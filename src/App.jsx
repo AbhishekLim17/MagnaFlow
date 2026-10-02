@@ -168,9 +168,6 @@ function App() {
               <DesignationsProvider>
                 <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <Helmet>
-                    <title>
-                      MagnaFlow - Role-Based Project & Task Management
-                    </title>
                     <meta
                       name="description"
                       content="Streamline your project management with role-based access, task tracking, and performance analytics."
