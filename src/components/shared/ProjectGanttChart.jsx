@@ -144,12 +144,20 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
   const svgH = rows.length * ROW_H;
 
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="min-w-[640px]">
+    <div className="w-full">
+      {/* On a phone the chart is wider than the screen; say so, or the half that is off-screen reads as "no more tasks". */}
+      <p className="mb-2 text-xs text-muted-foreground sm:hidden">Swipe sideways to see the whole timeline.</p>
+      <div
+        className="w-full overflow-x-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        tabIndex={0}
+        role="region"
+        aria-label="Project timeline, scrolls sideways"
+      >
+      <div className="min-w-[560px]">
 
         {/* ── Timeline header ── */}
         <div className="flex">
-          <div className="w-56 flex-shrink-0 sticky left-0 z-10 bg-card" />
+          <div className="w-32 flex-shrink-0 sticky left-0 z-10 bg-card sm:w-56" />
           <div className="relative flex-1 h-6 border-b border-border overflow-hidden pr-2">
             {ticks.map((t, i) => (
               <div
@@ -166,8 +174,8 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
         {/* ── Rows + SVG overlay ── */}
         <div className="flex">
 
-          {/* Label column — fixed 14rem (w-56) */}
-          <div className="w-56 flex-shrink-0 sticky left-0 z-10 bg-card">
+          {/* Label column: 8rem on a phone, 14rem from sm up */}
+          <div className="w-32 flex-shrink-0 sticky left-0 z-10 bg-card sm:w-56">
             {rows.map((r) => (
               <div
                 key={r.id}
@@ -176,7 +184,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
               >
                 <p
                   data-testid="gantt-task-title"
-                  className={`text-sm truncate ${
+                  className={`text-xs leading-[1.15] line-clamp-2 sm:text-sm sm:leading-normal sm:truncate ${
                     r.isCritical
                       ? 'text-amber-400 font-semibold'
                       : 'text-foreground'
@@ -189,7 +197,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                   {r.title}
                 </p>
                 {r.assignee && (
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-[10px] leading-tight text-muted-foreground truncate sm:text-[11px]">
                     {r.assignee}
                   </p>
                 )}
@@ -347,9 +355,11 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
             )}
           </div>
         </div>
+      </div>
+      </div>
 
-        {/* ── Legend ── */}
-        <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
+        {/* ── Legend (outside the scroller so it is never half off-screen) ── */}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-xs text-muted-foreground">
           {['completed', 'in-progress', 'pending', 'overdue'].map((k) => (
             <div key={k} className="flex items-center gap-1.5">
               <span
@@ -373,7 +383,6 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
           </div>
         </div>
 
-      </div>
     </div>
   );
 };

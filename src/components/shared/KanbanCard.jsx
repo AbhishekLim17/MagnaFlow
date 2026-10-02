@@ -65,19 +65,33 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
           isDragging ? 'ring-2 ring-primary shadow-2xl scale-[1.02] rotate-1' : '',
         ].join(' ')}
         onClick={() => onCardClick?.(task)}
+        // The card itself opens the details, so it must be reachable without a mouse.
+        // Keys pressed inside the card (the drag handle) are left alone.
+        role="button"
+        tabIndex={0}
+        aria-label={`${task.title}. Open details`}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onCardClick?.(task);
+          }
+        }}
       >
-        {/* Drag handle */}
+        {/* Drag handle: a 40px target on touch screens (it was 20px and only visible on hover),
+            and touch-none so a finger on it drags the card instead of scrolling the page. */}
         <div
           {...listeners}
           {...attributes}
+          aria-label={`Move ${task.title}`}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-3 right-3 opacity-30 group-hover:opacity-70 cursor-grab active:cursor-grabbing p-0.5 rounded hover:opacity-90 transition-opacity"
+          className="absolute right-1 top-1 grid h-10 w-10 touch-none place-items-center rounded-lg opacity-60 cursor-grab active:cursor-grabbing hover:bg-muted hover:opacity-100 focus-visible:opacity-100 transition-opacity sm:right-2 sm:top-2 sm:h-8 sm:w-8 sm:opacity-30 sm:group-hover:opacity-70"
         >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
+          <GripVertical className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         </div>
 
         {/* Priority indicator dot + title */}
-        <div className="flex items-start gap-2 mb-2 pr-6">
+        <div className="flex items-start gap-2 mb-2 pr-8">
           <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${priority.dot}`} />
           <h4 className="text-sm font-semibold leading-snug text-foreground line-clamp-2">{task.title}</h4>
         </div>

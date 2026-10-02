@@ -423,7 +423,7 @@ const AdminManagement = () => {
         </Button>
       </div>
 
-      <Card className="p-6">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="text-primary" />

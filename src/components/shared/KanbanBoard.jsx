@@ -78,7 +78,7 @@ const KanbanColumn = ({ column, tasks, staffMap, onCardClick, onAddTask, canAdd 
   return (
     <div
       ref={setColRef}
-      className={`flex flex-col rounded-2xl border bg-gradient-to-b ${column.colorClass} ${column.borderClass} min-w-[280px] max-w-[320px] flex-1 transition-colors duration-150 ${isOver ? 'ring-2 ring-primary/50' : ''}`}
+      className={`flex flex-col rounded-2xl border bg-gradient-to-b ${column.colorClass} ${column.borderClass} min-w-[82vw] snap-start sm:min-w-[280px] sm:max-w-[320px] flex-1 transition-colors duration-150 ${isOver ? 'ring-2 ring-primary/50' : ''}`}
     >
       {/* Column header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-inherit">
@@ -93,17 +93,18 @@ const KanbanColumn = ({ column, tasks, staffMap, onCardClick, onAddTask, canAdd 
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 rounded-lg opacity-60 hover:opacity-100 hover:bg-white/20"
+            className="h-10 w-10 rounded-lg opacity-70 hover:opacity-100 hover:bg-white/20 sm:h-8 sm:w-8"
             onClick={() => onAddTask?.(column.id)}
             title={`Add task to ${column.label}`}
+            aria-label={`Add task to ${column.label}`}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
           </Button>
         )}
       </div>
 
       {/* Card list */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-[120px] max-h-[calc(100vh-280px)]">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-[120px] max-h-[60vh] sm:max-h-[calc(100vh-280px)]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           <AnimatePresence mode="popLayout">
             {tasks.length === 0 ? (
@@ -235,7 +236,7 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
         </p>
       )}
       {/* Horizontal scrollable board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-0.5 -mx-0.5">
+      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 pt-1 px-0.5 -mx-0.5 sm:snap-none">
         {COLUMNS.map((col) => (
           <KanbanColumn
             key={col.id}

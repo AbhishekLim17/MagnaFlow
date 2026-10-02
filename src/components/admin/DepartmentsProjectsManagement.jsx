@@ -188,7 +188,7 @@ const DepartmentsProjectsManagement = () => {
         </CardContent>
       </Card>
 
-      <Card className="p-6">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <FolderKanban className="text-primary" /> Projects ({projects.length})

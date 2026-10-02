@@ -103,14 +103,14 @@ const ProjectTimeline = () => {
         )}
       </div>
 
-      <Card className="p-6">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <GanttChartSquare className="text-primary" />
             {selectedProject ? selectedProject.name : 'Timeline'}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-6">
           {projects.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               No projects yet. Create one under "Departments &amp; Projects", then assign tasks to it.

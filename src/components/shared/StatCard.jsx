@@ -84,7 +84,7 @@ const StatCard = ({ title, value, icon, color = 'primary', trend, description, i
               {iconNode}
             </span>
           )}
-          <span className="truncate text-sm font-medium text-muted-foreground">{title}</span>
+          <span className="min-w-0 text-sm font-medium leading-snug text-muted-foreground line-clamp-2">{title}</span>
         </div>
 
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

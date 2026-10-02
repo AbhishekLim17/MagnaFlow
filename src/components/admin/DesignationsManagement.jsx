@@ -136,7 +136,7 @@ const DesignationsManagement = () => {
         </div>
       </div>
 
-      <Card className="p-6">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Briefcase className="text-primary" />

@@ -452,15 +452,13 @@ const TaskManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-muted-foreground mt-1">Create and assign tasks to your team</p>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground">Create and assign tasks to your team</p>
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
           {/* View toggle */}
           <div className="flex items-center rounded-lg border border-border overflow-hidden bg-muted">
             <button
-              className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`h-10 w-11 justify-center text-sm flex items-center gap-1.5 transition-colors sm:h-9 ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => switchView('list')}
               title="List view"
               aria-label="List view"
@@ -469,7 +467,7 @@ const TaskManagement = () => {
               <List className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
-              className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`h-10 w-11 justify-center text-sm flex items-center gap-1.5 transition-colors sm:h-9 ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => switchView('kanban')}
               title="Kanban view"
               aria-label="Board view"
@@ -500,8 +498,8 @@ const TaskManagement = () => {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div className="relative sm:col-span-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               type="search"

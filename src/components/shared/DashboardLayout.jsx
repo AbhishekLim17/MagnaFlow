@@ -312,7 +312,9 @@ const DashboardLayout = ({
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-lg font-bold leading-tight tracking-tight sm:text-xl">
-                {greeting()},{' '}
+                {/* "Good afternoon, Arjun" does not fit beside four header buttons on a phone. */}
+                <span className="sm:hidden">Hi</span>
+                <span className="hidden sm:inline">{greeting()}</span>,{' '}
                 <span className="text-primary">{firstName}</span>
               </p>
               <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
