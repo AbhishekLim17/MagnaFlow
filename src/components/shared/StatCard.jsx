@@ -40,8 +40,11 @@ const COLOR_CLASSES = {
  * @param {string} [trend]           small note beside the value
  * @param {string} [description]     small note under the title
  * @param {number} [index]           stagger index for entry animation
+ * @param {boolean} [loading]        show a placeholder instead of the value. A tile that
+ *                                   reads 0 while its data is still on the way looks like
+ *                                   an empty workspace.
  */
-const StatCard = ({ title, value, icon, color = 'primary', trend, description, index = 0 }) => {
+const StatCard = ({ title, value, icon, color = 'primary', trend, description, index = 0, loading = false }) => {
   const classes = COLOR_CLASSES[color] || COLOR_CLASSES.primary;
 
   // Accept both an already-rendered node (<Icon />) and a bare component
@@ -85,13 +88,17 @@ const StatCard = ({ title, value, icon, color = 'primary', trend, description, i
         </div>
 
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="tabular text-[28px] font-bold leading-none tracking-tight text-foreground">
-            {value}
-          </span>
-          {trend && <span className={`text-xs font-semibold ${trendTone}`}>{trend}</span>}
+          {loading ? (
+            <span className="skeleton inline-block h-7 w-14 rounded" role="status" aria-label={`Loading ${title}`} />
+          ) : (
+            <span className="tabular text-[28px] font-bold leading-none tracking-tight text-foreground">
+              {value}
+            </span>
+          )}
+          {!loading && trend && <span className={`text-xs font-semibold ${trendTone}`}>{trend}</span>}
         </div>
 
-        {description && (
+        {description && !loading && (
           <p className="mt-2 text-xs text-muted-foreground">{description}</p>
         )}
       </Card>

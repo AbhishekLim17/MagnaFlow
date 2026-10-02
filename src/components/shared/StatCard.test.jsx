@@ -27,6 +27,13 @@ describe('StatCard', () => {
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
+  // A tile that reads 0 while its data is still loading looks like an empty workspace.
+  test('shows a placeholder, not the value, while loading', () => {
+    render(<StatCard title='Total Tasks' value={0} loading />);
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading Total Tasks' })).toBeInTheDocument();
+  });
+
   test('renders without an icon', () => {
     render(<StatCard title="Overdue" value={0} />);
     expect(screen.getByText('Overdue')).toBeInTheDocument();

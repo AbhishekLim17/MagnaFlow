@@ -22,25 +22,35 @@ import { db } from '@/config/firebase';
 import { getAssignableUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
+import { LoadingState } from '@/components/shared/States';
 import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { isOverdueTask } from '@/lib/taskState';
+import { statusLabel } from '@/lib/taskLabels';
+import { formatRelative } from '@/lib/format';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
-  const { tasks } = useTasks();
+  const { tasks, loading: tasksLoading } = useTasks();
   const { currentUser } = useAuth();
   const [recentActivity, setRecentActivity] = useState([]);
+  // 'loading' until the first answer arrives: an empty list that is still loading must
+  // not read "No recent activity" / "No performance data yet".
+  const [activityState, setActivityState] = useState('loading'); // loading | ready | error
   const [staffStats, setStaffStats] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [staffState, setStaffState] = useState('loading'); // loading | ready | error
 
   // Load staff data
   useEffect(() => {
     const loadStaff = async () => {
+      setStaffState('loading');
       try {
         // Everyone who can hold a task, not only the 'staff' role, so work assigned
         // to a manager or head is credited to them rather than to "Unassigned".
         setStaff(await getAssignableUsers(currentUser));
+        setStaffState('ready');
       } catch (error) {
         console.error('Error loading staff:', error);
+        setStaffState('error');
       }
     };
     loadStaff();
@@ -91,6 +101,10 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
       }));
       setRecentActivity(activities);
+      setActivityState('ready');
+    }, (error) => {
+      console.error('Error loading recent activity:', error);
+      setActivityState('error');
     }));
 
     return () => safeUnsubscribe(unsubscribe);
@@ -163,6 +177,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           title="Completed Today"
           index={0}
           value={stats.completedToday}
+          loading={tasksLoading}
           icon={CheckCircle}
           color="green"
         />
@@ -170,6 +185,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           title="In Progress"
           index={1}
           value={stats.inProgress}
+          loading={tasksLoading}
           icon={Clock}
           color="blue"
         />
@@ -177,6 +193,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           title="Overdue"
           index={2}
           value={stats.overdue}
+          loading={tasksLoading}
           icon={AlertTriangle}
           color="red"
           trend={stats.overdue > 0 ? "Needs attention" : ""}
@@ -185,6 +202,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           title="Total Tasks"
           index={3}
           value={stats.total}
+          loading={tasksLoading}
           icon={BarChart3}
           color="purple"
         />
@@ -208,8 +226,12 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
               <Badge variant="outline" className="border-border">Live</Badge>
             </div>
             <div className="space-y-3 overflow-y-auto max-h-[170px]">
-              {recentActivity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No recent activity</p>
+              {activityState === 'loading' ? (
+                <LoadingState rows={3} />
+              ) : activityState === 'error' ? (
+                <p className="text-sm text-destructive" role="alert">Couldn't load recent activity. Refresh to try again.</p>
+              ) : recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nothing has changed recently.</p>
               ) : (
                 recentActivity.map((activity) => (
                   <ActivityItem key={activity.id} activity={activity} />
@@ -229,8 +251,12 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
               </h3>
             </div>
             <div className="space-y-3">
-              {staffStats.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No performance data yet</p>
+              {tasksLoading || staffState === 'loading' ? (
+                <LoadingState rows={3} />
+              ) : staffState === 'error' ? (
+                <p className="text-sm text-destructive" role="alert">Couldn't load your team. Refresh to try again.</p>
+              ) : staffStats.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nobody has completed or started a task yet.</p>
               ) : (
                 staffStats.map((staff, index) => (
                   <PerformerCard key={staff.staffId} staff={staff} rank={index + 1} />
@@ -246,26 +272,20 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
 // Activity Item
 function ActivityItem({ activity }) {
-  const getTimeAgo = (date) => {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  };
-
-  const getStatusColor = (status) => {
-    if (status === 'completed') return 'text-success';
-    if (status === 'in-progress') return 'text-primary';
-    return 'text-muted-foreground';
+  const getStatusDot = (status) => {
+    if (status === 'completed') return 'bg-success';
+    if (status === 'in-progress') return 'bg-primary';
+    return 'bg-muted-foreground';
   };
 
   return (
     <div className="flex items-start space-x-3 text-sm">
-      <div className={`w-2 h-2 rounded-full mt-1.5 ${getStatusColor(activity.status)}`} />
+      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${getStatusDot(activity.status)}`} aria-hidden="true" />
       <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground truncate">{activity.title}</p>
-        <p className="text-xs text-muted-foreground">{getTimeAgo(activity.updatedAt)}</p>
+        <p className="text-foreground truncate">{activity.title}</p>
+        <p className="text-xs text-muted-foreground">
+          {statusLabel(activity.status)} · {formatRelative(activity.updatedAt)}
+        </p>
       </div>
     </div>
   );
@@ -277,12 +297,12 @@ function PerformerCard({ staff, rank }) {
   
   return (
     <div className="flex items-center gap-2 p-2 rounded-xl bg-muted">
-      <span className="text-xl">{medals[rank - 1]}</span>
-      <span className="font-semibold text-sm">{staff.staffName}</span>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
-        <span>✅ {staff.completed}</span>
-        <span>⏳ {staff.inProgress}</span>
-        {staff.overdue > 0 && <span className="text-destructive">🔴 {staff.overdue}</span>}
+      <span className="text-xl" aria-label={`Rank ${rank}`}>{medals[rank - 1]}</span>
+      <span className="font-semibold text-sm truncate">{staff.staffName}</span>
+      <div className="flex flex-wrap items-center justify-end gap-x-3 text-xs text-muted-foreground ml-auto">
+        <span>{staff.completed} done</span>
+        <span>{staff.inProgress} in progress</span>
+        {staff.overdue > 0 && <span className="text-destructive font-medium">{staff.overdue} overdue</span>}
       </div>
     </div>
   );

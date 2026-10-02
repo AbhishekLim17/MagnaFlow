@@ -216,10 +216,10 @@ const ScopedDashboard = ({ scope }) => {
   const Overview = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Tasks" value={statistics?.total ?? tasks.length} icon={CheckSquare} color="blue" index={0} />
-        <StatCard title="In Progress" value={statistics?.inProgress ?? 0} icon={TrendingUp} color="indigo" index={1} />
-        <StatCard title="Pending" value={statistics?.pending ?? 0} icon={Clock} color="slate" index={2} />
-        <StatCard title="Completed" value={statistics?.completed ?? 0} icon={CheckSquare} color="green" index={3} />
+        <StatCard title="Total Tasks" value={statistics?.total ?? tasks.length} icon={CheckSquare} color="blue" index={0} loading={tasksLoading} />
+        <StatCard title="In Progress" value={statistics?.inProgress ?? 0} icon={TrendingUp} color="indigo" index={1} loading={tasksLoading} />
+        <StatCard title="Pending" value={statistics?.pending ?? 0} icon={Clock} color="slate" index={2} loading={tasksLoading} />
+        <StatCard title="Completed" value={statistics?.completed ?? 0} icon={CheckSquare} color="green" index={3} loading={tasksLoading} />
       </div>
 
       <Card>

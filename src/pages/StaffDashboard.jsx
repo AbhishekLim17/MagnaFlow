@@ -273,6 +273,7 @@ const StaffDashboard = () => {
               color={stat.color}
               description={stat.description}
               index={index}
+              loading={loading}
             />
           ))}
         </div>
