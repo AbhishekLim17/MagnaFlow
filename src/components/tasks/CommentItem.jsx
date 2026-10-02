@@ -85,7 +85,9 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
 
   // Highlight @mentions in text
   const renderTextWithMentions = (text) => {
-    const mentionRegex = /@(\w+)/g;
+    // The characters a mention token may contain (see lib/mentions), so multi-word and
+    // accented names highlight whole; a trailing full stop is punctuation, not part of it.
+    const mentionRegex = /@[\p{L}\p{N}_'’-]+(?:\.[\p{L}\p{N}_'’-]+)*/gu;
     const parts = [];
     let lastIndex = 0;
     let match;
