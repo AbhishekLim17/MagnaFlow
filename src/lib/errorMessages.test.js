@@ -1,5 +1,5 @@
 import { describe, test, expect, afterEach, vi } from 'vitest';
-import { toUserMessage, isExpectedError } from './errorMessages';
+import { toUserMessage, isExpectedError, isTransientError } from './errorMessages';
 
 const fbError = (code, message = `Firebase: Error (${code}).`) => {
   const error = new Error(message);
@@ -69,6 +69,21 @@ describe('toUserMessage', () => {
     vi.stubGlobal('navigator', { onLine: false });
     expect(toUserMessage(fbError('unavailable'))).toMatch(/offline/i);
     expect(toUserMessage(fbError('unavailable'))).toMatch(/weren't saved/);
+  });
+});
+
+describe('isTransientError', () => {
+  test('unreachable-server errors are transient', () => {
+    expect(isTransientError(fbError('unavailable'))).toBe(true);
+    expect(isTransientError(fbError('deadline-exceeded'))).toBe(true);
+    expect(isTransientError(fbError('auth/network-request-failed'))).toBe(true);
+    expect(isTransientError(new Error('Failed to get document because the client is offline.'))).toBe(true);
+  });
+  test('the server saying no is not transient', () => {
+    expect(isTransientError(fbError('permission-denied'))).toBe(false);
+    expect(isTransientError(fbError('not-found'))).toBe(false);
+    expect(isTransientError(fbError('auth/invalid-credential'))).toBe(false);
+    expect(isTransientError(new Error('Something else broke'))).toBe(false);
   });
 });
 

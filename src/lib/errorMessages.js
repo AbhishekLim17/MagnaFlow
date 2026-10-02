@@ -116,3 +116,19 @@ export const toUserMessage = (error, fallback = GENERIC) => {
 
   return fallback;
 };
+
+// Failures that say "we could not reach the server", as opposed to "the server said
+// no". A refresh during a Wi-Fi blip must not be treated like a revoked account: the
+// first deserves a "can't reach MagnaFlow, retrying" screen and a Try again button, the
+// second a sign-out.
+const TRANSIENT_CODES = new Set(['unavailable', 'deadline-exceeded', 'cancelled', 'auth/network-request-failed']);
+const TRANSIENT_WORDING = /client is offline|network|failed to fetch|could not reach|unavailable/i;
+
+export const isTransientError = (error) => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  if (TRANSIENT_CODES.has(getCode(error))) return true;
+  const message = typeof error?.message === 'string' ? error.message : '';
+  return !getCode(error) || getCode(error) === 'failed-precondition'
+    ? TRANSIENT_WORDING.test(message)
+    : false;
+};

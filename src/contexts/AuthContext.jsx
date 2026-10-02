@@ -1,7 +1,7 @@
 // AuthContext - Firebase Authentication Integration
 // Handles user authentication, session management, and role-based access
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -12,7 +12,7 @@ import { auth } from "@/config/firebase";
 import { getUserById, clearCallerProfileCache } from "@/services/userService";
 import { getOrganizationById } from "@/services/organizationService";
 import { isValidEmail } from "@/utils/validation";
-import { toUserMessage } from "@/lib/errorMessages";
+import { toUserMessage, isTransientError } from "@/lib/errorMessages";
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 
 const AuthContext = createContext();
@@ -22,6 +22,12 @@ const AuthContext = createContext();
 // Firestore rules (which would cost an extra read on every operation). Fails
 // open on a read error so a transient Firestore glitch can't lock everyone out
 // â€” data access itself is still governed by the security rules regardless.
+// What the login page says when someone was signed out without asking to be.
+const SIGNED_OUT_NOTICES = {
+  inactive: 'Your account has been deactivated. Please contact your administrator.',
+  suspended: 'Your organization has been suspended. Please contact support.',
+};
+
 const orgIsSuspended = async (orgId) => {
   if (!orgId) return false;
   try {
@@ -50,63 +56,94 @@ export const AuthProvider = ({ children }) => {
   // account login() is about to reject (deactivated, org suspended).
   const loginInFlight = useRef(false);
 
+  // Why a signed-in browser could not be turned into a session, so the app can say so
+  // instead of silently showing the login page (which looked like being logged out for
+  // no reason whenever the connection blipped during a refresh).
+  //   kind: 'unreachable' (try again) | 'no-profile' | 'failed'
+  const [sessionProblem, setSessionProblem] = useState(null);
+  // A sign-out the user did not ask for (deactivated, organization suspended), shown
+  // on the login page.
+  const [notice, setNotice] = useState(null);
+
+  // Turn the Firebase user into an app session. Only a definite "no" signs the person
+  // out; being unable to ask does not.
+  const loadSession = useCallback(async (firebaseUser) => {
+    try {
+      const userData = await getUserById(firebaseUser.uid);
+
+      if (!userData) {
+        setSessionProblem({ kind: 'no-profile' });
+        setUser(null);
+        setIsAuthenticated(false);
+        return;
+      }
+      if (userData.status === 'inactive') {
+        // A restored session must honour deactivation too, not only the login form.
+        await signOut(auth);
+        setNotice(SIGNED_OUT_NOTICES.inactive);
+        setUser(null);
+        setIsAuthenticated(false);
+        return;
+      }
+      if (await orgIsSuspended(userData.orgId)) {
+        await signOut(auth);
+        setNotice(SIGNED_OUT_NOTICES.suspended);
+        setUser(null);
+        setIsAuthenticated(false);
+        return;
+      }
+
+      setSessionProblem(null);
+      setUser(userData);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setUser(null);
+      setIsAuthenticated(false);
+      setSessionProblem({
+        kind: isTransientError(error) ? 'unreachable' : 'failed',
+        message: toUserMessage(error),
+      });
+    }
+  }, []);
+
   // Monitor Firebase auth state changes
   useEffect(() => {
-    console.log("ðŸš€ AuthProvider: Setting up auth state listener");
-    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("ï¿½ Auth state changed:", firebaseUser ? "User logged in" : "User logged out");
-
       // The signed-in identity may have changed (login, logout, or an
-      // impersonation session swap) â€” drop any cached org profile so the next
+      // impersonation session swap) - drop any cached org profile so the next
       // scoped query resolves against the new user, never the previous one.
       clearCallerProfileCache();
 
       if (firebaseUser && loginInFlight.current) return;
 
       if (firebaseUser) {
-        try {
-          // Fetch user data from Firestore
-          console.log("ï¿½ Fetching user data for UID:", firebaseUser.uid);
-          const userData = await getUserById(firebaseUser.uid);
-          
-          if (userData && userData.status === 'inactive') {
-            // A restored session must honour deactivation too, not only the login form.
-            console.warn("Account deactivated — signing out");
-            await signOut(auth);
-            setUser(null);
-            setIsAuthenticated(false);
-          } else if (userData && await orgIsSuspended(userData.orgId)) {
-            console.warn("âš ï¸  Organization suspended â€” signing out");
-            await signOut(auth);
-            setUser(null);
-            setIsAuthenticated(false);
-          } else if (userData) {
-            console.log("âœ… User data loaded:", userData);
-            setUser(userData);
-            setIsAuthenticated(true);
-          } else {
-            console.warn("âš ï¸  User document not found in Firestore");
-            setUser(null);
-            setIsAuthenticated(false);
-          }
-        } catch (error) {
-          console.error("âŒ Error fetching user data:", error);
-          setUser(null);
-          setIsAuthenticated(false);
-        }
+        await loadSession(firebaseUser);
       } else {
-        console.log("ðŸ‘¤ No user logged in");
+        setSessionProblem(null);
         setUser(null);
         setIsAuthenticated(false);
       }
-      
+
       setLoading(false);
     });
 
     // Cleanup subscription on unmount
     return () => safeUnsubscribe(unsubscribe);
-  }, []);
+  }, [loadSession]);
+
+  /** Try again after a session problem (the Try again button, or the network coming back). */
+  const retrySession = useCallback(async () => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      setSessionProblem(null);
+      return;
+    }
+    setLoading(true);
+    clearCallerProfileCache();
+    await loadSession(firebaseUser);
+    setLoading(false);
+  }, [loadSession]);
 
   /**
    * Login with email and password (with rate limiting and validation)
@@ -117,6 +154,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       loginInFlight.current = true;
+      setNotice(null);
       if (!email || !password) throw new Error("Email and password are required");
       if (!isValidEmail(email)) throw new Error("Invalid email address format");
 
@@ -233,7 +271,10 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-  }), [user, currentUser, isAuthenticated, loading]);
+    sessionProblem,
+    retrySession,
+    notice,
+  }), [user, currentUser, isAuthenticated, loading, sessionProblem, retrySession, notice]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

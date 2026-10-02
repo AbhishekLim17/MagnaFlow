@@ -23,6 +23,7 @@ import {
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import LoginPage from "@/pages/LoginPage";
+import SessionProblem from "@/components/shared/SessionProblem";
 
 // Dashboards are code-split: a signed-in user only downloads the one for their
 // own role, instead of all five plus their charting/PDF dependencies up front.
@@ -59,11 +60,17 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { isAuthenticated, user, loading, sessionProblem } = useAuth();
 
   // Don't render routes until the auth state is known.
   if (loading) {
     return <FullPageLoader />;
+  }
+
+  // Signed in, but the profile could not be loaded: say so (and offer a retry)
+  // rather than dropping the person on the login page.
+  if (sessionProblem) {
+    return <SessionProblem />;
   }
 
   return (
