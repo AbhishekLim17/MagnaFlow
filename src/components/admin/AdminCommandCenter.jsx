@@ -23,6 +23,7 @@ import { getAssignableUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { isOverdueTask } from '@/lib/taskState';
 
 export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff }) {
   const { tasks } = useTasks();
@@ -56,11 +57,7 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       return t.status === 'completed' && completedAt >= today;
     }).length;
 
-    const overdue = tasks.filter(t => {
-      if (t.status === 'completed') return false;
-      const deadline = t.deadline?.toDate?.() || new Date(t.deadline);
-      return deadline < new Date();
-    }).length;
+    const overdue = tasks.filter(t => isOverdueTask(t)).length;
 
     const inProgress = tasks.filter(t => t.status === 'in-progress').length;
     const review = tasks.filter(t => t.status === 'review').length;
@@ -130,11 +127,8 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
       }
 
       // Check overdue
-      if (task.status !== 'completed') {
-        const deadline = task.deadline?.toDate?.() || new Date(task.deadline);
-        if (deadline < new Date()) {
-          staffPerformance[staffId].overdue++;
-        }
+      if (isOverdueTask(task)) {
+        staffPerformance[staffId].overdue++;
       }
     });
 

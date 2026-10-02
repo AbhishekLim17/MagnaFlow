@@ -15,17 +15,16 @@ import { getProjectsByIds } from "@/services/organizationService";
 import { getAllTasks } from "@/services/taskService";
 import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
 import { reportError } from "@/lib/reportError";
+import { isOverdueTask, summarizeProject } from "@/lib/taskState";
+import { formatDate } from "@/lib/format";
+import { statusLabel } from "@/lib/taskLabels";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-const isOverdue = (task) => {
-  if (task.status === "completed" || task.status === "cancelled") return false;
-  if (!task.deadline) return false;
-  const dl = typeof task.deadline.toDate === "function"
-    ? task.deadline.toDate()
-    : new Date(task.deadline);
-  return dl < new Date();
-};
+// Cancelled work is part of the history, not the plan: it is listed (struck through,
+// at the bottom) but left out of every count and of the completion percentage.
+const STATUS_ORDER = { cancelled: 1 };
+const byStatusGroup = (a, b) => (STATUS_ORDER[a.status] || 0) - (STATUS_ORDER[b.status] || 0);
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -85,7 +84,10 @@ const ClientPortal = () => {
   }, [tasks]);
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
-  const activeTasks = activeProjectId ? (tasksByProject[activeProjectId] ?? []) : [];
+  const activeTasks = activeProjectId
+    ? [...(tasksByProject[activeProjectId] ?? [])].sort(byStatusGroup)
+    : [];
+  const summary = summarizeProject(activeTasks);
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -184,31 +186,31 @@ const ClientPortal = () => {
                   {[
                     {
                       label: "Total Tasks",
-                      value: activeTasks.length,
+                      value: summary.total,
                       icon: FolderOpen,
                       color: "text-primary",
                     },
                     {
                       label: "Completed",
-                      value: activeTasks.filter((t) => t.status === "completed").length,
+                      value: summary.completed,
                       icon: CheckCircle2,
                       color: "text-success",
                     },
                     {
                       label: "In Progress",
-                      value: activeTasks.filter((t) => t.status === "in-progress").length,
+                      value: summary.inProgress,
                       icon: Clock,
                       color: "text-blue-500",
                     },
                     {
                       label: "In Review",
-                      value: activeTasks.filter((t) => t.status === "review").length,
+                      value: summary.inReview,
                       icon: Clock,
                       color: "text-amber-500",
                     },
                     {
                       label: "Overdue",
-                      value: activeTasks.filter(isOverdue).length,
+                      value: summary.overdue,
                       icon: AlertTriangle,
                       color: "text-destructive",
                     },
@@ -224,9 +226,9 @@ const ClientPortal = () => {
                 </div>
 
                 {/* ── Progress bar ──────────────────────────────────── */}
-                {activeTasks.length > 0 && (() => {
-                  const done = activeTasks.filter((t) => t.status === "completed").length;
-                  const pct = Math.round((done / activeTasks.length) * 100);
+                {summary.total > 0 && (() => {
+                  const done = summary.completed;
+                  const pct = summary.percent;
                   return (
                     <Card className="p-5">
                       <div className="flex items-center justify-between mb-3">
@@ -242,7 +244,8 @@ const ClientPortal = () => {
                         />
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {done} of {activeTasks.length} tasks complete
+                        {done} of {summary.total} tasks complete
+                        {summary.cancelled > 0 && ` · ${summary.cancelled} cancelled task${summary.cancelled > 1 ? 's' : ''} not counted`}
                       </p>
                     </Card>
                   );
@@ -254,7 +257,7 @@ const ClientPortal = () => {
                     <h2 className="text-base font-semibold mb-4">Tasks</h2>
                     <div className="space-y-2">
                       {activeTasks.map((task) => {
-                        const overdue = isOverdue(task);
+                        const overdue = isOverdueTask(task);
                         // Fix #12: add review status style
                         const statusStyles = {
                           completed: "bg-success/10 text-success border-success/20",
@@ -263,12 +266,7 @@ const ClientPortal = () => {
                           pending: "bg-muted text-muted-foreground",
                           cancelled: "bg-muted text-muted-foreground line-through",
                         };
-                        const dl = task.deadline
-                          ? (typeof task.deadline.toDate === "function"
-                              ? task.deadline.toDate()
-                              : new Date(task.deadline)
-                            ).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                          : null;
+                        const dl = task.deadline ? formatDate(task.deadline) : null;
 
                         return (
                           <div
@@ -284,7 +282,7 @@ const ClientPortal = () => {
                                   </p>
                                   {dl && (
                                     <p className={`text-xs mt-0.5 ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
-                                      {overdue ? "Overdue ?? " : "Due "}
+                                      {overdue ? "Was due " : "Due "}
                                       {dl}
                                     </p>
                                   )}
@@ -295,7 +293,7 @@ const ClientPortal = () => {
                                     variant="outline"
                                     className={`text-xs capitalize ${statusStyles[task.status] ?? ""}`}
                                   >
-                                    {task.status === "in-progress" ? "In Progress" : task.status === "review" ? "In Review" : task.status}
+                                    {statusLabel(task.status)}
                                   </Badge>
                                   {overdue && (
                                     <span className="text-[10px] font-medium text-destructive">Overdue</span>

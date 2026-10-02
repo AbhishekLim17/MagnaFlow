@@ -10,6 +10,8 @@ import { CheckSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/States';
+import { isOverdueTask } from '@/lib/taskState';
+import { formatDate as formatDay } from '@/lib/format';
 
 const STATUS_VARIANT = {
   completed: 'success',
@@ -30,17 +32,9 @@ const toDate = (value) => {
   return value.toDate ? value.toDate() : new Date(value);
 };
 
-const formatDeadline = (value) => {
-  const date = toDate(value);
-  if (!date || Number.isNaN(date.getTime())) return 'No deadline';
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-};
+const formatDeadline = (value) => formatDay(value, 'No deadline');
 
-const isOverdue = (task) => {
-  const date = toDate(task.deadline);
-  if (!date || task.status === 'completed' || task.status === 'cancelled') return false;
-  return date.getTime() < Date.now();
-};
+const isOverdue = (task) => isOverdueTask(task);
 
 /**
  * @param {Object[]} tasks   every task the viewer can see

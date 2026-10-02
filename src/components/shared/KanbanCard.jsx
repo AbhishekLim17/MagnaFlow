@@ -8,6 +8,8 @@ import { motion } from 'framer-motion';
 import { Calendar, User, MessageSquare, ListChecks, AlertCircle, GripVertical, Lock } from 'lucide-react';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
+import { formatDateShort } from '@/lib/format';
+import { isOverdueTask } from '@/lib/taskState';
 
 const PRIORITY_STYLES = {
   critical: { bg: 'bg-destructive-soft border-destructive/40 text-destructive', dot: 'bg-destructive', label: 'Critical' },
@@ -16,18 +18,8 @@ const PRIORITY_STYLES = {
   low:      { bg: 'bg-success-soft border-success/40 text-success',             dot: 'bg-success',     label: 'Low'      },
 };
 
-const formatDate = (timestamp) => {
-  if (!timestamp) return null;
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
+const formatDate = (timestamp) => (timestamp ? formatDateShort(timestamp) : null);
 
-const isOverdue = (timestamp, status) => {
-  if (!timestamp) return false;
-  if (status === 'completed' || status === 'done' || status === 'review') return false;
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date < new Date();
-};
 
 /**
  * Draggable task card for the Kanban board.
@@ -56,7 +48,7 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
   };
 
   const priority = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-  const overdue = isOverdue(task.deadline, task.status);
+  const overdue = isOverdueTask(task);
   const subtaskProgress = subtaskCounts.total > 0
     ? Math.round((subtaskCounts.completed / subtaskCounts.total) * 100)
     : null;
