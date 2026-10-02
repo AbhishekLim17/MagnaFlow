@@ -635,6 +635,7 @@ const TaskManagement = () => {
           open={!!taskForComments}
           onOpenChange={(open) => !open && setTaskForComments(null)}
           currentUser={currentUser}
+          getUserName={getStaffName}
           onStatusChange={async (taskId, newStatus) => {
             try {
               await updateTaskStatus(taskId, newStatus);
