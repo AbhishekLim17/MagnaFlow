@@ -54,7 +54,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
           s.id === subtaskId ? { ...s, completed: currentStatus } : s
         )
       );
-      alert('Failed to update subtask');
+      toast({ title: "Couldn't update the subtask", description: toUserMessage(error, 'Please try again.'), variant: 'destructive' });
     }
   };
 
@@ -66,7 +66,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
   const handleSaveEdit = async (subtaskId) => {
     try {
       if (!editTitle.trim()) {
-        alert('Subtask title cannot be empty');
+        toast({ title: 'A subtask needs a title', variant: 'destructive' });
         return;
       }
 
@@ -75,7 +75,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
       setEditTitle('');
     } catch (error) {
       console.error('Error updating subtask:', error);
-      alert('Failed to update subtask');
+      toast({ title: "Couldn't update the subtask", description: toUserMessage(error, 'Please try again.'), variant: 'destructive' });
     }
   };
 

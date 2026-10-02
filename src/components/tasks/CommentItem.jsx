@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { updateComment, deleteComment } from '../../services/commentService';
 import { Edit2, Trash2, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useToast } from '@/components/ui/use-toast';
+import { toUserMessage } from '@/lib/errorMessages';
 
 /**
  * CommentItem Component
  * Individual comment with edit/delete functionality
  */
 const CommentItem = ({ comment, currentUserId, taskId }) => {
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(comment.text);
   const [loading, setLoading] = useState(false);
@@ -55,7 +58,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating comment:', error);
-      alert('Failed to update comment. Please try again.');
+      toast({ title: "Couldn't save your edit", description: toUserMessage(error, 'Please try again.'), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -69,7 +72,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
       setShowDeleteConfirm(false);
     } catch (error) {
       console.error('Error deleting comment:', error);
-      alert('Failed to delete comment. Please try again.');
+      toast({ title: "Couldn't delete the comment", description: toUserMessage(error, 'Please try again.'), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
