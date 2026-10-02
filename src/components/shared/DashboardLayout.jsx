@@ -28,6 +28,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/components/ui/use-toast';
 import { reportError } from '@/lib/reportError';
 import NotificationBell from '@/components/shared/NotificationBell';
+import TaskDeepLink from '@/components/shared/TaskDeepLink';
 import ChangePasswordDialog from '@/components/shared/ChangePasswordDialog';
 import Brandmark from '@/components/shared/Brandmark';
 
@@ -348,6 +349,7 @@ const DashboardLayout = ({
             </div>
           )}
           <div className="animate-fade-up">{children}</div>
+          <TaskDeepLink />
         </main>
       </div>
     </div>

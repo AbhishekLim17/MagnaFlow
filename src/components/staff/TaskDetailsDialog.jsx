@@ -121,7 +121,8 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
             </div>
           )}
 
-          {/* Status Update */}
+          {/* Status Update (only for people allowed to change it) */}
+          {onStatusChange && (
           <div className="space-y-2">
             <Label>Update Status</Label>
             <Select
@@ -142,6 +143,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               Change the status to reflect your progress on this task
             </p>
           </div>
+          )}
 
           {/* Subtasks Section */}
           <div className="space-y-2">

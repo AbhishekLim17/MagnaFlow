@@ -45,7 +45,7 @@ export const createNotification = async (userId, commentId, taskId, mentionedBy,
 };
 
 // Create notifications for multiple users (batch)
-export const createNotificationsForMentions = async (mentionedUserIds, commentId, taskId, mentionedBy, mentionedByName) => {
+export const createNotificationsForMentions = async (mentionedUserIds, commentId, taskId, mentionedBy, mentionedByName, extra = {}) => {
   try {
     if (mentionedUserIds.length === 0) {
       console.log('No users to notify');
@@ -71,6 +71,9 @@ export const createNotificationsForMentions = async (mentionedUserIds, commentId
         taskId,
         mentionedBy,
         mentionedByName,
+        // What the notification is about, so the bell can say more than "mentioned you".
+        taskTitle: extra.taskTitle ? String(extra.taskTitle).slice(0, 200) : null,
+        excerpt: extra.excerpt ? String(extra.excerpt).slice(0, 160) : null,
         read: false,
         createdAt: serverTimestamp()
       });

@@ -3,16 +3,22 @@ import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToUnreadNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
 import { Bell, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { formatRelative } from '@/lib/format';
+import { taskLink } from '@/lib/taskLink';
 
 /**
  * NotificationBell Component
- * Displays unread @mention notifications with dropdown
+ * Displays unread @mention notifications with dropdown. Clicking one opens the task
+ * it is about (see TaskDeepLink); it used to navigate to routes that do not exist.
  */
 const NotificationBell = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -41,82 +47,74 @@ const NotificationBell = () => {
     };
   }, [userId]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside, or on Escape
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
       }
     };
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setShowDropdown(false);
+    };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, []);
 
-  // Handle notification click
+  // Open the task the notification is about, and mark it read.
   const handleNotificationClick = async (notification) => {
+    setShowDropdown(false);
+    if (notification.taskId) navigate(taskLink(location.pathname, notification.taskId));
     try {
-      // Mark as read
       await markAsRead(notification.id);
-      
-      // Navigate to task
-      navigate(`/tasks/${notification.taskId}`);
-      setShowDropdown(false);
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
   };
 
-  // Handle mark all as read
   const handleMarkAllAsRead = async () => {
     if (unreadCount === 0) return;
 
     setLoading(true);
     try {
       await markAllAsRead(currentUser.uid);
-      console.log('✅ All notifications marked as read');
     } catch (error) {
       console.error('Error marking all as read:', error);
-      alert('Failed to mark all as read. Please try again.');
+      toast({
+        title: "Couldn't mark them as read",
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Format time
-  const formatTime = (date) => {
-    if (!date) return '';
-    
-    const now = new Date();
-    const notifDate = new Date(date);
-    const diffMs = now - notifDate;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return notifDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
-    });
-  };
-
   if (!currentUser) return null;
+
+  const label = unreadCount > 0
+    ? `Notifications, ${unreadCount} unread`
+    : 'Notifications';
 
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell button */}
       <button
+        type="button"
         onClick={() => setShowDropdown(!showDropdown)}
         className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
+        aria-label={label}
+        aria-haspopup="true"
+        aria-expanded={showDropdown}
         title="Notifications"
       >
-        <Bell className="w-6 h-6" />
-        
+        <Bell className="w-6 h-6" aria-hidden="true" />
+
         {/* Unread badge */}
         <AnimatePresence>
           {unreadCount > 0 && (
@@ -124,6 +122,7 @@ const NotificationBell = () => {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
+              aria-hidden="true"
               className="absolute top-0 right-0 w-5 h-5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full flex items-center justify-center"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
@@ -140,27 +139,30 @@ const NotificationBell = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-overlay"
+            className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-overlay"
           >
             {/* Header */}
             <div className="p-4 bg-background border-b border-border">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-foreground">Notifications</h3>
                 <button
+                  type="button"
                   onClick={() => setShowDropdown(false)}
                   className="text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Close notifications"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
-              
+
               {unreadCount > 0 && (
                 <button
+                  type="button"
                   onClick={handleMarkAllAsRead}
                   disabled={loading}
                   className="text-sm text-primary hover:text-primary font-medium disabled:text-muted-foreground"
                 >
-                  {loading ? 'Marking...' : 'Mark all as read'}
+                  {loading ? 'Marking…' : 'Mark all as read'}
                 </button>
               )}
             </div>
@@ -169,37 +171,45 @@ const NotificationBell = () => {
             <div className="max-h-96 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
-                  <Bell className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
-                  <p>No new notifications</p>
+                  <Bell className="w-12 h-12 mx-auto mb-2 text-muted-foreground" aria-hidden="true" />
+                  <p>You're all caught up</p>
+                  <p className="text-xs mt-1">New @mentions will show up here.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
                   {notifications.map((notification) => (
                     <button
+                      type="button"
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
                       className="w-full p-4 text-left hover:bg-muted transition-colors"
                     >
                       <div className="flex items-start gap-3">
-                        {/* Icon */}
                         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center">
-                          <MessageSquare className="w-5 h-5 text-primary" />
+                          <MessageSquare className="w-5 h-5 text-primary" aria-hidden="true" />
                         </div>
 
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground">
-                            <span className="font-semibold">{notification.mentionedByName}</span>
-                            {' '}mentioned you in a comment
+                            <span className="font-semibold">{notification.mentionedByName || 'Someone'}</span>
+                            {' '}mentioned you
+                            {notification.taskTitle ? (
+                              <>
+                                {' '}on <span className="font-medium">“{notification.taskTitle}”</span>
+                              </>
+                            ) : ' in a comment'}
                           </p>
-                          
+                          {notification.excerpt && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {notification.excerpt}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatTime(notification.createdAt)}
+                            {formatRelative(notification.createdAt)}
                           </p>
                         </div>
 
-                        {/* Unread indicator */}
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0" aria-label="Unread">
                           <div className="w-2 h-2 bg-primary rounded-full"></div>
                         </div>
                       </div>
@@ -208,21 +218,6 @@ const NotificationBell = () => {
                 </div>
               )}
             </div>
-
-            {/* Footer */}
-            {notifications.length > 0 && (
-              <div className="p-3 bg-background border-t border-border text-center">
-                <button
-                  onClick={() => {
-                    navigate('/notifications');
-                    setShowDropdown(false);
-                  }}
-                  className="text-sm text-primary hover:text-primary font-medium"
-                >
-                  View all notifications
-                </button>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -75,7 +75,8 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail, people =
             newComment.id,
             taskId,
             userId,
-            userName
+            userName,
+            { taskTitle, excerpt: text.replace(/\s+/g, ' ').trim() }
           );
 
           console.log(`✅ Created notifications for ${mentionedUserIds.length} users`);
