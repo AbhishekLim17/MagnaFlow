@@ -177,9 +177,10 @@ const DepartmentsProjectsManagement = () => {
               {departments.map((dept) => (
                 <div key={dept.id} className="p-3 rounded-xl bg-muted/60 border border-border flex items-center justify-between">
                   <span className="text-foreground">{dept.name}</span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft"
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive-soft"
+                    aria-label={`Delete department ${dept.name}`}
                     onClick={() => handleDeleteDept(dept)}>
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </Button>
                 </div>
               ))}
@@ -212,14 +213,15 @@ const DepartmentsProjectsManagement = () => {
                     <p className="text-foreground">{proj.name}</p>
                     <p className="text-xs text-muted-foreground">{departmentName(proj.departmentId)}</p>
                     {proj.budget > 0 && (
-                      <p className="text-xs font-medium text-emerald-500 mt-0.5">
+                      <p className="text-xs font-medium text-success mt-0.5">
                         Budget: {formatMoney(proj.budget, proj.currency)}
                       </p>
                     )}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft"
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive-soft"
+                    aria-label={`Delete project ${proj.name}`}
                     onClick={() => handleDeleteProject(proj)}>
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </Button>
                 </div>
               ))}

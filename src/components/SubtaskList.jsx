@@ -124,7 +124,7 @@ const SubtaskList = ({ taskId, currentUser }) => {
             Progress: {completedCount} / {subtasks.length} completed ({progress}%)
           </span>
         </div>
-        <Progress value={progress} className="h-2" />
+        <Progress value={progress} aria-label="Subtasks completed" className="h-2" />
       </div>
 
       {/* Subtasks List */}

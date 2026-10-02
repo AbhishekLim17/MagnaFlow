@@ -406,9 +406,9 @@ const StaffManagement = () => {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-warning">
+              <h2 className="font-semibold text-warning">
                 {pendingCleanups.length} removed {pendingCleanups.length === 1 ? 'account still has' : 'accounts still have'} a Firebase sign-in
-              </h3>
+              </h2>
               <p className="text-xs text-muted-foreground mt-1 mb-3">
                 Their email addresses stay reserved until deleted in Firebase Console → Authentication.
                 Mark each one done once you have removed it.
@@ -488,7 +488,7 @@ const StaffManagement = () => {
                             {member.name.charAt(0)}
                           </div>
                           <div>
-                            <h4 className="font-semibold">{member.name}</h4>
+                            <h2 className="font-semibold">{member.name}</h2>
                             <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>

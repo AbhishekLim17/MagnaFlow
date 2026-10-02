@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDesignations } from '@/contexts/DesignationsContext';
+import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 // Two designations that only differ by case or surrounding whitespace look
@@ -70,11 +71,22 @@ const DesignationDialog = ({ open, onOpenChange, onSubmit, initialValue = '' }) 
 };
 
 const DesignationsManagement = () => {
+  const confirm = useConfirm();
   const { designations, loading, addDesignation, updateDesignation, removeDesignation, refreshDesignations } = useDesignations();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentDesignation, setCurrentDesignation] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRemove = async (designation) => {
+    const ok = await confirm({
+      title: `Remove "${designation.name}"?`,
+      description: <p>It will no longer be offered when adding staff. A designation that someone currently has cannot be removed.</p>,
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (ok) removeDesignation(designation.id);
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -178,11 +190,11 @@ const DesignationsManagement = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary-soft hover:text-primary" onClick={() => openEditDialog(designation)}>
-                      <Edit className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-primary hover:bg-primary-soft hover:text-primary" aria-label={`Edit ${designation.name}`} onClick={() => openEditDialog(designation)}>
+                      <Edit className="w-4 h-4" aria-hidden="true" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive" onClick={() => removeDesignation(designation.id)}>
-                      <Trash2 className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive-soft hover:text-destructive" aria-label={`Remove ${designation.name}`} onClick={() => handleRemove(designation)}>
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   </div>
                 </motion.div>

@@ -268,7 +268,7 @@ const PerformanceReports = () => {
         <Card className="p-12 text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
             <BarChart3 className="w-16 h-16 text-muted-foreground" aria-hidden="true" />
-            <h3 className="text-xl font-semibold text-foreground">No data yet</h3>
+            <h2 className="text-xl font-semibold text-foreground">No data yet</h2>
             <p className="text-muted-foreground max-w-md">
               There are no tasks yet. Create tasks and assign them to your team to see performance analytics here.
             </p>
@@ -327,7 +327,7 @@ const PerformanceReports = () => {
             {/* Staff productivity */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-foreground">Staff workload</h3>
+                <h2 className="text-xl font-semibold text-foreground">Staff workload</h2>
                 <Badge className="bg-primary-soft text-primary border-primary/30">Tasks per person</Badge>
               </div>
               {report.staff.length === 0 ? (
@@ -357,21 +357,19 @@ const PerformanceReports = () => {
             {/* Status distribution */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-foreground">Task status</h3>
+                <h2 className="text-xl font-semibold text-foreground">Task status</h2>
                 <Badge className="bg-primary-soft text-primary border-primary/30">{statusTotal} tasks</Badge>
               </div>
               {statusTotal === 0 ? (
                 <p className="text-sm text-muted-foreground py-16 text-center">{loading ? 'Loading…' : 'No tasks in this period.'}</p>
               ) : (
                 <div className="flex flex-col sm:flex-row items-center gap-6">
-                  <div
-                    className="w-full sm:w-1/2"
-                    role="img"
-                    aria-label={`Task status: ${report.status.map((s) => `${s.name} ${s.value}`).join(', ')}`}
-                  >
+                  {/* The list beside the chart says the same thing in text, so the chart itself
+                      is hidden from screen readers (its sectors have no usable names). */}
+                  <div className="w-full sm:w-1/2" aria-hidden="true">
                     <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
-                        <Pie data={report.status} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
+                        <Pie rootTabIndex={-1} data={report.status} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
                           {report.status.map((entry) => (
                             <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} stroke="hsl(var(--card))" strokeWidth={2} />
                           ))}
@@ -402,7 +400,7 @@ const PerformanceReports = () => {
             <div className="lg:col-span-2">
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-foreground">Last four weeks</h3>
+                  <h2 className="text-xl font-semibold text-foreground">Last four weeks</h2>
                   <Badge className="bg-success-soft text-success border-success/30">Created vs completed</Badge>
                 </div>
                 <div
@@ -428,7 +426,7 @@ const PerformanceReports = () => {
 
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-foreground">Most tasks completed</h3>
+                <h2 className="text-xl font-semibold text-foreground">Most tasks completed</h2>
                 <Award className="w-5 h-5 text-warning" aria-hidden="true" />
               </div>
               {report.top.length === 0 ? (

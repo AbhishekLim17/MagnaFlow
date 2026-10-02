@@ -92,8 +92,8 @@ const fmt = formatMoney;
 const pctColor = (pct) => {
   if (pct == null) return 'text-muted-foreground';
   if (pct >= 100) return 'text-destructive';
-  if (pct >= 80) return 'text-amber-500';
-  return 'text-emerald-500';
+  if (pct >= 80) return 'text-warning';
+  return 'text-success';
 };
 
 const progressColor = (pct) => {
@@ -351,7 +351,7 @@ const BudgetTracker = () => {
             value={selectedProject?.id ?? ''}
             onValueChange={(id) => setSelectedProject(projects.find((p) => p.id === id) ?? null)}
           >
-            <SelectTrigger className="w-56 bg-muted border-border" id="budget-project-selector">
+            <SelectTrigger className="w-56 bg-muted border-border" id="budget-project-selector" aria-label="Project">
               <SelectValue placeholder="Select project" />
             </SelectTrigger>
             <SelectContent>
@@ -455,6 +455,7 @@ const BudgetTracker = () => {
             <div className="space-y-1">
               <Progress
                 value={Math.min(summary.pctUsed ?? 0, 100)}
+                aria-label="Budget used"
                 className={`h-3 rounded-full bg-muted ${progressColor(summary.pctUsed)}`}
               />
               <p className={`text-xs font-medium ${pctColor(summary.pctUsed)}`}>
@@ -468,12 +469,13 @@ const BudgetTracker = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Donut */}
               <Card className="p-6">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
                   Budget vs. Actual
-                </h3>
+                </h2>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
+                      rootTabIndex={-1}
                       data={pieData}
                       cx="50%"
                       cy="50%"
@@ -503,9 +505,9 @@ const BudgetTracker = () => {
 
               {/* Bar by category */}
               <Card className="p-6">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
                   Spend by Category
-                </h3>
+                </h2>
                 {barData.length === 0 ? (
                   <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">
                     No data yet
@@ -532,12 +534,12 @@ const BudgetTracker = () => {
           {/* Expense table */}
           <Card className="overflow-hidden">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-              <h3 className="font-semibold">
+              <h2 className="font-semibold">
                 Expense Log
                 <Badge variant="secondary" className="ml-2">
                   {expenses.length}
                 </Badge>
-              </h3>
+              </h2>
             </div>
             {loading ? (
               <div className="py-12 text-center text-muted-foreground text-sm">Loading…</div>
@@ -596,18 +598,20 @@ const BudgetTracker = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                              aria-label={`Edit expense: ${exp.description}`}
                               onClick={() => openEditDialog(exp)}
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
+                              <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                              aria-label={`Delete expense: ${exp.description}`}
                               onClick={() => setDeleteDialog({ open: true, expense: exp })}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             </Button>
                           </div>
                         </td>

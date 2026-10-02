@@ -219,10 +219,10 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
           {/* Recent Activity */}
           <Card className="p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold flex items-center">
+              <h2 className="font-semibold flex items-center">
                 <Activity className="w-4 h-4 mr-2 text-primary" />
                 Recent Activity
-              </h3>
+              </h2>
               <Badge variant="outline" className="border-border">Live</Badge>
             </div>
             <div className="space-y-3 overflow-y-auto max-h-[170px]">
@@ -245,10 +245,10 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
         <div className="lg:col-span-1">
           <Card className="p-5 h-[240px]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold flex items-center">
+              <h2 className="font-semibold flex items-center">
                 <Award className="w-4 h-4 mr-2 text-warning" />
                 Top Performers
-              </h3>
+              </h2>
             </div>
             <div className="space-y-3">
               {tasksLoading || staffState === 'loading' ? (

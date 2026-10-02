@@ -14,7 +14,7 @@ import { isOverdueTask } from '@/lib/taskState';
 const PRIORITY_STYLES = {
   critical: { bg: 'bg-destructive-soft border-destructive/40 text-destructive', dot: 'bg-destructive', label: 'Critical' },
   high:     { bg: 'bg-warning-soft border-warning/40 text-warning',             dot: 'bg-warning',     label: 'High'     },
-  medium:   { bg: 'bg-sky-500/10 border-sky-500/30 text-sky-600',             dot: 'bg-sky-500',     label: 'Medium'   },
+  medium:   { bg: 'bg-info-soft border-info/30 text-info',                    dot: 'bg-info',        label: 'Medium'   },
   low:      { bg: 'bg-success-soft border-success/40 text-success',             dot: 'bg-success',     label: 'Low'      },
 };
 
@@ -65,18 +65,6 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
           isDragging ? 'ring-2 ring-primary shadow-2xl scale-[1.02] rotate-1' : '',
         ].join(' ')}
         onClick={() => onCardClick?.(task)}
-        // The card itself opens the details, so it must be reachable without a mouse.
-        // Keys pressed inside the card (the drag handle) are left alone.
-        role="button"
-        tabIndex={0}
-        aria-label={`${task.title}. Open details`}
-        onKeyDown={(e) => {
-          if (e.target !== e.currentTarget) return;
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onCardClick?.(task);
-          }
-        }}
       >
         {/* Drag handle: a 40px target on touch screens (it was 20px and only visible on hover),
             and touch-none so a finger on it drags the card instead of scrolling the page. */}
@@ -85,7 +73,7 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
           {...attributes}
           aria-label={`Move ${task.title}`}
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-1 top-1 grid h-10 w-10 touch-none place-items-center rounded-lg opacity-60 cursor-grab active:cursor-grabbing hover:bg-muted hover:opacity-100 focus-visible:opacity-100 transition-opacity sm:right-2 sm:top-2 sm:h-8 sm:w-8 sm:opacity-30 sm:group-hover:opacity-70"
+          className="absolute right-1 top-1 z-10 grid h-10 w-10 touch-none place-items-center rounded-lg opacity-60 cursor-grab active:cursor-grabbing hover:bg-muted hover:opacity-100 focus-visible:opacity-100 transition-opacity sm:right-2 sm:top-2 sm:h-8 sm:w-8 sm:opacity-30 sm:group-hover:opacity-70"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         </div>
@@ -93,7 +81,18 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
         {/* Priority indicator dot + title */}
         <div className="flex items-start gap-2 mb-2 pr-8">
           <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${priority.dot}`} />
-          <h4 className="text-sm font-semibold leading-snug text-foreground line-clamp-2">{task.title}</h4>
+          <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2">
+            {/* The keyboard way in. Its ::after stretches over the whole card, so a click
+                anywhere on the card lands here and bubbles up to the card's onClick; this
+                button needs no handler of its own. (A role on the card itself would nest
+                the drag handle inside another interactive element.) */}
+            <button
+              type="button"
+              className="text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:rounded-xl"
+            >
+              {task.title}
+            </button>
+          </h3>
         </div>
 
         {/* Description */}

@@ -263,8 +263,8 @@ const ClientPortal = () => {
                         // Fix #12: add review status style
                         const statusStyles = {
                           completed: "bg-success/10 text-success border-success/20",
-                          "in-progress": "bg-blue-500/10 text-blue-500 border-blue-500/20",
-                          review: "bg-amber-500/10 text-amber-600 border-amber-400/30",
+                          "in-progress": "bg-primary-soft text-primary border-primary/30",
+                          review: "bg-warning-soft text-warning border-warning/40",
                           pending: "bg-muted text-muted-foreground",
                           cancelled: "bg-muted text-muted-foreground line-through",
                         };

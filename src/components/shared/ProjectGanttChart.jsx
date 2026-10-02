@@ -186,7 +186,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
                   data-testid="gantt-task-title"
                   className={`text-xs leading-[1.15] line-clamp-2 sm:text-sm sm:leading-normal sm:truncate ${
                     r.isCritical
-                      ? 'text-amber-400 font-semibold'
+                      ? 'text-warning font-semibold'
                       : 'text-foreground'
                   }`}
                   title={r.title}

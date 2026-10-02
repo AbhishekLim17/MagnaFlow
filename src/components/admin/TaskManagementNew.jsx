@@ -66,7 +66,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
-              <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
+              <h2 className="font-semibold text-lg mb-2">{task.title}</h2>
               <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
             </div>
             <div className="ml-4 flex flex-wrap items-start justify-end gap-2">
@@ -418,7 +418,7 @@ const TaskManagement = () => {
   const getPriorityBadge = (priority) => {
     const styles = {
       low: 'bg-success-soft text-success border-success/30',
-      medium: 'bg-sky-500/10 text-sky-600 border-sky-400/30',
+      medium: 'bg-info-soft text-info border-info/30',
       high: 'bg-warning-soft text-warning border-warning/30',
       critical: 'bg-destructive-soft text-destructive border-destructive/30',
     };
@@ -430,7 +430,7 @@ const TaskManagement = () => {
       pending: 'bg-muted text-muted-foreground border-border',
       'in-progress': 'bg-primary-soft text-primary border-primary/30',
       completed: 'bg-success-soft text-success border-success/30',
-      review: 'bg-amber-500/10 text-amber-600 border-amber-300/50',
+      review: 'bg-warning-soft text-warning border-warning/40',
     };
     return styles[status] || styles.pending;
   };

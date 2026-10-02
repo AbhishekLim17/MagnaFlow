@@ -73,7 +73,7 @@ const AdminDashboard = () => {
       {statistics && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Task Priority Distribution</h3>
+            <h2 className="text-lg font-semibold mb-4">Task Priority Distribution</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-muted rounded-xl">
                 <p className="text-2xl font-bold text-destructive">{statistics.byPriority?.critical || 0}</p>
@@ -98,7 +98,7 @@ const AdminDashboard = () => {
 
       <Card>
         <div className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+          <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button onClick={() => navigateToTab('staff')} className="h-auto py-4 flex flex-col items-center space-y-2">
               <Users className="w-6 h-6" />

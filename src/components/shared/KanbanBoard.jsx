@@ -33,36 +33,36 @@ const COLUMNS = [
     id: 'pending',
     label: 'Todo',
     colorClass: 'from-slate-500/20 to-slate-400/10',
-    headerClass: 'text-slate-500',
+    headerClass: 'text-muted-foreground',
     dotClass: 'bg-slate-400',
-    countClass: 'bg-slate-500/20 text-slate-500',
+    countClass: 'bg-muted text-muted-foreground',
     borderClass: 'border-slate-200/50 dark:border-slate-700/50',
   },
   {
     id: 'in-progress',
     label: 'In Progress',
     colorClass: 'from-blue-500/20 to-blue-400/10',
-    headerClass: 'text-blue-500',
+    headerClass: 'text-primary',
     dotClass: 'bg-blue-500',
-    countClass: 'bg-blue-500/20 text-blue-600',
+    countClass: 'bg-primary-soft text-primary',
     borderClass: 'border-blue-200/50 dark:border-blue-900/50',
   },
   {
     id: 'review',
     label: 'Review',
     colorClass: 'from-amber-500/20 to-amber-400/10',
-    headerClass: 'text-amber-500',
+    headerClass: 'text-warning',
     dotClass: 'bg-amber-500',
-    countClass: 'bg-amber-500/20 text-amber-600',
+    countClass: 'bg-warning-soft text-warning',
     borderClass: 'border-amber-200/50 dark:border-amber-900/50',
   },
   {
     id: 'completed',
     label: 'Done',
     colorClass: 'from-emerald-500/20 to-emerald-400/10',
-    headerClass: 'text-emerald-500',
+    headerClass: 'text-success',
     dotClass: 'bg-emerald-500',
-    countClass: 'bg-emerald-500/20 text-emerald-600',
+    countClass: 'bg-success-soft text-success',
     borderClass: 'border-emerald-200/50 dark:border-emerald-900/50',
   },
 ];
@@ -84,7 +84,7 @@ const KanbanColumn = ({ column, tasks, staffMap, onCardClick, onAddTask, canAdd 
       <div className="flex items-center justify-between px-4 py-3 border-b border-inherit">
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${column.dotClass}`} />
-          <h3 className={`font-semibold text-sm ${column.headerClass}`}>{column.label}</h3>
+          <h2 className={`font-semibold text-sm ${column.headerClass}`}>{column.label}</h2>
           <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-bold ${column.countClass}`}>
             {tasks.length}
           </span>
@@ -218,6 +218,30 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
     }
   };
 
+  // Screen readers get what a sighted user sees: which task, which column. The defaults
+  // announce raw ids ("Draggable item 4f2a9c... was dropped over droppable area review").
+  const titleOf = (id) => tasks.find((t) => t.id === id)?.title || 'the task';
+  const columnNameOf = (overId) => {
+    const colId = COLUMNS.some((c) => c.id === overId) ? overId : findColumnOfTask(overId);
+    return COLUMNS.find((c) => c.id === colId)?.label || 'the board';
+  };
+  const accessibility = {
+    announcements: {
+      onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}, currently in ${columnNameOf(active.id)}.`,
+      onDragOver: ({ active, over }) => (over
+        ? `${titleOf(active.id)} is over ${columnNameOf(over.id)}.`
+        : `${titleOf(active.id)} is not over a column.`),
+      onDragEnd: ({ active, over }) => (over
+        ? `${titleOf(active.id)} was dropped in ${columnNameOf(over.id)}.`
+        : `${titleOf(active.id)} was put back where it was.`),
+      onDragCancel: ({ active }) => `Move cancelled. ${titleOf(active.id)} stays in ${columnNameOf(active.id)}.`,
+    },
+    screenReaderInstructions: {
+      draggable:
+        'To move a task, press space or enter on its move button, use the arrow keys to choose another column, then press space or enter to drop it. Press escape to cancel.',
+    },
+  };
+
   const dropAnimation = {
     ...defaultDropAnimation,
     dragSourceOpacity: 0.5,
@@ -229,6 +253,7 @@ const KanbanBoard = ({ tasks = [], staffMap = {}, onStatusChange, onCardClick, o
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      accessibility={accessibility}
     >
       {cancelledCount > 0 && (
         <p className="text-xs text-muted-foreground mb-2">

@@ -90,7 +90,7 @@ const ProjectTimeline = () => {
         {projects.length > 0 && (
           <div className="w-full sm:w-64">
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="bg-muted">
+              <SelectTrigger className="bg-muted" aria-label="Project">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
               <SelectContent>

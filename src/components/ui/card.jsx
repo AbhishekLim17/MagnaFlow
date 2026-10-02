@@ -31,13 +31,13 @@ CardHeader.displayName = 'CardHeader';
 const CardTitle = React.forwardRef(({ className, children, ...props }, ref) => (
   // children is named rather than left in ...props so it is visible to the
   // a11y lint rule that checks a heading is never rendered empty.
-  <h3
+  <h2
     ref={ref}
     className={cn('text-base font-bold leading-tight tracking-tight text-foreground', className)}
     {...props}
   >
     {children}
-  </h3>
+  </h2>
 ));
 CardTitle.displayName = 'CardTitle';
 

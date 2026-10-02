@@ -35,7 +35,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
     const badges = {
       critical: 'bg-destructive-soft text-destructive border-destructive/30',
       high: 'bg-warning-soft text-warning border-warning/30',
-      medium: 'bg-sky-500/10 text-sky-600 border-sky-400/30',
+      medium: 'bg-info-soft text-info border-info/30',
       low: 'bg-success-soft text-success border-success/30',
     };
     return badges[priority] || badges.medium;
@@ -46,7 +46,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
       pending: 'bg-muted text-muted-foreground border-border',
       'in-progress': 'bg-primary-soft text-primary border-primary/30',
       completed: 'bg-success-soft text-success border-success/30',
-      review: 'bg-amber-500/10 text-amber-600 border-amber-300/50',
+      review: 'bg-warning-soft text-warning border-warning/40',
     };
     return badges[status] || badges.pending;
   };
@@ -64,7 +64,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
-              <h4 className="font-semibold text-lg mb-2">{task.title}</h4>
+              <h3 className="font-semibold text-lg mb-2">{task.title}</h3>
               <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
             </div>
             <div className="ml-4 space-x-2">
@@ -301,7 +301,7 @@ const StaffDashboard = () => {
           <div className="p-6 space-y-4">
             {/* Header with Add Task Button */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold">My Tasks</h3>
+              <h2 className="text-xl font-semibold">My Tasks</h2>
               <div className="flex items-center gap-2">
                 {/* View toggle */}
                 <div className="flex items-center rounded-lg border border-border overflow-hidden bg-muted">
