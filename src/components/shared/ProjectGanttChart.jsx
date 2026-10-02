@@ -1,25 +1,24 @@
-// ProjectGanttChart - renders a project tasks as a Gantt timeline.
+// ProjectGanttChart - renders a project's tasks as a Gantt timeline.
 // Critical path tasks (zero total float via CPM) are highlighted in amber.
-// Dependency edges are drawn as SVG elbow-connector arrows with correct
-// pixel positions measured via ResizeObserver on the actual grid element.
+//
+// Dependencies are drawn as orthogonal finish-to-start connectors with rounded corners and an
+// arrowhead that touches the successor's left edge. Where the line goes is worked out by
+// lib/ganttLayout (pure and tested); this file only measures the grid and draws the result.
+// A bar covers its whole last day (a one-day task is one day wide), so a line leaves the
+// predecessor exactly where its work ends and enters the successor exactly where it begins.
 
-import React, { useMemo, useRef, useState, useLayoutEffect } from 'react';
+import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Zap } from 'lucide-react';
 import { computeCriticalPath } from '@/lib/criticalPath';
-import { formatDayMonth } from '@/lib/format';
+import { isResolved } from '@/lib/dependencies';
+import { formatDayMonth, toDate } from '@/lib/format';
+import {
+  addDays, startOfDay, axisTicks, routeDependency, roundedPath, dependencyKind,
+} from '@/lib/ganttLayout';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const ROW_H  = 44; // px — keep in sync with h-11 (Tailwind)
-
-const toDate = (v) => {
-  if (!v) return null;
-  if (typeof v.toDate === 'function') return v.toDate();
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
-};
-
-const startOfDay = (d) =>
-  new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const ROW_H = 48; // px - keep in sync with h-12 (Tailwind)
+const MIN_BAR_PCT = 0.8;
+const CORNER_RADIUS = 5;
 
 const STATUS_STYLES = {
   completed:     { bar: 'bg-success-accent',    label: 'Completed' },
@@ -33,14 +32,38 @@ const STATUS_STYLES = {
 const CRITICAL_EXTRA =
   'shadow-[0_0_14px_5px_rgba(251,191,36,0.55)] brightness-110';
 
+// How each kind of dependency is drawn. Colours are design tokens (not raw palette values),
+// so they follow the theme; the arrowhead takes the same colour as its line.
+const EDGE_STYLES = {
+  done:     { color: 'hsl(var(--muted-foreground))', width: 1.25, opacity: 0.4 },
+  open:     { color: 'hsl(var(--muted-foreground))', width: 1.5,  opacity: 0.85 },
+  critical: { color: 'hsl(var(--warning-accent))',   width: 2,    opacity: 1 },
+  conflict: { color: 'hsl(var(--destructive))',      width: 1.75, opacity: 1, dash: '5 3' },
+};
+// Painted in this order, so the lines that matter end up on top.
+const EDGE_ORDER = ['done', 'open', 'critical', 'conflict'];
+
 const fmt = (d) => formatDayMonth(d);
 
-// --- Hook: observe width of a DOM element ---
+// Where a bar starts and ends, as a percentage of the grid (for the bar itself) and in pixels
+// (for the dependency lines). One source, so the two cannot drift apart.
+const geometryOf = (pct, r, gridWidth) => {
+  const left = pct(r.start);
+  const width = Math.max(pct(addDays(r.end, 1)) - left, MIN_BAR_PCT);
+  return {
+    leftPct: left,
+    widthPct: width,
+    leftPx: (left / 100) * gridWidth,
+    rightPx: ((left + width) / 100) * gridWidth,
+  };
+};
+
+// --- Hook: width of a DOM element, to the fraction of a pixel ---
 function useElementWidth(ref) {
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
-    if (!ref.current) return;
-    const update = () => setWidth(ref.current ? ref.current.offsetWidth : 0);
+    if (!ref.current) return undefined;
+    const update = () => setWidth(ref.current ? ref.current.getBoundingClientRect().width : 0);
     update();
     const ro = new ResizeObserver(update);
     ro.observe(ref.current);
@@ -49,11 +72,25 @@ function useElementWidth(ref) {
   return width;
 }
 
+const Arrowhead = ({ id, color }) => (
+  <marker
+    id={id}
+    markerWidth="8" markerHeight="8"
+    refX="7.5" refY="4"
+    orient="auto"
+    markerUnits="userSpaceOnUse"
+  >
+    <path d="M0.5,0.5 L7.5,4 L0.5,7.5 Z" style={{ fill: color }} />
+  </marker>
+);
+
 const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
   // The grid area is the flex-1 column that contains the Gantt bars.
-  // We measure it so dependency arrows have correct pixel coordinates.
+  // We measure it so dependency lines have correct pixel coordinates.
   const gridAreaRef = useRef(null);
   const gridWidth   = useElementWidth(gridAreaRef);
+  const uid         = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const [activeId, setActiveId] = useState(null);
 
   const criticalSet = useMemo(() => computeCriticalPath(tasks), [tasks]);
 
@@ -80,6 +117,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
           start:      s,
           end:        e,
           statusKey:  isOverdue ? 'overdue' : (t.status || 'pending'),
+          rawStatus:  t.status || 'pending',
           isCompleted,
           isCritical: criticalSet.has(t.id),
           blockedBy:  Array.isArray(t.blockedBy) ? t.blockedBy : [],
@@ -90,36 +128,62 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
 
     if (rows.length === 0) return null;
 
-    let min = rows[0].start;
-    let max = rows[0].end;
+    let first = rows[0].start;
+    let last  = rows[0].end;
     for (const r of rows) {
-      if (r.start < min) min = r.start;
-      if (r.end   > max) max = r.end;
+      if (r.start < first) first = r.start;
+      if (r.end   > last)  last  = r.end;
     }
-    min = new Date(min.getTime() - DAY_MS);
-    max = new Date(max.getTime() + DAY_MS);
-    const span = Math.max(max.getTime() - min.getTime(), DAY_MS);
+    // A day of air before the first bar; the last bar covers its whole final day, plus a day of air.
+    const min = addDays(first, -1);
+    const max = addDays(last, 2);
+    const span = Math.max(max.getTime() - min.getTime(), 1);
 
-    // pct: date -> fraction 0-100 within the timeline
+    // pct: date -> position 0-100 within the timeline
     const pct = (d) => ((d.getTime() - min.getTime()) / span) * 100;
 
-    const ticks = [];
-    const N = 6;
-    for (let i = 0; i <= N; i++) {
-      const t = new Date(min.getTime() + (span * i) / N);
-      ticks.push({ left: (i / N) * 100, date: startOfDay(t) });
-    }
+    // Ticks sit on real day boundaries, so a label and its gridline never disagree.
+    const ticks = axisTicks(min, max).map((date) => ({ left: pct(date), date }));
 
-    const today2 = startOfDay(new Date());
-    const todayPct =
-      today2 >= min && today2 <= max ? pct(today2) : null;
+    const noon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+    const todayPct = noon >= min && noon <= max ? pct(noon) : null;
 
-    // Map row id -> index for arrow rendering
     const rowIndex = {};
     rows.forEach((r, i) => { rowIndex[r.id] = i; });
 
     return { rows, pct, ticks, todayPct, rowIndex };
   }, [tasks, getStaffName, criticalSet]);
+
+  const edges = useMemo(() => {
+    if (!model || gridWidth <= 0) return [];
+    const { rows, pct, rowIndex } = model;
+    const geo = (r) => geometryOf(pct, r, gridWidth);
+    const out = [];
+    rows.forEach((succ, succIdx) => {
+      const seen = new Set();
+      succ.blockedBy.forEach((predId) => {
+        if (predId === succ.id || seen.has(predId)) return;
+        seen.add(predId);
+        const predIdx = rowIndex[predId];
+        if (predIdx === undefined) return; // the prerequisite has no dates, so it has no bar
+        const pred = rows[predIdx];
+
+        const kind = dependencyKind(
+          { start: pred.start, end: pred.end, resolved: isResolved(pred.rawStatus), critical: pred.isCritical },
+          { start: succ.start, critical: succ.isCritical },
+        );
+        const { points } = routeDependency({
+          exitX: geo(pred).rightPx,
+          exitY: predIdx * ROW_H + ROW_H / 2,
+          // one pixel short, so the arrowhead touches the bar instead of overlapping its edge
+          entryX: geo(succ).leftPx - 1,
+          entryY: succIdx * ROW_H + ROW_H / 2,
+        });
+        out.push({ key: `${predId}->${succ.id}`, predId, succId: succ.id, kind, d: roundedPath(points, CORNER_RADIUS) });
+      });
+    });
+    return out.sort((a, b) => EDGE_ORDER.indexOf(a.kind) - EDGE_ORDER.indexOf(b.kind));
+  }, [model, gridWidth]);
 
   if (!model) {
     return (
@@ -131,17 +195,14 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
   }
 
   const { rows, pct, ticks, todayPct, rowIndex } = model;
-
-  // bar geometry: left and right as pixel offsets within gridArea
-  const barPx = (r) => {
-    const l = pct(r.start);
-    const w = Math.max(pct(r.end) - l, 1.5);
-    const leftPx  = (l / 100) * gridWidth;
-    const rightPx = ((l + w) / 100) * gridWidth;
-    return { leftPx, rightPx, leftPct: l, widthPct: w };
-  };
-
   const svgH = rows.length * ROW_H;
+  const hasConflict = edges.some((e) => e.kind === 'conflict');
+
+  // What each task is still waiting for, for people who cannot see the lines.
+  const waitingOn = (r) => r.blockedBy
+    .map((id) => rows[rowIndex[id]])
+    .filter((p) => p && p.id !== r.id && !isResolved(p.rawStatus))
+    .map((p) => p.title);
 
   return (
     <div className="w-full">
@@ -157,12 +218,13 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
 
         {/* ── Timeline header ── */}
         <div className="flex">
-          <div className="w-32 flex-shrink-0 sticky left-0 z-10 bg-card sm:w-56" />
-          <div className="relative flex-1 h-6 border-b border-border overflow-hidden pr-2">
-            {ticks.map((t, i) => (
+          <div className="w-32 flex-shrink-0 sticky left-0 z-30 bg-card sm:w-56" />
+          <div className="relative flex-1 h-6 border-b border-border overflow-hidden">
+            {/* a label centred on a tick near either end would be cut off by the edge */}
+            {ticks.filter((t) => t.left >= 4 && t.left <= 95).map((t) => (
               <div
-                key={i}
-                className="absolute top-0 text-[10px] text-muted-foreground -translate-x-1/2"
+                key={t.date.getTime()}
+                className="absolute top-0 text-[10px] text-muted-foreground -translate-x-1/2 whitespace-nowrap"
                 style={{ left: `${t.left}%` }}
               >
                 {fmt(t.date)}
@@ -175,12 +237,14 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
         <div className="flex">
 
           {/* Label column: 8rem on a phone, 14rem from sm up */}
-          <div className="w-32 flex-shrink-0 sticky left-0 z-10 bg-card sm:w-56">
+          <div className="w-32 flex-shrink-0 sticky left-0 z-30 bg-card sm:w-56">
             {rows.map((r) => (
               <div
                 key={r.id}
                 style={{ height: ROW_H }}
                 className="flex flex-col justify-center pr-3 border-b border-border"
+                onMouseEnter={() => setActiveId(r.id)}
+                onMouseLeave={() => setActiveId(null)}
               >
                 <p
                   data-testid="gantt-task-title"
@@ -205,35 +269,48 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
             ))}
           </div>
 
-          {/* Grid column — flex-1, measured for arrow pixel math */}
+          {/* Grid column - flex-1, measured for the dependency lines */}
           <div className="relative flex-1" ref={gridAreaRef}>
+
+            {/* Gridlines, one per tick, behind everything */}
+            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+              {ticks.map((t) => (
+                <div
+                  key={t.date.getTime()}
+                  className="absolute top-0 bottom-0 w-px bg-border/60"
+                  style={{ left: `${t.left}%` }}
+                />
+              ))}
+            </div>
 
             {/* Today marker */}
             {todayPct != null && (
               <div
-                className="absolute top-0 bottom-0 z-10 pointer-events-none"
+                className="pointer-events-none absolute top-0 bottom-0 z-10 border-l border-dashed border-destructive/60"
                 style={{ left: `${todayPct}%` }}
-              >
-                <div className="w-px h-full bg-warning-soft" />
-              </div>
+                aria-hidden="true"
+              />
             )}
 
             {/* Task bars */}
             {rows.map((r) => {
-              const { leftPct, widthPct } = barPx(r);
+              const { leftPct, widthPct } = geometryOf(pct, r, gridWidth);
               const style = STATUS_STYLES[r.statusKey] || STATUS_STYLES.pending;
+              const waiting = waitingOn(r);
               return (
                 <div
                   key={r.id}
                   style={{ height: ROW_H }}
                   className="relative border-b border-border"
+                  onMouseEnter={() => setActiveId(r.id)}
+                  onMouseLeave={() => setActiveId(null)}
                 >
                   <div
                     className={`absolute top-1/2 -translate-y-1/2 h-5 rounded flex items-center px-1.5 shadow ${style.bar} ${r.isCritical ? CRITICAL_EXTRA : ''}`}
                     style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                    title={`${fmt(r.start)} → ${fmt(r.end)} · ${style.label}${r.isCritical ? ' · Critical path' : ''}`}
+                    title={`${fmt(r.start)} → ${fmt(r.end)} · ${style.label}${r.isCritical ? ' · Critical path' : ''}${waiting.length ? ` · Waits for ${waiting.join(', ')}` : ''}`}
                     role="img"
-                    aria-label={`${r.title}: ${style.label}${r.isCritical ? ', critical path' : ''}, ${fmt(r.start)} to ${fmt(r.end)}`}
+                    aria-label={`${r.title}: ${style.label}${r.isCritical ? ', critical path' : ''}, ${fmt(r.start)} to ${fmt(r.end)}${waiting.length ? `, waits for ${waiting.join(', ')}` : ''}`}
                   >
                     {r.isCompleted && (
                       <CheckCircle2
@@ -252,105 +329,59 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
               );
             })}
 
-            {/* SVG dependency arrows — positioned over the grid area only.
-                All x coords are real CSS pixels within the grid element,
-                measured via ResizeObserver so the math is always accurate. */}
-            {gridWidth > 0 && (
+            {/* Dependency lines, over the grid only. All coordinates are CSS pixels within the
+                grid element (measured), so they meet the bars exactly. A card-coloured halo
+                under each line keeps it legible where it crosses a bar. */}
+            {gridWidth > 0 && edges.length > 0 && (
               <svg
                 className="absolute inset-0 pointer-events-none z-20"
                 width={gridWidth}
                 height={svgH}
                 viewBox={`0 0 ${gridWidth} ${svgH}`}
                 style={{ overflow: 'visible' }}
+                aria-hidden="true"
+                focusable="false"
               >
                 <defs>
-                  <marker
-                    id="dep-arrow-normal"
-                    markerWidth="7" markerHeight="7"
-                    refX="6" refY="3.5"
-                    orient="auto"
-                  >
-                    <path
-                      d="M0,0 L0,7 L7,3.5 z"
-                      fill="currentColor"
-                      className="text-muted-foreground"
-                      fillOpacity="0.55"
-                    />
-                  </marker>
-                  <marker
-                    id="dep-arrow-critical"
-                    markerWidth="7" markerHeight="7"
-                    refX="6" refY="3.5"
-                    orient="auto"
-                  >
-                    <path d="M0,0 L0,7 L7,3.5 z" fill="rgb(251,191,36)" />
-                  </marker>
+                  {EDGE_ORDER.map((kind) => (
+                    <Arrowhead key={kind} id={`${uid}-arrow-${kind}`} color={EDGE_STYLES[kind].color} />
+                  ))}
                 </defs>
 
-                {rows.map((succRow) =>
-                  succRow.blockedBy.map((predId) => {
-                    const predIdx = rowIndex[predId];
-                    if (predIdx === undefined) return null;
-
-                    const predRow = rows[predIdx];
-                    const succIdx = rowIndex[succRow.id];
-
-                    const predGeo = barPx(predRow);
-                    const succGeo = barPx(succRow);
-
-                    // Skip backward dependencies — pred timeline after succ
-                    if (predRow.start >= succRow.end) return null;
-
-                    const isCriticalEdge =
-                      predRow.isCritical && succRow.isCritical;
-                    const stroke = isCriticalEdge
-                      ? 'rgb(251,191,36)'
-                      : 'var(--muted-foreground, #888)';
-                    const strokeOpacity = isCriticalEdge ? 0.95 : 0.5;
-                    const markerEnd = isCriticalEdge
-                      ? 'url(#dep-arrow-critical)'
-                      : 'url(#dep-arrow-normal)';
-                    const strokeW = isCriticalEdge ? 2 : 1.5;
-
-                    // Finish-to-start elbow connector (matches reference design):
-                    //  Exit mid-height right edge of pred bar →
-                    //  step right by ELBOW px →
-                    //  travel vertically to succ row mid-height →
-                    //  arrive at left edge of succ bar ←
-                    const ELBOW   = 12;   // horizontal step before turning
-                    const exitX   = predGeo.rightPx;
-                    const exitY   = predIdx * ROW_H + ROW_H / 2;
-                    const entryX  = succGeo.leftPx;
-                    const entryY  = succIdx * ROW_H + ROW_H / 2;
-                    // If succ starts before/near pred end, step further right first
-                    const stepX   = Math.max(exitX + ELBOW, entryX + ELBOW);
-
-                    // Forward path (pred→succ) with rightward final approach:
-                    //   pred right → step right → vertical to succ row
-                    //   → come from right → final 10px RIGHT → arrowhead points →
-                    const APPROACH = 10; // final rightward segment length
-                    const d =
-                      `M ${exitX} ${exitY} ` +               // right edge of pred bar
-                      `H ${stepX} ` +                          // step right (elbow)
-                      `V ${entryY} ` +                          // vertical to succ row
-                      `H ${entryX - APPROACH} ` +              // approach from right
-                      `H ${entryX}`;                            // final RIGHT step → arrowhead →
-
-                    return (
+                {edges.map((e) => {
+                  const base = EDGE_STYLES[e.kind];
+                  const related = activeId && (e.predId === activeId || e.succId === activeId);
+                  const dimmed = activeId && !related;
+                  const width = base.width + (related ? 0.75 : 0);
+                  const opacity = related ? 1 : dimmed ? base.opacity * 0.25 : base.opacity;
+                  return (
+                    <g
+                      key={e.key}
+                      data-testid="gantt-dependency"
+                      data-kind={e.kind}
+                      data-from={e.predId}
+                      data-to={e.succId}
+                      style={{ opacity, transition: 'opacity 120ms ease' }}
+                    >
                       <path
-                        key={`${predId}->${succRow.id}`}
-                        d={d}
-                        stroke={stroke}
-                        strokeOpacity={strokeOpacity}
-                        strokeWidth={strokeW}
+                        d={e.d}
                         fill="none"
-                        markerEnd={markerEnd}
-                        strokeLinecap="round"
+                        strokeWidth={width + 3}
                         strokeLinejoin="round"
+                        style={{ stroke: 'hsl(var(--card))', opacity: 0.9 }}
                       />
-                    );
-                  })
-                )}
+                      <path
+                        d={e.d}
+                        fill="none"
+                        strokeWidth={width}
+                        strokeLinejoin="round"
+                        strokeDasharray={base.dash}
+                        markerEnd={`url(#${uid}-arrow-${e.kind})`}
+                        style={{ stroke: base.color }}
+                      />
+                    </g>
+                  );
+                })}
               </svg>
             )}
           </div>
@@ -372,17 +403,27 @@ const ProjectGanttChart = ({ tasks = [], getStaffName }) => {
             <span className="inline-block w-3 h-3 rounded bg-amber-400 ring-2 ring-amber-400" />
             Critical path
           </div>
+          <LegendLine label="Dependency" kind="open" />
+          {hasConflict && <LegendLine label="Starts before its prerequisite ends" kind="conflict" />}
           <div className="flex items-center gap-1.5">
-            <svg width="20" height="10" viewBox="0 0 20 10" className="overflow-visible">
-              <path d="M0,5 H14" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.55" fill="none" markerEnd="url(#dep-arrow-normal)" />
-            </svg>
-            Dependency
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-px h-3 bg-warning" /> Today
+            <span className="inline-block h-3 border-l border-dashed border-destructive/60" /> Today
           </div>
         </div>
 
+    </div>
+  );
+};
+
+// A sample of a dependency line for the legend, drawn the way the chart draws it.
+const LegendLine = ({ label, kind }) => {
+  const { color, width, opacity, dash } = EDGE_STYLES[kind];
+  return (
+    <div className="flex items-center gap-1.5">
+      <svg width="24" height="10" viewBox="0 0 24 10" aria-hidden="true" focusable="false">
+        <path d="M0 5 H15" fill="none" strokeWidth={width} strokeDasharray={dash} style={{ stroke: color, opacity }} />
+        <path d="M15.5 1.5 L23 5 L15.5 8.5 Z" style={{ fill: color, opacity }} />
+      </svg>
+      {label}
     </div>
   );
 };

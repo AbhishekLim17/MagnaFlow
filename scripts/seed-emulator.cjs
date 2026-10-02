@@ -88,14 +88,14 @@ const day = (offset) => {
 // overdue, so status pills, the Gantt bars and the "overdue" counters all have
 // something real to render.
 const TASKS = [
-  ['Ship the billing reconciliation job', 'completed',  'critical', 'u-staff1', DEPT_ENG,      PROJ_APOLLO, -18, -4],
-  ['Migrate the reporting warehouse',     'completed',  'high',     'u-staff2', DEPT_ENG,      PROJ_APOLLO, -14, -2],
-  ['Rewrite the onboarding emails',       'in-progress','medium',   'u-staff1', DEPT_ENG,      PROJ_APOLLO,  -6,  4],
+  ['Ship the billing reconciliation job', 'completed',  'critical', 'u-staff1', DEPT_ENG,      PROJ_APOLLO, -18, -12],
+  ['Migrate the reporting warehouse',     'completed',  'high',     'u-staff2', DEPT_ENG,      PROJ_APOLLO, -11, -5],
+  ['Rewrite the onboarding emails',       'in-progress','medium',   'u-staff1', DEPT_ENG,      PROJ_APOLLO,  -3,  4],
   ['Instrument the checkout funnel',      'in-progress','high',     'u-staff2', DEPT_ENG,      PROJ_APOLLO,  -3,  7],
   ['Quarterly vendor audit',              'in-progress','critical', 'u-staff3', DEPT_ACCOUNTS, PROJ_ATLAS,   -9,  -1],
   ['Close the Q2 ledger',                 'pending',    'critical', 'u-staff3', DEPT_ACCOUNTS, PROJ_ATLAS,   -2,  -1],
-  ['Draft the accessibility statement',   'pending',    'low',      'u-staff1', DEPT_ENG,      PROJ_APOLLO,   1, 12],
-  ['Refresh the design tokens',           'pending',    'medium',   'u-staff2', DEPT_ENG,      PROJ_APOLLO,   2, 15],
+  ['Draft the accessibility statement',   'pending',    'low',      'u-staff1', DEPT_ENG,      PROJ_APOLLO,   5, 12],
+  ['Refresh the design tokens',           'pending',    'medium',   'u-staff2', DEPT_ENG,      PROJ_APOLLO,  10, 18],
   ['Renew the payment gateway contract',  'pending',    'high',     'u-staff3', DEPT_ACCOUNTS, PROJ_ATLAS,    3, 20],
   ['Decommission the legacy exporter',    'cancelled',  'low',      'u-staff2', DEPT_ENG,      PROJ_APOLLO, -20, -8],
   // Heads, managers and admins are assigned work too — without these the
@@ -192,7 +192,9 @@ async function seed() {
   }
 
   // Fix #17: Wire up representative dependencies between Apollo tasks
-  // Chain: Billing reconciliation -> Migrate warehouse -> Rewrite onboarding emails
+  // Billing reconciliation -> Migrate warehouse -> (Instrument funnel | Rewrite onboarding emails)
+  //   -> Draft accessibility statement -> Refresh design tokens. The schedule follows the chain,
+  // except that Refresh starts before Draft ends, so the Gantt chart has one clash to show.
   const depChain = [
     ['Rewrite the onboarding emails', 'Migrate the reporting warehouse'],
     ['Migrate the reporting warehouse', 'Ship the billing reconciliation job'],
