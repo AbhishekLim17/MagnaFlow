@@ -200,6 +200,43 @@ export const getAllUsers = async (filters = {}) => {
 };
 
 /**
+ * Everyone a task can be assigned to by this caller (plus the people whose names are
+ * needed to label existing assignments).
+ *
+ *  - org-admin: everyone in the organization except clients. Previously only users
+ *    with the 'staff' role were loaded, so a task assigned to a manager, a head or
+ *    the admin themselves was labelled "Unassigned", and could not be assigned.
+ *  - department head / manager: staff inside their own scope (all the security rules
+ *    let them read), plus themselves.
+ *
+ * Inactive accounts are included (with status) so their old assignments still show a
+ * name; callers should not offer them as new assignees.
+ *
+ * @param {{id: string, name?: string, email?: string, role?: string, designation?: string}} self
+ */
+export const getAssignableUsers = async (self) => {
+  const caller = await getCallerProfile();
+  if (!caller) return [];
+
+  let people = [];
+  if (caller.role === 'department-head') {
+    if (caller.departmentIds?.length) people = await getAllUsers({ role: 'staff', departmentIds: caller.departmentIds });
+  } else if (caller.role === 'manager') {
+    if (caller.projectIds?.length) people = await getAllUsers({ role: 'staff', projectIds: caller.projectIds });
+  } else {
+    people = (await getAllUsers({})).filter((u) => u.role !== 'client');
+  }
+
+  if (self?.id && !people.some((p) => p.id === self.id)) {
+    people = [
+      { id: self.id, name: self.name, email: self.email, role: self.role, designation: self.designation, status: 'active' },
+      ...people,
+    ];
+  }
+  return people;
+};
+
+/**
  * Get all staff members (non-admin users)
  * @returns {Promise<Array>} Array of staff users
  */

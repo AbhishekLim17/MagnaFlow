@@ -8,12 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import { useTasks } from '@/contexts/TasksContext';
-import { getAllUsers } from '@/services/userService';
+import { getAllUsers, getAssignableUsers } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
 import { reportError } from '@/lib/reportError';
 
 const PerformanceReports = () => {
   const { tasks: allTasks } = useTasks();
+  const { currentUser } = useAuth();
   const [staff, setStaff] = useState([]);
+  // Everyone who can hold a task, only used to put a name on an exported assignee.
+  const [directory, setDirectory] = useState([]);
   const [timeRange, setTimeRange] = useState('30');
   const [filteredTasks, setFilteredTasks] = useState([]);
   const { toast } = useToast();
@@ -29,6 +33,7 @@ const PerformanceReports = () => {
       // Get all staff members
       const users = await getAllUsers({ role: 'staff' });
       setStaff(users);
+      getAssignableUsers(currentUser).then(setDirectory).catch(() => {});
       
       // Filter tasks by selected time range
       const filtered = filterTasksByTimeRange(allTasks || [], timeRange);
@@ -240,7 +245,9 @@ const PerformanceReports = () => {
         t.title,
         t.status,
         t.priority,
-        staff.find(s => s.id === t.assignedTo)?.name || 'Unassigned',
+        t.assignedTo
+          ? (directory.find(s => s.id === t.assignedTo)?.name || 'Former member')
+          : 'Unassigned',
         t.createdAt?.toDate ? t.createdAt.toDate().toLocaleDateString() : 'N/A'
       ]);
     });

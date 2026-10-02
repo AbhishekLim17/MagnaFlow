@@ -19,7 +19,7 @@ import { useTasks } from '@/contexts/TasksContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { getAllUsers } from '@/services/userService';
+import { getAssignableUsers } from '@/services/userService';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
@@ -35,14 +35,16 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
   useEffect(() => {
     const loadStaff = async () => {
       try {
-        const staffList = await getAllUsers({ role: 'staff' });
-        setStaff(staffList);
+        // Everyone who can hold a task, not only the 'staff' role, so work assigned
+        // to a manager or head is credited to them rather than to "Unassigned".
+        setStaff(await getAssignableUsers(currentUser));
       } catch (error) {
         console.error('Error loading staff:', error);
       }
     };
     loadStaff();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid]);
 
   // Calculate quick stats
   const stats = React.useMemo(() => {
@@ -110,9 +112,11 @@ export function AdminCommandCenter({ onCreateTask, onViewReports, onManageStaff 
 
       if (!staffPerformance[staffId]) {
         const staffMember = staff.find(s => s.id === staffId);
+        // An assignee we cannot resolve (a removed account) is not a performer.
+        if (!staffMember) return;
         staffPerformance[staffId] = {
           staffId,
-          staffName: staffMember?.name || 'Unassigned',
+          staffName: staffMember.name || staffMember.email,
           completed: 0,
           inProgress: 0,
           overdue: 0

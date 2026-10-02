@@ -29,7 +29,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useTasks } from '@/contexts/TasksContext';
 import TaskFormDialog from '@/components/admin/TaskFormDialog';
-import { getAllUsers } from '@/services/userService';
+import { getAssignableUsers } from '@/services/userService';
 import { getProjects } from '@/services/organizationService';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
@@ -228,12 +228,9 @@ const TaskManagement = () => {
   const loadStaff = async () => {
     try {
       // Scoped roles may only assign work to staff inside their own
-      // department/project; org-admins can assign to anyone in the org.
-      const filters = { role: 'staff' };
-      if (isDeptHead) filters.departmentIds = currentUser?.departmentIds || [];
-      if (isManager) filters.projectIds = currentUser?.projectIds || [];
-      const staffList = await getAllUsers(filters);
-      setStaff(staffList);
+      // department/project (and themselves); org-admins can assign to anyone in
+      // the organization, not just the 'staff' role.
+      setStaff(await getAssignableUsers(currentUser));
     } catch (error) {
       console.error('Error loading staff:', error);
     }
@@ -290,7 +287,7 @@ const TaskManagement = () => {
     if (!formData.title || !formData.assignedTo) {
       toast({
         title: "Validation Error",
-        description: "Please fill in title and assign to a staff member.",
+        description: "Please add a title and choose who the task is assigned to.",
         variant: "destructive",
       });
       return;
@@ -394,13 +391,14 @@ const TaskManagement = () => {
 
   // A scoped manager/department-head can only read user docs inside their own
   // scope (enforced by the Firestore rules), so a task assigned to someone
-  // outside it can't be resolved to a name. Say that plainly rather than
-  // mislabelling an assigned task as "Unassigned".
+  // outside it can't be resolved to a name; say so plainly. For an org-admin an
+  // id that matches nobody means the account was removed. Only a task with NO
+  // assignee is "Unassigned".
   const getStaffName = (userId) => {
     if (!userId) return 'Unassigned';
     const known = staff.find((s) => s.id === userId);
     if (known) return known.name || known.email;
-    return isScoped ? 'Outside your team' : 'Unassigned';
+    return isScoped ? 'Outside your team' : 'Former member';
   };
 
   const getPriorityBadge = (priority) => {

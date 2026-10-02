@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { dependsOn } from '@/lib/dependencies';
+import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -94,14 +95,19 @@ const TaskFormDialog = ({
               <Label htmlFor={idFor('assignedTo')}>Assign To *</Label>
               <Select value={formData.assignedTo} onValueChange={(v) => set({ assignedTo: v })}>
                 <SelectTrigger className={FIELD_CLASS}>
-                  <SelectValue placeholder={isAdd ? 'Select staff member' : undefined} />
+                  <SelectValue placeholder={isAdd ? 'Select a person' : undefined} />
                 </SelectTrigger>
                 <SelectContent>
-                  {staff.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name} - {member.designation || 'Staff'}
-                    </SelectItem>
-                  ))}
+                  {/* Deactivated people are not offered as new assignees, but an
+                      existing assignment to one stays visible so editing does not blank it. */}
+                  {staff
+                    .filter((member) => member.status !== 'inactive' || member.id === formData.assignedTo)
+                    .map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name || member.email} · {member.designation || roleLabel(member.role)}
+                        {member.status === 'inactive' ? ' (deactivated)' : ''}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
