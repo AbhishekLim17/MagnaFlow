@@ -4,6 +4,7 @@ import { Edit2, Trash2, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { toUserMessage } from '@/lib/errorMessages';
+import { formatRelative } from '@/lib/format';
 
 /**
  * CommentItem Component
@@ -21,29 +22,6 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
 
   const canEdit = isAuthor || isAdmin;
   const canDelete = isAuthor || isAdmin;
-
-  // Format timestamp
-  const formatTime = (date) => {
-    if (!date) return '';
-    
-    const now = new Date();
-    const commentDate = new Date(date);
-    const diffMs = now - commentDate;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return commentDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: commentDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-    });
-  };
 
   // Handle edit submit
   const handleEditSubmit = async () => {
@@ -139,7 +117,7 @@ const CommentItem = ({ comment, currentUserId, taskId }) => {
               {comment.userName || 'Anonymous'}
             </span>
             <span className="text-sm text-muted-foreground">
-              {formatTime(comment.createdAt)}
+              {formatRelative(comment.createdAt)}
             </span>
             {comment.edited && (
               <span className="text-xs text-muted-foreground italic">

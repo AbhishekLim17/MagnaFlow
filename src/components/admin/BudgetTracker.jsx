@@ -69,6 +69,8 @@ import {
   attachBudgets,
 } from '@/services/budgetService';
 import { reportError } from '@/lib/reportError';
+import { CURRENCIES, DEFAULT_CURRENCY, formatMoney } from '@/lib/money';
+import { formatDate, toInputDate } from '@/lib/format';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -80,17 +82,12 @@ const CATEGORIES = [
   { value: 'other', label: 'Other', color: '#8b5cf6' },
 ];
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'CAD', 'AUD', 'SGD'];
-
 const catColor = (cat) => CATEGORIES.find((c) => c.value === cat)?.color ?? '#8b5cf6';
 const catLabel = (cat) => CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt = (amount, currency = 'USD') =>
-  new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(
-    amount ?? 0
-  );
+const fmt = formatMoney;
 
 const pctColor = (pct) => {
   if (pct == null) return 'text-muted-foreground';
@@ -146,9 +143,9 @@ const BudgetTracker = () => {
   const [editDialog, setEditDialog] = useState({ open: false, expense: null });
 
   // Forms
-  const emptyExpense = { amount: '', description: '', category: 'labor', date: new Date().toISOString().split('T')[0] };
+  const emptyExpense = { amount: '', description: '', category: 'labor', date: toInputDate() };
   const [expenseForm, setExpenseForm] = useState(emptyExpense);
-  const [budgetForm, setBudgetForm] = useState({ budget: '', currency: 'USD', budgetNotes: '' });
+  const [budgetForm, setBudgetForm] = useState({ budget: '', currency: DEFAULT_CURRENCY, budgetNotes: '' });
 
   // ── Load projects ──────────────────────────────────────────────────────────
 
@@ -186,7 +183,7 @@ const BudgetTracker = () => {
     if (selectedProject) {
       setBudgetForm({
         budget: selectedProject.budget || '',
-        currency: selectedProject.currency || 'USD',
+        currency: selectedProject.currency || DEFAULT_CURRENCY,
         budgetNotes: selectedProject.budgetNotes || '',
       });
     }
@@ -283,7 +280,7 @@ const BudgetTracker = () => {
   // ── CSV export ────────────────────────────────────────────────────────────
 
   const exportCSV = () => {
-    const currency = selectedProject?.currency || 'USD';
+    const currency = selectedProject?.currency || DEFAULT_CURRENCY;
     const header = ['Date', 'Description', 'Category', 'Amount (' + currency + ')', 'Added By'];
     const rows = expenses.map((e) => [
       e.date,
@@ -331,7 +328,7 @@ const BudgetTracker = () => {
     );
   }
 
-  const currency = selectedProject?.currency || 'USD';
+  const currency = selectedProject?.currency || DEFAULT_CURRENCY;
   const isOverBudget = summary.pctUsed != null && summary.pctUsed >= 100;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -580,7 +577,7 @@ const BudgetTracker = () => {
                         transition={{ delay: i * 0.03 }}
                         className="border-b border-border/50 hover:bg-muted/40 transition-colors"
                       >
-                        <td className="py-3 px-6 text-muted-foreground whitespace-nowrap">{exp.date}</td>
+                        <td className="py-3 px-6 text-muted-foreground whitespace-nowrap">{formatDate(exp.date)}</td>
                         <td className="py-3 px-4 max-w-xs truncate">{exp.description}</td>
                         <td className="py-3 px-4">
                           <Badge

@@ -14,6 +14,7 @@ import { getOrganizationById } from "@/services/organizationService";
 import { isValidEmail } from "@/utils/validation";
 import { toUserMessage, isTransientError } from "@/lib/errorMessages";
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { formatTime } from '@/lib/format';
 
 const AuthContext = createContext();
 
@@ -173,7 +174,7 @@ export const AuthProvider = ({ children }) => {
       }
       if (limitResult && limitResult.allowed === false) {
         const resetTime = limitResult.blockedUntil
-          ? new Date(limitResult.blockedUntil).toLocaleTimeString()
+          ? formatTime(limitResult.blockedUntil, 'later')
           : 'later';
         throw new Error(`Too many failed attempts. Try again after ${resetTime}`);
       }

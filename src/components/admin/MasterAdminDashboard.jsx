@@ -23,6 +23,7 @@ import { useConfirm } from '@/components/shared/ConfirmDialog';
 import PasswordField from '@/components/shared/PasswordField';
 import FieldError from '@/components/shared/FieldError';
 import { validateNewAccount } from '@/lib/accountForm';
+import { formatDateTime } from '@/lib/format';
 
 const EditOrgDialog = ({ open, onOpenChange, org, onSaved }) => {
   const [form, setForm] = useState({ name: '', plan: 'trial', seatLimit: 10, storageQuotaMB: 1000, billingEmail: '', ccEmails: '' });
@@ -518,7 +519,7 @@ const MasterAdminDashboard = () => {
                       {log.targetUserId && <span className="break-all"> · {userName(log.targetUserId)}</span>}
                     </span>
                     <span className="text-muted-foreground">
-                      {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : ''}
+                      {formatDateTime(log.timestamp)}
                     </span>
                   </div>
                 ))}
@@ -548,7 +549,7 @@ const MasterAdminDashboard = () => {
                     <div className="flex justify-between gap-3">
                       <span className="text-destructive font-medium break-all">{log.message}</span>
                       <span className="text-muted-foreground flex-shrink-0">
-                        {log.createdAt?.toDate ? new Date(log.createdAt.toDate()).toLocaleString() : ''}
+                        {formatDateTime(log.createdAt)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 break-all">

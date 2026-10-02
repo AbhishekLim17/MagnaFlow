@@ -22,6 +22,7 @@ import { useConfirm } from '@/components/shared/ConfirmDialog';
 import PasswordField from '@/components/shared/PasswordField';
 import FieldError from '@/components/shared/FieldError';
 import { validateNewAccount, nameProblem } from '@/lib/accountForm';
+import { formatDate } from '@/lib/format';
 
 const ROLE_LABELS = {
   'department-head': 'Department Head',
@@ -468,7 +469,7 @@ const AdminManagement = () => {
                           </div>
                         )}
                         <div className="text-xs text-muted-foreground mt-2">
-                          Created: {admin.createdAt?.toDate ? new Date(admin.createdAt.toDate()).toLocaleDateString() : 'N/A'}
+                          Created: {formatDate(admin.createdAt, 'N/A')}
                         </div>
                       </div>
                     </div>

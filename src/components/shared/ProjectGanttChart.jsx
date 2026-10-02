@@ -6,6 +6,7 @@
 import React, { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { CheckCircle2, Zap } from 'lucide-react';
 import { computeCriticalPath } from '@/lib/criticalPath';
+import { formatDayMonth } from '@/lib/format';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROW_H  = 44; // px — keep in sync with h-11 (Tailwind)
@@ -32,8 +33,7 @@ const STATUS_STYLES = {
 const CRITICAL_EXTRA =
   'shadow-[0_0_14px_5px_rgba(251,191,36,0.55)] brightness-110';
 
-const fmt = (d) =>
-  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const fmt = (d) => formatDayMonth(d);
 
 // --- Hook: observe width of a DOM element ---
 function useElementWidth(ref) {

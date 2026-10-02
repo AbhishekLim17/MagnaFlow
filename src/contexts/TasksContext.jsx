@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useToast } from '@/components/ui/use-toast';
 import { toUserMessage } from '@/lib/errorMessages';
 import { statusLabel } from '@/lib/taskLabels';
+import { formatDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, getTaskStatistics } from '@/services/taskService';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
@@ -174,7 +175,7 @@ export const TasksProvider = ({ children }) => {
             taskTitle: taskData.title,
             taskDescription: taskData.description || 'No description provided',
             taskPriority: taskData.priority?.charAt(0).toUpperCase() + taskData.priority?.slice(1) || 'Medium',
-            dueDate: (taskData.deadline || taskData.dueDate) ? new Date(taskData.deadline || taskData.dueDate).toLocaleDateString() : 'Not specified',
+            dueDate: (taskData.deadline || taskData.dueDate) ? formatDate(taskData.deadline || taskData.dueDate) : 'Not specified',
             assignedBy: user?.name || 'Admin',
             taskId: newTask.id,
           };

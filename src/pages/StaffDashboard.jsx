@@ -21,6 +21,7 @@ import DashboardLayout from '@/components/shared/DashboardLayout';
 import KanbanBoard from '@/components/shared/KanbanBoard';
 import StatCard from '@/components/shared/StatCard';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
+import { formatDate } from '@/lib/format';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -50,12 +51,6 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
     return badges[status] || badges.pending;
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'No deadline';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -83,7 +78,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
             <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <Clock className="w-4 h-4" />
-                <span>{formatDate(task.deadline)}</span>
+                <span>{formatDate(task.deadline, 'No deadline')}</span>
               </div>
               
               <TooltipProvider>

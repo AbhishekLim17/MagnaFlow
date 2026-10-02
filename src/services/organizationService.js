@@ -23,6 +23,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { DEFAULT_CURRENCY } from '@/lib/money';
 
 const ORGS_COLLECTION = 'organizations';
 
@@ -284,7 +285,7 @@ export const getProjectsByIds = async (orgId, projectIds = []) => {
 
 export const createProject = async (
   orgId,
-  { name, departmentId, memberUserIds = [], budget = 0, currency = 'USD', budgetNotes = '' }
+  { name, departmentId, memberUserIds = [], budget = 0, currency = DEFAULT_CURRENCY, budgetNotes = '' }
 ) => {
   const projRef = doc(collection(db, ORGS_COLLECTION, orgId, 'projects'));
   const projDoc = {
@@ -298,7 +299,7 @@ export const createProject = async (
   // which every member of the organization can read.
   const finance = {
     budget: Number(budget) || 0,
-    currency: currency || 'USD',
+    currency: currency || DEFAULT_CURRENCY,
     budgetNotes: budgetNotes || '',
   };
   const batch = writeBatch(db);

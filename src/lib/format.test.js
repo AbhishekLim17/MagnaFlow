@@ -1,5 +1,8 @@
 import { describe, test, expect } from 'vitest';
-import { toDate, formatDate, formatDateShort, formatDateLong, formatRelative, isPastDay } from './format';
+import {
+  toDate, toInputDate, formatDate, formatDateShort, formatDateLong, formatDayMonth, formatTime, formatDateTime,
+  formatRelative, isPastDay,
+} from './format';
 
 const ts = (d) => ({ toDate: () => d });
 
@@ -10,6 +13,12 @@ describe('toDate', () => {
     expect(toDate(d)).toEqual(d);
     expect(toDate(d.getTime())).toEqual(d);
     expect(toDate('2026-10-06T00:00:00')).toEqual(new Date('2026-10-06T00:00:00'));
+  });
+  test('a bare date is that calendar day locally, not UTC midnight', () => {
+    const d = toDate('2026-10-02');
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2026, 9, 2, 0]);
+    expect(formatDate('2026-10-02')).toBe('2 Oct 2026');
+    expect(toDate('2026-02-31')).not.toBeNull(); // JS rolls over; not our job to validate here
   });
   test('returns null for empty or invalid input', () => {
     for (const v of [null, undefined, '', 'not a date', NaN]) expect(toDate(v)).toBeNull();
@@ -30,6 +39,33 @@ describe('formatting', () => {
     expect(formatDate(null)).toBe('—');
     expect(formatDate(undefined, 'No deadline')).toBe('No deadline');
     expect(formatDateShort('garbage')).toBe('—');
+  });
+});
+
+describe('time and day-month', () => {
+  const d = new Date(2026, 9, 22, 14, 5);
+  test('24-hour clock', () => {
+    expect(formatTime(d)).toBe('14:05');
+    expect(formatTime(null)).toBe('');
+  });
+  test('date and time together', () => {
+    expect(formatDateTime(d)).toMatch(/^22 Oct 2026,? (at )?14:05$/);
+    expect(formatDateTime(undefined)).toBe('');
+  });
+  test('day and month only', () => {
+    expect(formatDayMonth(d)).toBe('22 Oct');
+    expect(formatDayMonth(null)).toBe('—');
+  });
+});
+
+describe('toInputDate', () => {
+  test('is the local calendar day, zero-padded, even late in the evening', () => {
+    expect(toInputDate(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
+    expect(toInputDate(new Date(2026, 9, 22, 0, 1))).toBe('2026-10-22');
+  });
+  test('round-trips through toDate', () => {
+    const d = new Date(2026, 5, 9, 18, 30);
+    expect(formatDate(toInputDate(d))).toBe(formatDate(d));
   });
 });
 

@@ -22,6 +22,7 @@ import { sendCriticalTaskAlert } from './emailService';
 import { deleteAllSubtasksForTask } from './subtaskService';
 import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
 import { getCallerProfile } from './userService';
+import { formatDate } from '@/lib/format';
 
 // Collection reference
 const TASKS_COLLECTION = 'tasks';
@@ -289,7 +290,7 @@ export const updateTask = async (taskId, updates) => {
             toUid: updatedTask.assignedTo,
             taskTitle: updatedTask.title,
             taskDescription: updatedTask.description,
-            dueDate: updatedTask.deadline?.toDate().toLocaleDateString() || 'Not set',
+            dueDate: formatDate(updatedTask.deadline, 'Not set'),
             assignedBy: assignedByName
           });
         }

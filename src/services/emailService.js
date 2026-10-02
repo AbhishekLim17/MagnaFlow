@@ -15,6 +15,7 @@
 
 import { db, auth } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { formatDateTime } from '@/lib/format';
 
 const QUEUE = 'mail_queue';
 const APP_URL = 'https://magnaflow-07sep25.web.app';
@@ -114,7 +115,7 @@ export const sendTaskStatusChangedEmail = async (params) =>
       detail_2_label: 'Previous Status', detail_2_value: params.oldStatus,
       detail_3_label: 'New Status', detail_3_value: params.newStatus,
       detail_4_label: 'Updated by', detail_4_value: params.changedBy,
-      detail_5_label: 'Updated at', detail_5_value: new Date().toLocaleString(),
+      detail_5_label: 'Updated at', detail_5_value: formatDateTime(new Date()),
       button_text: 'View Task Details',
       button_link: APP_URL,
       footer_text: 'Log in to see the complete task progress.',

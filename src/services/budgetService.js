@@ -15,6 +15,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { DEFAULT_CURRENCY } from '@/lib/money';
 
 const orgsCol = 'organizations';
 
@@ -128,7 +129,7 @@ export const updateProjectBudget = async (orgId, projId, budgetFields) => {
       financeRef(orgId, projId),
       {
         budget: Number(budgetFields.budget) || 0,
-        currency: budgetFields.currency || 'USD',
+        currency: budgetFields.currency || DEFAULT_CURRENCY,
         budgetNotes: budgetFields.budgetNotes || '',
       },
       { merge: true }

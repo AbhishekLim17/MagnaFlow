@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { reportError } from '@/lib/reportError';
+import { CURRENCIES, DEFAULT_CURRENCY, formatMoney } from '@/lib/money';
 import {
   getDepartments,
   createDepartment,
@@ -42,7 +43,7 @@ const DepartmentsProjectsManagement = () => {
   const [isDeptDialogOpen, setIsDeptDialogOpen] = useState(false);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
-  const [newProject, setNewProject] = useState({ name: '', departmentId: '', budget: '', currency: 'USD' });
+  const [newProject, setNewProject] = useState({ name: '', departmentId: '', budget: '', currency: DEFAULT_CURRENCY });
   const [deptToDelete, setDeptToDelete] = useState(null);   // fix #11
   const [projectToDelete, setProjectToDelete] = useState(null); // fix #11
 
@@ -106,10 +107,10 @@ const DepartmentsProjectsManagement = () => {
       name: newProject.name.trim(),
       departmentId: newProject.departmentId,
       budget: Number(newProject.budget) || 0,
-      currency: newProject.currency || 'USD',
+      currency: newProject.currency || DEFAULT_CURRENCY,
     });
       toast({ title: 'Project created', description: `"${newProject.name}" has been added.` });
-      setNewProject({ name: '', departmentId: '', budget: '', currency: 'USD' });
+      setNewProject({ name: '', departmentId: '', budget: '', currency: DEFAULT_CURRENCY });
       setIsProjectDialogOpen(false);
       loadAll();
     } catch (error) {
@@ -212,7 +213,7 @@ const DepartmentsProjectsManagement = () => {
                     <p className="text-xs text-muted-foreground">{departmentName(proj.departmentId)}</p>
                     {proj.budget > 0 && (
                       <p className="text-xs font-medium text-emerald-500 mt-0.5">
-                        Budget: {new Intl.NumberFormat(undefined, { style: 'currency', currency: proj.currency || 'USD', maximumFractionDigits: 0 }).format(proj.budget)}
+                        Budget: {formatMoney(proj.budget, proj.currency)}
                       </p>
                     )}
                   </div>
@@ -275,7 +276,7 @@ const DepartmentsProjectsManagement = () => {
                 <Select value={newProject.currency} onValueChange={(v) => setNewProject(p => ({ ...p, currency: v }))}>
                   <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {['USD','EUR','GBP','INR','CAD','AUD','SGD'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
