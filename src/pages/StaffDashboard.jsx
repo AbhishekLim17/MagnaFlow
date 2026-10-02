@@ -22,6 +22,7 @@ import KanbanBoard from '@/components/shared/KanbanBoard';
 import StatCard from '@/components/shared/StatCard';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
+import { filterAndSortTasks, SORT_OPTIONS } from '@/lib/taskFilters';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -156,6 +157,7 @@ const StaffDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [sort, setSort] = useState('newest');
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
@@ -202,15 +204,12 @@ const StaffDashboard = () => {
     if (await deleteTask(taskId)) setSelectedTask(null);
   };
 
-  // Filter tasks based on search and filters
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (task.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
+  // The same search/filter/sort the admin task list uses (lib/taskFilters).
+  const filteredTasks = filterAndSortTasks(
+    tasks,
+    { q: searchQuery, status: statusFilter, priority: priorityFilter, sort },
+    { me: user?.id },
+  );
 
   // Dashboard statistics. Colors are semantic StatCard keys, not raw Tailwind
   // tokens — interpolated class names get stripped by Tailwind's JIT.
@@ -328,11 +327,13 @@ const StaffDashboard = () => {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
+            {/* Wraps instead of squeezing the search box to nothing beside three selects. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+              <div className="relative min-w-[220px] flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tasks..."
+                  aria-label="Search tasks"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-muted border-border"
@@ -344,10 +345,12 @@ const StaffDashboard = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="open">Not finished</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="review">Review</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -360,6 +363,16 @@ const StaffDashboard = () => {
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
                   <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={setSort}>
+                <SelectTrigger className="w-full sm:w-[200px] bg-muted" aria-label="Sort tasks">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -384,17 +397,14 @@ const StaffDashboard = () => {
 
             {/* Tasks List */}
             {viewMode === 'list' && (loading ? (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
-                <p className="mt-4 text-muted-foreground">Loading tasks...</p>
-              </div>
+              <LoadingState label="Loading tasks..." />
             ) : filteredTasks.length === 0 ? (
               <div className="text-center py-12">
                 <CheckSquare className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No tasks found</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' 
-                    ? 'Try adjusting your filters' 
+                  {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all'
+                    ? 'Try adjusting your filters'
                     : 'Create your first task to get started'}
                 </p>
               </div>
