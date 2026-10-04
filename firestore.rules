@@ -187,6 +187,28 @@ service cloud.firestore {
           || (docId == 'seats' && isOrgMember(orgId) && !isClient() && seatBump(orgId)));
       }
 
+      // Task templates: reusable plans of tasks. Everyone inside the organisation who plans
+      // work may read them; admins, department heads and managers may save them; the author
+      // or an org-admin may change or remove one. Clients never see them.
+      match /templates/{templateId} {
+        allow read: if isSignedIn() && !isClient() && (isOrgMember(orgId) || isMasterAdmin());
+        allow create: if isSignedIn() && isOrgMember(orgId)
+          && myRole() in ['org-admin', 'admin', 'department-head', 'manager']
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 120
+          && request.resource.data.items is list
+          && request.resource.data.items.size() <= 300;
+        allow update: if isSignedIn()
+          && (isOrgAdmin(orgId) || (isOrgMember(orgId) && resource.data.createdBy == request.auth.uid))
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.items is list
+          && request.resource.data.items.size() <= 300;
+        allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin()
+          || (isOrgMember(orgId) && resource.data.createdBy == request.auth.uid));
+      }
+
       match /projects/{projId} {
         allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient())
           || isMasterAdmin()

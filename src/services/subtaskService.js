@@ -9,7 +9,8 @@ import {
   orderBy, 
   onSnapshot,
   serverTimestamp,
-  getDocs
+  getDocs,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { recomputeTaskStatus } from './taskStatusUtils';
@@ -58,6 +59,29 @@ export const addSubtask = async (taskId, title, createdBy) => {
     console.error('Error adding subtask:', error);
     throw error;
   }
+};
+
+/**
+ * Add a whole checklist to a task that has just been created (from a template). One batch
+ * write; no status recompute, since a new task is pending and new items are unticked.
+ * @returns {Promise<number>} how many were added
+ */
+export const addSubtasksBulk = async (taskId, titles, createdBy) => {
+  const clean = (titles || []).map((t) => String(t).trim()).filter(Boolean);
+  if (!taskId || !createdBy || clean.length === 0) return 0;
+  const batch = writeBatch(db);
+  for (const title of clean) {
+    batch.set(doc(collection(db, SUBTASKS_COLLECTION)), {
+      taskId,
+      title,
+      completed: false,
+      createdBy,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  return clean.length;
 };
 
 /**

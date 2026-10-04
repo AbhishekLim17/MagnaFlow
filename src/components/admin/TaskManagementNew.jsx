@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, ArrowDownUp } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, ArrowDownUp, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ import TaskFormDialog from '@/components/admin/TaskFormDialog';
 import { getAssignableUsers, getAllUsers } from '@/services/userService';
 import { getProjects, getDepartments, getOrganizationById } from '@/services/organizationService';
 import TaskImportExportDialog from '@/components/admin/TaskImportExportDialog';
+import TemplatesDialog from '@/components/admin/TemplatesDialog';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
@@ -195,6 +196,7 @@ const TaskManagement = () => {
   const [projects, setProjects] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [ioOpen, setIoOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const { designations } = useDesignations();
   // Filters live in the URL (?q=&status=&assignee=&project=&sort=), so a filtered list can be
   // bookmarked, shared and survives Back and a refresh. They used to reset on every visit.
@@ -518,9 +520,13 @@ const TaskManagement = () => {
         <div className="flex items-center justify-between gap-2 sm:justify-end">
           <ViewToggle value={viewMode} onChange={switchView} />
           <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setTemplatesOpen(true)} aria-label="Task templates">
+              <LayoutTemplate aria-hidden="true" />
+              <span className="hidden lg:inline">Templates</span>
+            </Button>
             <Button type="button" variant="outline" onClick={() => setIoOpen(true)} aria-label="Import or export tasks">
               <ArrowDownUp aria-hidden="true" />
-              <span className="hidden sm:inline">Import / export</span>
+              <span className="hidden lg:inline">Import / export</span>
             </Button>
             <Button onClick={() => setIsAddDialogOpen(true)} variant="success">
               <Plus className="w-4 h-4 mr-2" />
@@ -529,6 +535,15 @@ const TaskManagement = () => {
           </div>
         </div>
       </div>
+
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        currentUser={currentUser}
+        projects={projects}
+        people={staff}
+        tasks={tasks}
+      />
 
       <TaskImportExportDialog
         open={ioOpen}

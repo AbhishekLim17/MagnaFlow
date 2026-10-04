@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   sendTaskAssignedEmail: vi.fn(),
   sendCriticalTaskAlert: vi.fn(),
   toast: vi.fn(),
+  addSubtasksBulk: vi.fn(),
 }));
 
 vi.mock('./AuthContext', () => ({ useAuth: () => ({ user: mocks.user, isAuthenticated: Boolean(mocks.user) }) }));
@@ -22,6 +23,7 @@ vi.mock('@/services/taskService', () => ({
   deleteTask: vi.fn(),
   getTaskStatistics: mocks.getTaskStatistics,
 }));
+vi.mock('@/services/subtaskService', () => ({ addSubtasksBulk: mocks.addSubtasksBulk }));
 vi.mock('@/services/emailService', () => ({
   sendTaskAssignedEmail: mocks.sendTaskAssignedEmail,
   sendCriticalTaskAlert: mocks.sendCriticalTaskAlert,
@@ -48,6 +50,54 @@ beforeEach(() => {
     if (t.title === 'boom') throw Object.assign(new Error('denied'), { code: 'permission-denied' });
     n += 1;
     return { id: `new${n}`, ...t };
+  });
+});
+
+describe('createFromPlan', () => {
+  const head = { id: 'h1', name: 'Neha', role: 'department-head', orgId: 'org1', departmentIds: ['d1'], projectIds: [] };
+
+  test('wires each dependency to the task created for it, and adds the checklists', async () => {
+    mocks.addSubtasksBulk.mockResolvedValue(2);
+    await mount(head);
+    let outcome;
+    await act(async () => {
+      outcome = await api.createFromPlan([
+        { key: 't1', dependsOn: [], subtasks: [], task: { title: 'Kick-off' } },
+        { key: 't2', dependsOn: ['t1'], subtasks: ['Mobile', 'Desktop'], task: { title: 'Design' } },
+        { key: 't3', dependsOn: ['t1', 't2'], subtasks: [], task: { title: 'Sign-off', milestone: true } },
+      ]);
+    });
+    const [kick, design, signoff] = mocks.createTask.mock.calls.map((c) => c[0]);
+    expect(kick.blockedBy).toBeUndefined();
+    expect(design).toMatchObject({ title: 'Design', blockedBy: ['new1'], createdBy: 'h1', departmentId: 'd1' });
+    expect(signoff.blockedBy).toEqual(['new1', 'new2']);
+    expect(mocks.addSubtasksBulk).toHaveBeenCalledWith('new2', ['Mobile', 'Desktop'], 'h1');
+    expect(outcome.created).toHaveLength(3);
+    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Tasks created from the template' }));
+  });
+
+  test('a failed prerequisite does not stop the rest; its dependants are created without it', async () => {
+    await mount(head);
+    let outcome;
+    await act(async () => {
+      outcome = await api.createFromPlan([
+        { key: 'a', dependsOn: [], subtasks: [], task: { title: 'boom' } },
+        { key: 'b', dependsOn: ['a'], subtasks: [], task: { title: 'After' } },
+      ]);
+    });
+    expect(outcome.failed).toEqual([expect.objectContaining({ index: 0 })]);
+    expect(mocks.createTask.mock.calls[1][0].blockedBy).toBeUndefined();
+  });
+
+  test('a checklist that cannot be saved does not undo the task', async () => {
+    mocks.addSubtasksBulk.mockRejectedValue(new Error('denied'));
+    await mount(head);
+    let outcome;
+    await act(async () => {
+      outcome = await api.createFromPlan([{ key: 'a', dependsOn: [], subtasks: ['x'], task: { title: 'One' } }]);
+    });
+    expect(outcome.created).toHaveLength(1);
+    expect(outcome.failed).toEqual([]);
   });
 });
 

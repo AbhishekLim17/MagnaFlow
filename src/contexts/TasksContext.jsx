@@ -10,6 +10,7 @@ import { formatDate, toDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, getTaskStatistics } from '@/services/taskService';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
+import { addSubtasksBulk } from '@/services/subtaskService';
 
 const TasksContext = createContext();
 
@@ -211,46 +212,72 @@ export const TasksProvider = ({ children }) => {
   };
 
   /**
-   * Create many tasks at once (CSV import). One summary toast, one statistics refresh at
-   * the end, and emails only when asked for: importing 200 tasks should not send 200
-   * emails unless that is what the person wants. Rows that fail (a project outside the
-   * caller's scope, a dropped connection) are reported back instead of stopping the rest.
+   * Create many tasks at once. One summary toast, one statistics refresh at the end, and
+   * emails only when asked for: creating 200 tasks should not send 200 emails unless that is
+   * what the person wants. A step that fails (a project outside the caller's scope, a dropped
+   * connection) is reported back instead of stopping the rest.
    *
-   * @param {Object[]} taskList  payloads as the task dialogs build them
-   * @param {{ notify?: boolean, onProgress?: (done: number, total: number) => void }} [options]
-   * @returns {Promise<{ created: Object[], failed: { index: number, task: Object, message: string }[] }>}
+   * Each step is { key, dependsOn: [keys of earlier steps], subtasks: [titles], task }. Steps
+   * must come prerequisites-first; a dependency is wired to the task created for that key.
    */
-  const importTasks = async (taskList, { notify = false, onProgress } = {}) => {
+  const createMany = async (steps, { notify = false, onProgress, labels }) => {
     const created = [];
     const failed = [];
-    for (let i = 0; i < taskList.length; i += 1) {
-      const taskData = taskList[i];
+    const idByKey = {};
+    for (let i = 0; i < steps.length; i += 1) {
+      const { key, dependsOn = [], subtasks = [], task: taskData } = steps[i];
       try {
-        const newTask = await createTaskService(stampNewTask(taskData));
+        const blockedBy = dependsOn.map((k) => idByKey[k]).filter(Boolean);
+        const newTask = await createTaskService(stampNewTask(blockedBy.length ? { ...taskData, blockedBy } : taskData));
+        idByKey[key] = newTask.id;
         created.push(newTask);
+        if (subtasks.length) {
+          try {
+            await addSubtasksBulk(newTask.id, subtasks, user.id);
+          } catch (subtaskError) {
+            console.error('Could not add the checklist:', subtaskError);
+          }
+        }
         if (notify) await notifyAssignee(taskData, newTask.id);
       } catch (error) {
         failed.push({ index: i, task: taskData, message: toUserMessage(error, 'Could not create this task.') });
       }
-      onProgress?.(i + 1, taskList.length);
+      onProgress?.(i + 1, steps.length);
     }
     if (created.length) setTasks((prev) => [...created.slice().reverse(), ...prev]);
     await refreshStatistics();
 
     if (failed.length === 0) {
       toast({
-        title: 'Tasks imported',
+        title: labels.done,
         description: `${created.length} task${created.length === 1 ? '' : 's'} added.`,
       });
     } else {
       toast({
-        title: `Imported ${created.length} of ${taskList.length} tasks`,
-        description: `${failed.length} could not be created. The import window lists why.`,
+        title: labels.partial(created.length, steps.length),
+        description: `${failed.length} could not be created. The window lists why.`,
         variant: created.length ? undefined : 'destructive',
       });
     }
     return { created, failed };
   };
+
+  /**
+   * Create tasks from a CSV import.
+   * @param {Object[]} taskList  payloads as the task dialogs build them
+   * @param {{ notify?: boolean, onProgress?: (done: number, total: number) => void }} [options]
+   * @returns {Promise<{ created: Object[], failed: { index: number, task: Object, message: string }[] }>}
+   */
+  const importTasks = (taskList, options = {}) => createMany(
+    taskList.map((task, i) => ({ key: `row${i}`, task })),
+    { ...options, labels: { done: 'Tasks imported', partial: (n, total) => `Imported ${n} of ${total} tasks` } },
+  );
+
+  /** Create the tasks of a template plan (see lib/templates planFromTemplate). */
+  const createFromPlan = (plan, options = {}) => createMany(plan, {
+    ...options,
+    labels: { done: 'Tasks created from the template', partial: (n, total) => `Created ${n} of ${total} tasks` },
+  });
 
   /**
    * Update an existing task. This context is the ONLY place that toasts for task
@@ -440,6 +467,7 @@ export const TasksProvider = ({ children }) => {
     statistics,
     createTask,
     importTasks,
+    createFromPlan,
     updateTask,
     rescheduleTask,
     deleteTask,

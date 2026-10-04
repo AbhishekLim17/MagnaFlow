@@ -1102,3 +1102,50 @@ describe('ordinary members cannot touch each others tasks', () => {
     await assertSucceeds(deleteDoc(t(asUser(ADMIN_A))));
   });
 });
+
+describe('task templates', () => {
+  const tpl = (createdBy, extra = {}) => ({ name: 'Website launch', description: '', items: [{ key: 't1', title: 'Kick-off' }], createdBy, ...extra });
+  const tplRef = (db, id = 'tpl1', org = ORG_A) => doc(db, 'organizations', org, 'templates', id);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(tplRef(ctx.firestore(), 'byHead'), tpl(HEAD_A));
+      await setDoc(tplRef(ctx.firestore(), 'inB', ORG_B), tpl(ADMIN_B));
+    });
+  });
+
+  test('admins, department heads and managers can save one in their own organisation', async () => {
+    await assertSucceeds(setDoc(tplRef(asUser(ADMIN_A), 'n1'), tpl(ADMIN_A)));
+    await assertSucceeds(setDoc(tplRef(asUser(HEAD_A), 'n2'), tpl(HEAD_A)));
+    await assertSucceeds(setDoc(tplRef(asUser(MGR_A), 'n3'), tpl(MGR_A)));
+  });
+
+  test('staff and clients cannot save one; nobody can save into another organisation or as someone else', async () => {
+    await assertFails(setDoc(tplRef(asUser(STAFF_A), 'n1'), tpl(STAFF_A)));
+    await assertFails(setDoc(tplRef(asUser(CLIENT_A), 'n2'), tpl(CLIENT_A)));
+    await assertFails(setDoc(tplRef(asUser(ADMIN_A), 'n3', ORG_B), tpl(ADMIN_A)));
+    await assertFails(setDoc(tplRef(asUser(HEAD_A), 'n4'), tpl(MGR_A)));
+  });
+
+  test('a template must have a name and a bounded list of tasks', async () => {
+    await assertFails(setDoc(tplRef(asUser(ADMIN_A), 'n1'), tpl(ADMIN_A, { name: '' })));
+    await assertFails(setDoc(tplRef(asUser(ADMIN_A), 'n2'), tpl(ADMIN_A, { items: 'lots' })));
+    const tooMany = Array.from({ length: 301 }, (_, i) => ({ key: `t${i}`, title: 'x' }));
+    await assertFails(setDoc(tplRef(asUser(ADMIN_A), 'n3'), tpl(ADMIN_A, { items: tooMany })));
+  });
+
+  test('members read their own organisation’s templates; clients and other organisations cannot', async () => {
+    await assertSucceeds(getDoc(tplRef(asUser(STAFF_A), 'byHead')));
+    await assertSucceeds(getDocs(collection(asUser(MGR_A), 'organizations', ORG_A, 'templates')));
+    await assertFails(getDoc(tplRef(asUser(CLIENT_A), 'byHead')));
+    await assertFails(getDoc(tplRef(asUser(ADMIN_A), 'inB', ORG_B)));
+  });
+
+  test('the author or an org admin may change or delete one; another manager may not', async () => {
+    await assertFails(updateDoc(tplRef(asUser(MGR_A), 'byHead'), { name: 'Mine now' }));
+    await assertFails(deleteDoc(tplRef(asUser(MGR_A), 'byHead')));
+    await assertSucceeds(updateDoc(tplRef(asUser(HEAD_A), 'byHead'), { name: 'Renamed' }));
+    await assertFails(updateDoc(tplRef(asUser(HEAD_A), 'byHead'), { createdBy: MGR_A }));
+    await assertSucceeds(deleteDoc(tplRef(asUser(ADMIN_A), 'byHead')));
+  });
+});
