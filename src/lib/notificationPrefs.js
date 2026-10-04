@@ -11,6 +11,7 @@ export const EMAIL_PREFS = [
   { key: 'critical', label: 'A task of mine becomes critical', help: 'Sent when a task is created or raised to Critical priority.' },
   { key: 'statusChanges', label: 'A task I am involved in changes status', help: '' },
   { key: 'dailyReminder', label: 'Morning reminder of my critical tasks', help: 'Every day at 8:00 AM IST, while any of your critical tasks are open.' },
+  { key: 'clientMessages', label: 'A client writes on a task of mine or signs off a milestone', help: 'For tasks you created or are assigned.' },
 ];
 
 // mail_queue `type` -> the preference that governs it
@@ -21,6 +22,9 @@ const PREF_FOR_TYPE = {
   critical_task_reminder: 'dailyReminder',
   task_completed: 'statusChanges',
   task_status_changed: 'statusChanges',
+  client_message: 'clientMessages',
+  client_approved: 'clientMessages',
+  client_changes_requested: 'clientMessages',
 };
 
 /** Every preference, with "on" filled in for any that were never set. */

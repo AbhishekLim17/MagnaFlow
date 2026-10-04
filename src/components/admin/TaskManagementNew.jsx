@@ -48,6 +48,7 @@ import {
 } from '@/lib/taskFilters';
 import KanbanBoard from '@/components/shared/KanbanBoard';
 import TaskCalendar from '@/components/shared/TaskCalendar';
+import { approvalSummary } from '@/lib/clientThread';
 import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import {
   Tooltip,
@@ -78,6 +79,14 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
             <div className="ml-4 flex flex-wrap items-start justify-end gap-2">
               {task.milestone && (
                 <Badge className="bg-primary-soft text-primary border border-primary/30">◆ Milestone</Badge>
+              )}
+              {approvalSummary(task) && (
+                <Badge className={approvalSummary(task).decision === 'approved'
+                  ? 'bg-success/10 text-success border border-success/30'
+                  : 'bg-warning-soft text-warning border border-warning/40'}
+                >
+                  {approvalSummary(task).decision === 'approved' ? '✓ Client approved' : '✎ Client wants changes'}
+                </Badge>
               )}
               {task.repeat && task.repeating !== false && (
                 <Badge className="bg-muted text-muted-foreground border border-border">↻ {describeRepeat(task.repeat)}</Badge>

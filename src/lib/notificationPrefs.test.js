@@ -3,12 +3,12 @@ import { EMAIL_PREFS, withDefaults, wantsEmail } from './notificationPrefs';
 
 describe('withDefaults', () => {
   test('everything is on until someone turns it off', () => {
-    expect(withDefaults(undefined)).toEqual({ assignments: true, mentions: true, critical: true, statusChanges: true, dailyReminder: true });
-    expect(withDefaults({ mentions: false, unknown: false })).toEqual({ assignments: true, mentions: false, critical: true, statusChanges: true, dailyReminder: true });
+    expect(withDefaults(undefined)).toEqual({ assignments: true, mentions: true, critical: true, statusChanges: true, dailyReminder: true, clientMessages: true });
+    expect(withDefaults({ mentions: false, unknown: false })).toEqual({ assignments: true, mentions: false, critical: true, statusChanges: true, dailyReminder: true, clientMessages: true });
   });
 
   test('one setting per kind of email, each with a label', () => {
-    expect(EMAIL_PREFS.map((p) => p.key)).toEqual(['assignments', 'mentions', 'critical', 'statusChanges', 'dailyReminder']);
+    expect(EMAIL_PREFS.map((p) => p.key)).toEqual(['assignments', 'mentions', 'critical', 'statusChanges', 'dailyReminder', 'clientMessages']);
     expect(EMAIL_PREFS.every((p) => p.label)).toBe(true);
   });
 });
@@ -22,6 +22,9 @@ describe('wantsEmail', () => {
     expect(wantsEmail(prefs, 'critical_task_alert')).toBe(true);
     expect(wantsEmail({ statusChanges: false }, 'task_completed')).toBe(false);
     expect(wantsEmail({ statusChanges: false }, 'task_status_changed')).toBe(false);
+    expect(wantsEmail({ clientMessages: false }, 'client_approved')).toBe(false);
+    // a client's reply notice has no setting (clients have no settings screen)
+    expect(wantsEmail({ clientMessages: false }, 'client_reply')).toBe(true);
   });
 
   test('no settings, or an email type with no setting, is always sent', () => {

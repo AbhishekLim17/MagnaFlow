@@ -390,6 +390,25 @@ service cloud.firestore {
           )
         )
       );
+      // A client's sign-off on a milestone of their own project, once the team has put it
+      // up for review or finished it. Only the clientApproval field changes, it names the
+      // client as the one deciding, and it carries the server's time. The same batch
+      // records the decision in the client conversation (see client_messages).
+      allow update: if isSignedIn() && isClient()
+        && isOrgMember(resource.data.get('orgId', null))
+        && resource.data.get('projectId', null) in myProjectIds()
+        && resource.data.get('milestone', false) == true
+        && resource.data.get('status', null) in ['review', 'completed']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clientApproval'])
+        && request.resource.data.clientApproval.keys().hasOnly(['decision', 'by', 'byName', 'at', 'note'])
+        && request.resource.data.clientApproval.decision in ['approved', 'changes_requested']
+        && request.resource.data.clientApproval.by == request.auth.uid
+        && request.resource.data.clientApproval.at == request.time
+        && request.resource.data.clientApproval.byName is string
+        && request.resource.data.clientApproval.byName.size() <= 120
+        && request.resource.data.clientApproval.note is string
+        && request.resource.data.clientApproval.note.size() <= 2000;
+
       // Admins, the owner of the scope the task sits in, and the task's creator may
       // delete it. Ordinary members of the same department or project may not.
       allow delete: if isSignedIn() && !isClient() && (
@@ -430,6 +449,53 @@ service cloud.firestore {
       );
     }
 
+    // The conversation with a client about a task. Separate from task_comments on purpose:
+    // nothing said inside the team can reach a client by accident. The clients of the
+    // task's project and everyone who can see the task take part. It is a record kept with
+    // an outside party, so nobody edits a message; an org admin may remove one. The mail
+    // job (Admin SDK) flips `notified` once it has emailed the other side.
+    match /client_messages/{messageId} {
+      allow read: if isSignedIn() && (
+        (isClient() && isOrgMember(resource.data.get('orgId', null))
+          && resource.data.get('projectId', null) in myProjectIds())
+        || (!isClient() && taskVisible(taskData(resource.data.get('taskId', null)))));
+
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['orgId', 'projectId', 'taskId', 'authorId', 'authorName',
+             'fromClient', 'kind', 'text', 'notified', 'createdAt'])
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.notified == false
+        && request.resource.data.authorName is string
+        && request.resource.data.authorName.size() <= 120
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 4000
+        && request.resource.data.projectId is string
+        && request.resource.data.orgId == taskData(request.resource.data.taskId).get('orgId', null)
+        && request.resource.data.projectId == taskData(request.resource.data.taskId).get('projectId', null)
+        && (
+          // a client of the task's project
+          (isClient()
+            && isOrgMember(request.resource.data.orgId)
+            && request.resource.data.projectId in myProjectIds()
+            && request.resource.data.fromClient == true
+            && ((request.resource.data.kind == 'message' && request.resource.data.text.size() > 0)
+                // a sign-off is only recorded together with the decision on the task itself
+                || (request.resource.data.kind in ['approved', 'changes_requested']
+                    && getAfter(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('clientApproval', {}).get('by', null) == request.auth.uid
+                    && getAfter(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('clientApproval', {}).get('decision', null) == request.resource.data.kind
+                    && getAfter(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('clientApproval', {}).get('at', null) == request.time)))
+          // or someone on the team who can see the task
+          || (!isClient()
+            && taskVisible(taskData(request.resource.data.taskId))
+            && request.resource.data.fromClient == false
+            && request.resource.data.kind == 'message'
+            && request.resource.data.text.size() > 0)
+        );
+      allow update: if false;
+      allow delete: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
+    }
+
     // Task attachments (metadata; the files live in Storage, see storage.rules)
     match /task_attachments/{attachmentId} {
       allow read: if canSeeTask(resource.data.get('taskId', null));
@@ -457,6 +523,19 @@ service cloud.firestore {
         && request.resource.data.get('mentionedBy', null) == request.auth.uid
         && request.resource.data.get('userId', null) is string
         && get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.get('orgId', null) == myOrgId();
+      // A client tells the task's author and assignee that they wrote, approved or asked
+      // for changes, on a task of their own project, and nobody else.
+      allow create: if isSignedIn() && isClient()
+        && request.resource.data.keys().hasOnly(['userId', 'taskId', 'mentionedBy', 'mentionedByName', 'type',
+             'taskTitle', 'excerpt', 'read', 'createdAt'])
+        && request.resource.data.mentionedBy == request.auth.uid
+        && request.resource.data.type in ['client_message', 'client_approved', 'client_changes_requested']
+        && request.resource.data.read == false
+        && taskData(request.resource.data.taskId).get('orgId', null) == myOrgId()
+        && taskData(request.resource.data.taskId).get('projectId', null) in myProjectIds()
+        && request.resource.data.userId is string
+        && request.resource.data.userId in [taskData(request.resource.data.taskId).get('createdBy', null),
+                                            taskData(request.resource.data.taskId).get('assignedTo', null)];
     }
 
     // Org usage stats â€” master-admin only

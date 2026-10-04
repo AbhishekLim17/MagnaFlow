@@ -238,3 +238,77 @@ describe('email preferences', () => {
     expect(addressesOf(run.mails[0].to)).toContain('bea@b.test');
   });
 });
+
+describe('client conversation emails', () => {
+  const seedConversation = async () => {
+    await clearAll();
+    for (const d of (await db.collection('client_messages').get()).docs) await d.ref.delete();
+    await seedBase();
+    await db.collection('organizations').doc('orgA').collection('projects').doc('pA').set({ name: 'Apollo' });
+    const people = {
+      uM: { name: 'Mo Manager', email: 'mo@a.test', orgId: 'orgA', status: 'active', role: 'manager', projectIds: ['pA'] },
+      uC: { name: 'Cleo Client', email: 'cleo@client.test', orgId: 'orgA', status: 'active', role: 'client', projectIds: ['pA'] },
+      uCgone: { name: 'Old Client', email: 'old@client.test', orgId: 'orgA', status: 'inactive', role: 'client', projectIds: ['pA'] },
+      // same project id in another organization: never told
+      uX: { name: 'Other Org', email: 'x@b.test', orgId: 'orgB', status: 'active', role: 'client', projectIds: ['pA'] },
+    };
+    for (const [id, u] of Object.entries(people)) await db.collection('users').doc(id).set(u);
+    await db.collection('tasks').doc('tM').set({
+      title: 'Design sign-off', orgId: 'orgA', projectId: 'pA', milestone: true, status: 'review',
+      createdBy: 'uM', assignedTo: 'uA1', clientApproval: { decision: 'approved', by: 'uC' },
+    });
+  };
+  const message = (extra) => ({
+    orgId: 'orgA', projectId: 'pA', taskId: 'tM', kind: 'message', text: 'Looks great', notified: false,
+    createdAt: admin.firestore.Timestamp.now(), ...extra,
+  });
+
+  test("a client's sign-off reaches the task's author and assignee; a team reply reaches the project's clients", async () => {
+    await seedConversation();
+    const fromClient = await db.collection('client_messages').add(message({ authorId: 'uC', authorName: 'Cleo Client', fromClient: true, kind: 'approved', text: '' }));
+    const fromTeam = await db.collection('client_messages').add(message({ authorId: 'uM', authorName: 'Mo Manager', fromClient: false, text: 'Thanks!' }));
+
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    const to = run.mails.map((m) => addressesOf(m.to)).join(' ');
+    expect(run.mails).toHaveLength(3);
+    expect(to).toContain('mo@a.test');
+    expect(to).toContain('ann@a.test');
+    expect(to).toContain('cleo@client.test');
+    expect(to).not.toContain('old@client.test');
+    expect(to).not.toContain('x@b.test');
+    // no CC on a client conversation
+    for (const m of run.mails) expect(addressesOf(m.cc)).toBe('""');
+
+    const approval = run.mails.find((m) => addressesOf(m.to).includes('mo@a.test'));
+    expect(approval.subject).toContain('Cleo Client approved “Design sign-off”');
+    const reply = run.mails.find((m) => addressesOf(m.to).includes('cleo@client.test'));
+    expect(reply.subject).toContain('Mo Manager wrote about “Design sign-off”');
+    expect(reply.text).toContain('Apollo');
+
+    for (const ref of [fromClient, fromTeam]) {
+      expect((await ref.get()).data()).toMatchObject({ notified: true });
+    }
+    // told once: the next run sends nothing more
+    expect(runScript('send-queued-emails.cjs').mails).toHaveLength(0);
+  });
+
+  test('a team member who turned client emails off is not told', async () => {
+    await seedConversation();
+    await db.collection('users').doc('uA1').update({ notificationPrefs: { clientMessages: false } });
+    await db.collection('client_messages').add(message({ authorId: 'uC', authorName: 'Cleo Client', fromClient: true }));
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    expect(run.mails).toHaveLength(1);
+    expect(addressesOf(run.mails[0].to)).toContain('mo@a.test');
+  });
+
+  test('a message that no longer matches its task is not mailed', async () => {
+    await seedConversation();
+    const stray = await db.collection('client_messages').add(message({ authorId: 'uC', fromClient: true, projectId: 'pOther' }));
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    expect(run.mails).toHaveLength(0);
+    expect((await stray.get()).data()).toMatchObject({ notified: true, notifyResult: 'task no longer matches' });
+  });
+});

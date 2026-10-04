@@ -16,6 +16,7 @@ const admin = require('firebase-admin');
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
+const { sendClientUpdates } = require('./lib/clientUpdates.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -33,6 +34,29 @@ async function main() {
   // The same rules the settings screen describes.
   const { wantsEmail } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'lib', 'notificationPrefs.js')).href);
 
+  // Made on first use, so a run with nothing to send needs no mail credentials.
+  let transport = null;
+  const getTransport = () => (transport ||= createTransport());
+  const queue = await drainQueue(db, tenant, getTransport, wantsEmail);
+
+  // Then the client conversations: tell the other side about new messages.
+  const conv = await sendClientUpdates({
+    db, admin, tenant, wantsEmail,
+    transport: null,
+    send: (_unused, mail) => sendNotification(getTransport(), mail),
+    dryRun: DRY_RUN,
+    log: (mail, orgId, status) => logEmail(db, null, { ...mail, source: 'client_conversation' }, orgId, status),
+  });
+  if (conv.messages) {
+    console.log(`Client conversation: ${conv.messages} message(s), sent ${conv.sent}, skipped ${conv.skipped}, failed ${conv.failed}.`);
+  }
+
+  // A single bad address should not turn the whole run red; a run where nothing
+  // got through should.
+  if (!DRY_RUN && queue.sent + conv.sent === 0 && queue.failed + conv.failed > 0) process.exit(1);
+}
+
+async function drainQueue(db, tenant, getTransport, wantsEmail) {
   const snap = await db
     .collection('mail_queue')
     .where('status', '==', 'pending')
@@ -42,12 +66,11 @@ async function main() {
 
   if (snap.empty) {
     console.log('Queue is empty, nothing to send.');
-    return;
+    return { sent: 0, failed: 0 };
   }
 
   console.log(`${snap.size} queued email(s)${DRY_RUN ? ' (dry run, nothing will be sent)' : ''}`);
 
-  const transport = DRY_RUN ? null : createTransport();
   let sent = 0;
   let failed = 0;
   let rejected = 0;
@@ -102,7 +125,7 @@ async function main() {
     }
 
     try {
-      await sendNotification(transport, payload);
+      await sendNotification(getTransport(), payload);
       await doc.ref.update({
         status: 'sent',
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -132,12 +155,10 @@ async function main() {
 
   if (DRY_RUN) {
     console.log('\nDry run complete. No mail sent, queue untouched.');
-    return;
+    return { sent: 0, failed: 0 };
   }
   console.log(`\nDone. Sent ${sent}, failed ${failed}, rejected ${rejected}, turned off by the recipient ${optedOut}.`);
-  // A single bad address should not turn the whole run red; a run where nothing
-  // got through should.
-  if (sent === 0 && failed > 0) process.exit(1);
+  return { sent, failed };
 }
 
 async function verify(tenant, data) {

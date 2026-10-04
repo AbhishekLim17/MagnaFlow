@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, CheckCircle2, Clock, AlertTriangle, LogOut, Sun, Moon } from "lucide-react";
+import { FolderOpen, CheckCircle2, Clock, AlertTriangle, LogOut, Sun, Moon, MessageSquare } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,10 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import { isOverdueTask, summarizeProject } from "@/lib/taskState";
 import { formatDate, toDate } from "@/lib/format";
 import { statusLabel } from "@/lib/taskLabels";
+import { listProjectMessages, sendClientMessage, decideMilestone } from "@/services/clientMessageService";
+import { groupByTask } from "@/lib/clientThread";
+import ClientThread from "@/components/shared/ClientThread";
+import MilestoneSignOff from "@/components/client/MilestoneSignOff";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +48,8 @@ const ClientPortal = () => {
   // The organisation's look (logo, colour, welcome note) and name, set by their admin.
   const [branding, setBranding] = useState(EMPTY_BRANDING);
   const [orgName, setOrgName] = useState("");
+  // The conversation with the team on this project's tasks (and milestone sign-offs).
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
     if (!currentUser?.orgId) return undefined;
@@ -90,6 +96,39 @@ const ClientPortal = () => {
     })();
     return () => { cancelled = true; };
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser?.orgId || !activeProjectId) return undefined;
+    let cancelled = false;
+    setMessages([]);
+    listProjectMessages(currentUser.orgId, activeProjectId)
+      .then((list) => { if (!cancelled) setMessages(list); })
+      .catch((err) => reportError(err, { title: "Couldn't load your messages", silent: true }));
+    return () => { cancelled = true; };
+  }, [currentUser?.orgId, activeProjectId]);
+
+  const messagesByTask = useMemo(() => groupByTask(messages), [messages]);
+
+  const sendMessage = async (task, text) => {
+    try {
+      const message = await sendClientMessage({ task, author: currentUser, fromClient: true, text });
+      setMessages((list) => [...list, message]);
+    } catch (err) {
+      reportError(err, { title: "Couldn't send your message" });
+      throw err;
+    }
+  };
+
+  const decide = async (task, decision, note) => {
+    try {
+      const { approval, message } = await decideMilestone({ task, author: currentUser, decision, note });
+      setTasks((list) => list.map((t) => (t.id === task.id ? { ...t, clientApproval: approval } : t)));
+      setMessages((list) => [...list, message]);
+    } catch (err) {
+      reportError(err, { title: "Couldn't send your decision" });
+      throw err;
+    }
+  };
 
   // Group tasks by project
   const tasksByProject = useMemo(() => {
@@ -289,15 +328,20 @@ const ClientPortal = () => {
                           const done = m.status === 'completed';
                           const overdue = isOverdueTask(m);
                           return (
-                            <li key={m.id} className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
-                              <span
-                                aria-hidden="true"
-                                className={`h-3 w-3 shrink-0 rotate-45 rounded-[2px] ${done ? 'bg-success-accent' : overdue ? 'bg-destructive' : 'bg-primary'}`}
-                              />
-                              <span className={`flex-1 text-sm font-medium ${m.status === 'cancelled' ? 'line-through text-muted-foreground' : ''}`}>{m.title}</span>
-                              <span className={`text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                {done ? 'Reached' : overdue ? 'Was due' : 'Due'} {m.deadline ? formatDate(m.deadline) : 'date to be set'}
-                              </span>
+                            <li key={m.id} className="space-y-2 rounded-lg border border-border px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <span
+                                  aria-hidden="true"
+                                  className={`h-3 w-3 shrink-0 rotate-45 rounded-[2px] ${done ? 'bg-success-accent' : overdue ? 'bg-destructive' : 'bg-primary'}`}
+                                />
+                                <span className={`flex-1 text-sm font-medium ${m.status === 'cancelled' ? 'line-through text-muted-foreground' : ''}`}>{m.title}</span>
+                                <span className={`text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                  {done ? 'Reached' : m.status === 'review' ? 'Ready for review' : overdue ? 'Was due' : 'Due'} {m.deadline ? formatDate(m.deadline) : 'date to be set'}
+                                </span>
+                              </div>
+                              <div className="pl-6">
+                                <MilestoneSignOff task={m} onDecide={decide} />
+                              </div>
                             </li>
                           );
                         })}
@@ -353,13 +397,26 @@ const ClientPortal = () => {
                                   {overdue && (
                                     <span className="text-[10px] font-medium text-destructive">Overdue</span>
                                   )}
+                                  {messagesByTask[task.id]?.length > 0 && (
+                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                      <MessageSquare className="h-3 w-3" aria-hidden="true" />
+                                      {messagesByTask[task.id].length} {messagesByTask[task.id].length === 1 ? "message" : "messages"}
+                                    </span>
+                                  )}
                                 </div>
                               </summary>
-                              {task.description && (
-                                <div className="px-4 pb-3 border-t border-border text-xs text-muted-foreground">
-                                  {task.description}
-                                </div>
-                              )}
+                              <div className="space-y-4 border-t border-border px-4 py-3">
+                                {task.description && (
+                                  <p className="text-xs text-muted-foreground">{task.description}</p>
+                                )}
+                                <ClientThread
+                                  messages={messagesByTask[task.id] || []}
+                                  viewerIsClient
+                                  onSend={(text) => sendMessage(task, text)}
+                                  composeLabel="Write to the project team"
+                                  emptyText="Questions or feedback on this? Write to the team here."
+                                />
+                              </div>
                             </details>
                           </div>
                         );

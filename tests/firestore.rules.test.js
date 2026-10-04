@@ -1240,3 +1240,111 @@ describe('client portal branding', () => {
     await assertSucceeds(setDoc(brandDoc(db), { accent: null, logo: null, welcome: '' }));
   });
 });
+
+describe('client conversation and milestone sign-off', () => {
+  const msg = (taskId, projectId, extra = {}) => ({
+    orgId: ORG_A, projectId, taskId, authorId: CLIENT_A, authorName: 'Acme', fromClient: true,
+    kind: 'message', text: 'Hello', notified: false, createdAt: serverTimestamp(), ...extra,
+  });
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'tasks', 'mileA'), {
+        title: 'Design sign-off', orgId: ORG_A, departmentId: DEPT_A, projectId: PROJ_A, milestone: true,
+        assignedTo: STAFF_SCOPED, createdBy: MGR_A, status: 'review',
+      });
+      await setDoc(doc(db, 'tasks', 'mileA2'), {
+        title: 'Other project', orgId: ORG_A, departmentId: 'deptOther', projectId: PROJ_A2, milestone: true,
+        assignedTo: STAFF_A, createdBy: ADMIN_A, status: 'review',
+      });
+      await setDoc(doc(db, 'client_messages', 'm1'), { ...msg('mileA', PROJ_A), createdAt: new Date() });
+      await setDoc(doc(db, 'client_messages', 'm2'), { ...msg('mileA2', PROJ_A2), createdAt: new Date() });
+    });
+  });
+
+  test("a client reads their project's conversation, not another project's", async () => {
+    const db = asUser(CLIENT_A);
+    await assertSucceeds(getDocs(query(collection(db, 'client_messages'), where('orgId', '==', ORG_A), where('projectId', '==', PROJ_A))));
+    await assertFails(getDocs(query(collection(db, 'client_messages'), where('orgId', '==', ORG_A), where('projectId', '==', PROJ_A2))));
+    await assertFails(getDoc(doc(db, 'client_messages', 'm2')));
+  });
+
+  test('the team reads it through the task; outsiders do not', async () => {
+    await assertSucceeds(getDocs(query(collection(asUser(MGR_A), 'client_messages'), where('taskId', '==', 'mileA'))));
+    await assertSucceeds(getDocs(query(collection(asUser(STAFF_SCOPED), 'client_messages'), where('taskId', '==', 'mileA'))));
+    await assertFails(getDocs(query(collection(asUser(STAFF_B), 'client_messages'), where('taskId', '==', 'mileA'))));
+  });
+
+  test('a client writes on their own project, as themselves', async () => {
+    const db = asUser(CLIENT_A);
+    await assertSucceeds(addDoc(collection(db, 'client_messages'), msg('mileA', PROJ_A)));
+    await assertFails(addDoc(collection(db, 'client_messages'), msg('mileA2', PROJ_A2)));
+    await assertFails(addDoc(collection(db, 'client_messages'), msg('mileA', PROJ_A, { authorId: MGR_A })));
+    await assertFails(addDoc(collection(db, 'client_messages'), msg('mileA', PROJ_A, { fromClient: false })));
+    await assertFails(addDoc(collection(db, 'client_messages'), msg('mileA', PROJ_A, { text: '' })));
+    await assertFails(addDoc(collection(db, 'client_messages'), msg('mileA', PROJ_A, { notified: true })));
+    // claiming a sign-off without making it on the task
+    await assertFails(addDoc(collection(db, 'client_messages'), msg('mileA', PROJ_A, { kind: 'approved' })));
+  });
+
+  test('the team replies on tasks they can see, never posing as the client', async () => {
+    const team = (uid, extra = {}) => msg('mileA', PROJ_A, { authorId: uid, fromClient: false, ...extra });
+    await assertSucceeds(addDoc(collection(asUser(MGR_A), 'client_messages'), team(MGR_A)));
+    await assertSucceeds(addDoc(collection(asUser(STAFF_SCOPED), 'client_messages'), team(STAFF_SCOPED)));
+    await assertFails(addDoc(collection(asUser(MGR_A), 'client_messages'), team(MGR_A, { fromClient: true })));
+    await assertFails(addDoc(collection(asUser(STAFF_B), 'client_messages'), team(STAFF_B)));
+    await assertFails(addDoc(collection(asUser(MGR_A), 'client_messages'), team(MGR_A, { projectId: PROJ_A2 })));
+  });
+
+  test('messages are a record: nobody edits them; only an org admin removes one', async () => {
+    await assertFails(updateDoc(doc(asUser(CLIENT_A), 'client_messages', 'm1'), { text: 'changed' }));
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'client_messages', 'm1'), { notified: true }));
+    await assertFails(deleteDoc(doc(asUser(CLIENT_A), 'client_messages', 'm1')));
+    await assertFails(deleteDoc(doc(asUser(MGR_A), 'client_messages', 'm1')));
+    await assertSucceeds(deleteDoc(doc(asUser(ADMIN_A), 'client_messages', 'm1')));
+  });
+
+  const decide = (db, taskId, projectId, decision, approvalExtra = {}) => {
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'tasks', taskId), {
+      clientApproval: { decision, by: CLIENT_A, byName: 'Acme', at: serverTimestamp(), note: 'ok', ...approvalExtra },
+    });
+    batch.set(doc(collection(db, 'client_messages')), msg(taskId, projectId, { kind: decision, text: 'ok' }));
+    return batch.commit();
+  };
+
+  test('a client approves a milestone in review, or asks for changes, recorded in one write', async () => {
+    const db = asUser(CLIENT_A);
+    await assertSucceeds(decide(db, 'mileA', PROJ_A, 'approved'));
+    await assertSucceeds(decide(db, 'mileA', PROJ_A, 'changes_requested'));
+  });
+
+  test('but not on another project, not before review, not for someone else, and nothing else on the task', async () => {
+    const db = asUser(CLIENT_A);
+    await assertFails(decide(db, 'mileA2', PROJ_A2, 'approved'));
+    await assertFails(decide(db, 'mileA', PROJ_A, 'approved', { by: MGR_A }));
+    await assertFails(decide(db, 'mileA', PROJ_A, 'approved', { at: Timestamp.fromDate(new Date('2020-01-01')) }));
+    await assertFails(decide(db, 'mileA', PROJ_A, 'shipped'));
+    await assertFails(updateDoc(doc(db, 'tasks', 'mileA'), { status: 'completed' }));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'tasks', 'mileA'), { status: 'in-progress' });
+    });
+    await assertFails(decide(db, 'mileA', PROJ_A, 'approved'));
+    await assertFails(decide(db, 'taskA', PROJ_A, 'approved'));
+  });
+
+  test("a client's bell notification reaches only the task's author and assignee", async () => {
+    const db = asUser(CLIENT_A);
+    const note = (userId, extra = {}) => ({
+      userId, taskId: 'mileA', mentionedBy: CLIENT_A, mentionedByName: 'Acme', type: 'client_message',
+      taskTitle: 'Design sign-off', excerpt: 'Hello', read: false, createdAt: serverTimestamp(), ...extra,
+    });
+    await assertSucceeds(addDoc(collection(db, 'comment_notifications'), note(MGR_A)));
+    await assertSucceeds(addDoc(collection(db, 'comment_notifications'), note(STAFF_SCOPED, { type: 'client_approved' })));
+    await assertFails(addDoc(collection(db, 'comment_notifications'), note(ADMIN_A)));
+    await assertFails(addDoc(collection(db, 'comment_notifications'), note(MGR_A, { type: 'mention' })));
+    await assertFails(addDoc(collection(db, 'comment_notifications'), note(MGR_A, { taskId: 'mileA2' })));
+    await assertFails(addDoc(collection(db, 'comment_notifications'), note(MGR_A, { mentionedBy: MGR_A })));
+  });
+});

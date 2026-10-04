@@ -8,6 +8,7 @@ import { Calendar, User, Clock, CheckCircle, Edit, Trash2, ListChecks, Plus, Loc
 import SubtaskList from '../SubtaskList';
 import AddSubtaskDialog from '../AddSubtaskDialog';
 import CommentSection from '../tasks/CommentSection';
+import ClientConversation from '../tasks/ClientConversation';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -249,6 +250,13 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                   Delete task
                 </Button>
               )}
+            </div>
+          )}
+
+          {/* What the client sees and says (project tasks only) */}
+          {task.projectId && (
+            <div className="pt-6 border-t border-border">
+              <ClientConversation task={task} />
             </div>
           )}
 

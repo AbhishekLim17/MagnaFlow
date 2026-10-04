@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToUnreadNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
-import { Bell, Mail, MessageSquare, X } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle2, Mail, MessageSquare, Users, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -9,6 +9,10 @@ import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { formatRelative } from '@/lib/format';
 import { taskLink } from '@/lib/taskLink';
 import NotificationSettingsDialog from './NotificationSettingsDialog';
+import { clientNotificationText } from '@/lib/clientThread';
+
+// What a client did (see lib/clientThread); anything else is an @mention.
+const ICON_FOR = { client_message: Users, client_approved: CheckCircle2, client_changes_requested: AlertTriangle };
 
 /**
  * NotificationBell Component
@@ -175,7 +179,7 @@ const NotificationBell = () => {
                 <div className="p-8 text-center text-muted-foreground">
                   <Bell className="w-12 h-12 mx-auto mb-2 text-muted-foreground" aria-hidden="true" />
                   <p>You're all caught up</p>
-                  <p className="text-xs mt-1">New @mentions will show up here.</p>
+                  <p className="text-xs mt-1">New @mentions and messages from clients will show up here.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
@@ -188,19 +192,23 @@ const NotificationBell = () => {
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center">
-                          <MessageSquare className="w-5 h-5 text-primary" aria-hidden="true" />
+                          {React.createElement(ICON_FOR[notification.type] || MessageSquare, { className: 'w-5 h-5 text-primary', 'aria-hidden': true })}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground">
-                            <span className="font-semibold">{notification.mentionedByName || 'Someone'}</span>
-                            {' '}mentioned you
-                            {notification.taskTitle ? (
-                              <>
-                                {' '}on <span className="font-medium">“{notification.taskTitle}”</span>
-                              </>
-                            ) : ' in a comment'}
-                          </p>
+                          {clientNotificationText(notification) ? (
+                            <p className="text-sm text-foreground">{clientNotificationText(notification)}</p>
+                          ) : (
+                            <p className="text-sm text-foreground">
+                              <span className="font-semibold">{notification.mentionedByName || 'Someone'}</span>
+                              {' '}mentioned you
+                              {notification.taskTitle ? (
+                                <>
+                                  {' '}on <span className="font-medium">“{notification.taskTitle}”</span>
+                                </>
+                              ) : ' in a comment'}
+                            </p>
+                          )}
                           {notification.excerpt && (
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                               {notification.excerpt}

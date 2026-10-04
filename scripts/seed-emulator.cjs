@@ -110,6 +110,7 @@ async function reset() {
   const collections = [
     'users', 'tasks', 'organizations', 'designations',
     'audit_logs', 'error_logs', 'subtasks', 'task_comments',
+    'client_messages', 'comment_notifications',
   ];
   for (const name of collections) {
     const snap = await db.collection(name).get();
@@ -190,6 +191,23 @@ async function seed() {
     });
     taskRefs[title] = ref.id;
   }
+
+  // A milestone the team has put up for the client's sign-off, with the team's note to the
+  // client, so the portal's Approve / Request changes and the conversation have something to show.
+  const signOff = await db.collection('tasks').add({
+    title: 'Design review sign-off',
+    description: 'The client approves the final designs before build starts.',
+    status: 'review', priority: 'high', milestone: true,
+    assignedTo: 'u-staff1', createdBy: 'u-manager',
+    orgId: ORG_ID, departmentId: DEPT_ENG, projectId: PROJ_APOLLO,
+    startDate: day(2), deadline: day(2), createdAt: day(-6),
+  });
+  await db.collection('client_messages').add({
+    orgId: ORG_ID, projectId: PROJ_APOLLO, taskId: signOff.id,
+    authorId: 'u-manager', authorName: 'Rohit Manager', fromClient: false, kind: 'message',
+    text: 'The final designs are attached to this milestone. Please approve, or tell us what to change.',
+    notified: true, createdAt: day(-1),
+  });
 
   // Fix #17: Wire up representative dependencies between Apollo tasks
   // Billing reconciliation -> Migrate warehouse -> (Instrument funnel | Rewrite onboarding emails)
