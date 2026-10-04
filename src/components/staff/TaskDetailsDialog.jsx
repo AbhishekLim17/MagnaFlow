@@ -18,7 +18,7 @@ import { useTasks } from '@/contexts/TasksContext';
 import { formatDate, formatDateLong } from '@/lib/format';
 import { statusLabel, priorityLabel } from '@/lib/taskLabels';
 import { describeDeadline, isOverdueTask } from '@/lib/taskState';
-import { isResolved } from '@/lib/dependencies';
+import { blocksStatus, describeLink, isDefaultLink, linkOf } from '@/lib/dependencyLinks';
 import { describeRepeat } from '@/lib/recurrence';
 
 const PRIORITY_STYLES = {
@@ -86,9 +86,13 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
   // prerequisite they cannot see is still listed, just without a name.
   const prerequisites = (Array.isArray(task.blockedBy) ? task.blockedBy : []).map((id) => {
     const found = (tasks || []).find((t) => t.id === id);
-    return { id, title: found?.title, status: found?.status, known: Boolean(found) };
+    return { id, title: found?.title, status: found?.status, known: Boolean(found), link: linkOf(task, id) };
   });
-  const waitingOn = prerequisites.filter((p) => !p.known || !isResolved(p.status));
+  // Still holding something up, by how it is linked (a start-to-start prerequisite that has
+  // started holds nothing up any more).
+  const waitingOn = prerequisites.filter((p) => !p.known
+    || blocksStatus(p.link, p.status, 'in-progress') || blocksStatus(p.link, p.status, 'completed'));
+  const plainLinks = waitingOn.every((p) => isDefaultLink(p.link));
 
   const handleStatusChange = (newStatus) => {
     if (onStatusChange) onStatusChange(task.id, newStatus);
@@ -144,10 +148,15 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                   <li key={p.id} className="flex flex-wrap items-center gap-x-2">
                     <span className="font-medium">{p.known ? p.title || 'Untitled task' : 'A task you cannot see'}</span>
                     {p.known && <span className="text-muted-foreground">· {statusLabel(p.status)}</span>}
+                    {!isDefaultLink(p.link) && <span className="text-muted-foreground">· {describeLink(p.link)}</span>}
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-xs text-muted-foreground">This task cannot be started until these are completed.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {plainLinks
+                  ? 'This task cannot be started until these are completed.'
+                  : 'Finish to start: it waits for them to finish. Start to start: for them to start. Finish to finish: it cannot be completed before them.'}
+              </p>
             </div>
           )}
 

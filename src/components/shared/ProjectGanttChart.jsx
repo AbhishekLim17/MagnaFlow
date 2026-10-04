@@ -17,8 +17,9 @@ import { computeCriticalPath } from '@/lib/criticalPath';
 import { isResolved } from '@/lib/dependencies';
 import { formatDayMonth, toDate } from '@/lib/format';
 import {
-  addDays, startOfDay, axisTicks, routeDependency, roundedPath, dependencyKind, shiftRange,
+  addDays, startOfDay, axisTicks, routeLink, roundedPath, dependencyKind, shiftRange,
 } from '@/lib/ganttLayout';
+import { linkOf, violates, describeLink, isDefaultLink } from '@/lib/dependencyLinks';
 import { dayKey } from '@/lib/calendarLayout';
 
 const ROW_H = 48; // px - keep in sync with h-12 (Tailwind)
@@ -223,18 +224,24 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
         const pred = shown(rows[predIdx]);
         const succNow = shown(succ);
 
+        // How this task depends on that one: finish-to-start unless set otherwise, plus any lag.
+        const link = linkOf(succ.task, predId);
         const kind = dependencyKind(
           { start: pred.start, end: pred.end, resolved: isResolved(pred.rawStatus), critical: pred.isCritical },
-          { start: succNow.start, critical: succ.isCritical },
+          { start: succNow.start, end: succNow.end, critical: succ.isCritical },
+          (p, s) => violates(link, p, s),
         );
-        const { points } = routeDependency({
-          exitX: geo(pred).rightPx,
-          exitY: predIdx * ROW_H + ROW_H / 2,
-          // one pixel short, so the arrowhead touches the bar instead of overlapping its edge
-          entryX: geo(succ).leftPx - 1,
-          entryY: succIdx * ROW_H + ROW_H / 2,
+        const pg = geo(pred);
+        const sg = geo(succ);
+        const { points } = routeLink(
+          link.type,
+          { leftPx: pg.leftPx, rightPx: pg.rightPx, y: predIdx * ROW_H + ROW_H / 2 },
+          { leftPx: sg.leftPx, rightPx: sg.rightPx, y: succIdx * ROW_H + ROW_H / 2 },
+        );
+        out.push({
+          key: `${predId}->${succ.id}`, predId, succId: succ.id, kind, type: link.type,
+          label: describeLink(link), d: roundedPath(points, CORNER_RADIUS),
         });
-        out.push({ key: `${predId}->${succ.id}`, predId, succId: succ.id, kind, d: roundedPath(points, CORNER_RADIUS) });
       });
     });
     return out.sort((a, b) => EDGE_ORDER.indexOf(a.kind) - EDGE_ORDER.indexOf(b.kind));
@@ -332,7 +339,10 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
   const waitingOn = (r) => r.blockedBy
     .map((id) => rows[rowIndex[id]])
     .filter((p) => p && p.id !== r.id && !isResolved(p.rawStatus))
-    .map((p) => p.title);
+    .map((p) => {
+      const link = linkOf(r.task, p.id);
+      return isDefaultLink(link) ? p.title : `${p.title} (${describeLink(link).toLowerCase()})`;
+    });
 
   return (
     <div className="w-full">
@@ -556,6 +566,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
                       data-kind={e.kind}
                       data-from={e.predId}
                       data-to={e.succId}
+                      data-type={e.type}
                       style={{ opacity, transition: 'opacity 120ms ease' }}
                     >
                       <path
@@ -605,7 +616,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
             </div>
           )}
           <LegendLine label="Dependency" kind="open" />
-          {hasConflict && <LegendLine label="Starts before its prerequisite ends" kind="conflict" />}
+          {hasConflict && <LegendLine label="Scheduled earlier than its prerequisite allows" kind="conflict" />}
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-3 border-l border-dashed border-destructive/60" /> Today
           </div>

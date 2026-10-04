@@ -156,10 +156,37 @@ describe('ProjectGanttChart dependencies', () => {
 
   test('the legend explains the red dashed line only when the chart has one', () => {
     const { unmount } = render(<ProjectGanttChart tasks={[long, first, after()]} />);
-    expect(screen.queryByText(/starts before its prerequisite ends/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/earlier than its prerequisite allows/i)).not.toBeInTheDocument();
     unmount();
     render(<ProjectGanttChart tasks={[long, first, after({ startDate: ts('2026-03-04') })]} />);
-    expect(screen.getByText(/starts before its prerequisite ends/i)).toBeInTheDocument();
+    expect(screen.getByText(/earlier than its prerequisite allows/i)).toBeInTheDocument();
+  });
+
+  test('start-to-start and finish-to-finish links follow their own rule', () => {
+    // starts while Survey is still running: fine for start-to-start, a clash for finish-to-start
+    const overlap = { startDate: ts('2026-03-04'), deadline: ts('2026-03-12') };
+    render(<ProjectGanttChart tasks={[long, first, after({ ...overlap, dependencyLinks: { a: { type: 'SS' } } })]} />);
+    const line = screen.getByTestId('gantt-dependency');
+    expect(line).toHaveAttribute('data-type', 'SS');
+    expect(line).toHaveAttribute('data-kind', 'open');
+  });
+
+  test('a finish-to-finish link clashes only when the task would finish first', () => {
+    const { unmount } = render(<ProjectGanttChart tasks={[long, first, after({
+      startDate: ts('2026-03-03'), deadline: ts('2026-03-05'), dependencyLinks: { a: { type: 'FF' } },
+    })]} />);
+    expect(kinds()).toEqual(['conflict']);
+    unmount();
+    render(<ProjectGanttChart tasks={[long, first, after({
+      startDate: ts('2026-03-03'), deadline: ts('2026-03-06'), dependencyLinks: { a: { type: 'FF' } },
+    })]} />);
+    expect(kinds()).toEqual(['open']);
+  });
+
+  test('lag counts: two days of lag after the prerequisite', () => {
+    render(<ProjectGanttChart tasks={[long, first, after({ startDate: ts('2026-03-08'), dependencyLinks: { a: { type: 'FS', lag: 2 } } })]} />);
+    expect(kinds()).toEqual(['conflict']);
+    expect(screen.getByRole('img', { name: /Report:.*waits for Survey \(finish to start \+ 2 days\)/ })).toBeInTheDocument();
   });
 
   test('a bar tells people who cannot see the lines what it is waiting for', () => {

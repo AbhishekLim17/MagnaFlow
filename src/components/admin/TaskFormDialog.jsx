@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { dependsOn } from '@/lib/dependencies';
+import { LINK_TYPES, MAX_LAG, normalizeLink } from '@/lib/dependencyLinks';
 import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -253,28 +254,59 @@ const TaskFormDialog = ({
                 </SelectContent>
               </Select>
               {(formData.blockedBy || []).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <ul className="mt-2 space-y-2" aria-label="Prerequisites">
                   {(formData.blockedBy || []).map((depId) => {
                     const dep = tasks.find((t) => t.id === depId);
                     if (!dep) return null;
+                    // How this task depends on it: finish-to-start unless changed, plus a lag in days.
+                    const link = normalizeLink(formData.dependencyLinks?.[depId]);
+                    const setLink = (patch) => set({
+                      dependencyLinks: { ...(formData.dependencyLinks || {}), [depId]: normalizeLink({ ...link, ...patch }) },
+                    });
                     return (
-                      <span
-                        key={depId}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs px-2.5 py-0.5 border border-primary/20"
-                      >
-                        {dep.title}
+                      <li key={depId} className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                        <span className="min-w-0 flex-1 basis-40 font-medium text-foreground">{dep.title}</span>
+                        <select
+                          aria-label={`How this task depends on ${dep.title}`}
+                          className="h-9 rounded-lg border border-border bg-muted px-2 text-sm"
+                          value={link.type}
+                          onChange={(e) => setLink({ type: e.target.value })}
+                        >
+                          {LINK_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={-MAX_LAG}
+                            max={MAX_LAG}
+                            step={1}
+                            aria-label={`Lag in days after ${dep.title}`}
+                            className="h-9 w-16 rounded-lg border border-border bg-muted px-2 text-sm text-foreground"
+                            value={link.lag}
+                            onChange={(e) => setLink({ lag: e.target.value })}
+                          />
+                          days
+                        </label>
                         <button
                           type="button"
                           aria-label={`Remove dependency on ${dep.title}`}
                           onClick={() => set({ blockedBy: (formData.blockedBy || []).filter((id) => id !== depId) })}
-                          className="ml-0.5 hover:text-destructive transition-colors"
+                          className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="h-4 w-4" aria-hidden="true" />
                         </button>
-                      </span>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
+              )}
+              {(formData.blockedBy || []).length > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Finish to start: this starts after it finishes. Start to start: this starts once it has
+                  started. Finish to finish: this finishes once it has finished. A lag adds days (or, below
+                  zero, lets them overlap).
+                </p>
               )}
             </div>
           )}

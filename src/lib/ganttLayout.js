@@ -111,6 +111,53 @@ export const routeDependency = ({ exitX, exitY, entryX, entryY }) => {
   };
 };
 
+/**
+ * Start-to-start and finish-to-finish lines: a bracket on one side of both bars.
+ * SS leaves the predecessor's left edge, runs left of both bars and enters the successor's
+ * left edge; FF leaves the right edge, runs right of both and enters the successor's right
+ * edge (the arrow then points left, at the end the link is about).
+ *
+ * @param {'SS'|'FF'} type
+ * @param {{leftPx:number, rightPx:number, y:number}} pred
+ * @param {{leftPx:number, rightPx:number, y:number}} succ
+ */
+const routeBracket = (type, pred, succ) => {
+  if (type === 'SS') {
+    const x = Math.max(Math.min(pred.leftPx, succ.leftPx) - BEND, 2);
+    return {
+      route: 'bracket',
+      points: [
+        { x: pred.leftPx, y: pred.y },
+        { x, y: pred.y },
+        { x, y: succ.y },
+        { x: succ.leftPx - 1, y: succ.y },
+      ],
+    };
+  }
+  const x = Math.max(pred.rightPx, succ.rightPx) + BEND;
+  return {
+    route: 'bracket',
+    points: [
+      { x: pred.rightPx, y: pred.y },
+      { x, y: pred.y },
+      { x, y: succ.y },
+      { x: succ.rightPx + 1, y: succ.y },
+    ],
+  };
+};
+
+/**
+ * The line for a dependency of any type between two bars.
+ * @param {'FS'|'SS'|'FF'} type
+ * @param {{leftPx:number, rightPx:number, y:number}} pred
+ * @param {{leftPx:number, rightPx:number, y:number}} succ
+ */
+export const routeLink = (type, pred, succ) => {
+  if (type === 'SS' || type === 'FF') return routeBracket(type, pred, succ);
+  // one pixel short, so the arrowhead touches the bar instead of overlapping its edge
+  return routeDependency({ exitX: pred.rightPx, exitY: pred.y, entryX: succ.leftPx - 1, entryY: succ.y });
+};
+
 const round = (n) => Math.round(n * 100) / 100;
 
 /**
@@ -147,17 +194,20 @@ export const roundedPath = (points, radius = 5) => {
 
 /**
  * How a dependency should look, in priority order:
- *  - `conflict`: the prerequisite is still open but the dependent task is scheduled to start
- *    before it ends, so the plan contradicts itself
+ *  - `conflict`: the prerequisite is still open but the dependent task is scheduled earlier
+ *    than the link allows (for finish-to-start: to start before it ends), so the plan
+ *    contradicts itself
  *  - `critical`: both ends are on the critical path
  *  - `done`: the prerequisite is finished, so nothing is holding the successor up any more
  *  - `open`: an ordinary prerequisite that still has to finish
  *
  * @param {{ start: Date, end: Date, resolved: boolean, critical: boolean }} pred
- * @param {{ start: Date, critical: boolean }} succ
+ * @param {{ start: Date, end?: Date, critical: boolean }} succ
+ * @param {(pred, succ) => boolean} [breaksLink] the link's rule (see lib/dependencyLinks.violates);
+ *        by default finish-to-start with no lag
  */
-export const dependencyKind = (pred, succ) => {
-  if (!pred.resolved && succ.start.getTime() <= pred.end.getTime()) return 'conflict';
+export const dependencyKind = (pred, succ, breaksLink = (p, s) => s.start.getTime() <= p.end.getTime()) => {
+  if (!pred.resolved && breaksLink(pred, { ...succ, end: succ.end || succ.start })) return 'conflict';
   if (pred.critical && succ.critical) return 'critical';
   if (pred.resolved) return 'done';
   return 'open';

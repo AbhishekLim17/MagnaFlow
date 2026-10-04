@@ -241,6 +241,7 @@ const TaskManagement = () => {
     deadline: '',
     projectId: '',
     blockedBy: [],
+    dependencyLinks: {},
     milestone: false,
     repeat: 'none',
   });
@@ -442,6 +443,7 @@ const TaskManagement = () => {
       deadline: task.deadline ? formatDateForInput(task.deadline) : '',
       projectId: task.projectId || '',
       blockedBy: Array.isArray(task.blockedBy) ? task.blockedBy : [],
+      dependencyLinks: task.dependencyLinks || {},
       milestone: Boolean(task.milestone),
       repeat: optionFromRepeat(task.repeating !== false ? task.repeat : null),
     });
@@ -464,6 +466,7 @@ const TaskManagement = () => {
       deadline: '',
       projectId: '',
       blockedBy: [],
+      dependencyLinks: {},
       milestone: false,
       repeat: 'none',
     });

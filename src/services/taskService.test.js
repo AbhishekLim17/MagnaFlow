@@ -174,6 +174,30 @@ describe('updateTask dependency guards', () => {
     expect(error.message).toContain('Blocked by 4 tasks: “One” (Pending), “Two” (Pending), “Three” (Pending) and 1 more.');
   });
 
+  test('start to start: it can start once the prerequisite has started', async () => {
+    tasksById.a = { id: 'a', status: 'pending', blockedBy: ['b'], dependencyLinks: { b: { type: 'SS' } } };
+    tasksById.b = { id: 'b', title: 'Design', status: 'pending' };
+    const error = await updateTask('a', { status: 'in-progress' }).catch((e) => e);
+    expect(error.message).toBe('Blocked by “Design” (Pending). Start it first.');
+    tasksById.b.status = 'in-progress';
+    await expect(updateTask('a', { status: 'in-progress' })).resolves.toBeDefined();
+  });
+
+  test('finish to finish: it can start any time, but not be completed first', async () => {
+    tasksById.a = { id: 'a', status: 'pending', blockedBy: ['b'], dependencyLinks: { b: { type: 'FF' } } };
+    tasksById.b = { id: 'b', title: 'Testing', status: 'in-progress' };
+    await expect(updateTask('a', { status: 'in-progress' })).resolves.toBeDefined();
+    const error = await updateTask('a', { status: 'completed' }).catch((e) => e);
+    expect(error.message).toBe('Blocked by “Testing” (In progress). It has to finish before this one can.');
+  });
+
+  test('links are stored only for listed prerequisites and only when not the default', async () => {
+    tasksById.a = { id: 'a', status: 'pending', blockedBy: [] };
+    tasksById.b = { id: 'b', status: 'pending' };
+    await updateTask('a', { blockedBy: ['b'], dependencyLinks: { b: { type: 'SS', lag: 2 }, gone: { type: 'FF' } } });
+    expect(updateDoc.mock.calls.at(-1)[1].dependencyLinks).toEqual({ b: { type: 'SS', lag: 2 } });
+  });
+
   test('it can be started once prerequisites are completed or cancelled', async () => {
     tasksById.a = { id: 'a', status: 'pending', blockedBy: ['b', 'c'] };
     tasksById.b = { id: 'b', status: 'completed' };

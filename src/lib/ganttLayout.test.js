@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { addDays, axisTicks, routeDependency, roundedPath, dependencyKind, shiftRange } from './ganttLayout';
+import { addDays, axisTicks, routeDependency, roundedPath, dependencyKind, shiftRange, routeLink } from './ganttLayout';
 
 const d = (y, m, day) => new Date(y, m - 1, day);
 
@@ -195,5 +195,38 @@ describe('shiftRange', () => {
   test('no movement, or a fraction of a day, changes nothing', () => {
     expect(shiftRange(range, 'move', 0)).toEqual(range);
     expect(shiftRange(range, 'move', 0.6)).toEqual(range);
+  });
+});
+
+describe('routeLink', () => {
+  const pred = { leftPx: 100, rightPx: 200, y: 24 };
+  const succ = { leftPx: 150, rightPx: 260, y: 72 };
+
+  test('finish to start keeps the classic route into the left edge', () => {
+    const { points } = routeLink('FS', pred, { ...succ, leftPx: 260, rightPx: 300 });
+    expect(points[0]).toEqual({ x: 200, y: 24 });
+    expect(points.at(-1)).toEqual({ x: 259, y: 72 });
+  });
+
+  test('start to start: from the left edge, round the left of both bars, into the left edge', () => {
+    const { points, route } = routeLink('SS', pred, succ);
+    expect(route).toBe('bracket');
+    expect(points[0]).toEqual({ x: 100, y: 24 });
+    expect(points[1].x).toBeLessThan(100);
+    expect(points[2]).toEqual({ x: points[1].x, y: 72 });
+    expect(points.at(-1)).toEqual({ x: 149, y: 72 });
+  });
+
+  test('finish to finish: from the right edge, round the right of both, back into the right edge', () => {
+    const { points } = routeLink('FF', pred, succ);
+    expect(points[0]).toEqual({ x: 200, y: 24 });
+    expect(points[1].x).toBeGreaterThan(260);
+    // the last stretch runs leftwards, so the arrowhead points at the bar's end
+    expect(points.at(-1)).toEqual({ x: 261, y: 72 });
+    expect(points.at(-2).x).toBeGreaterThan(points.at(-1).x);
+  });
+
+  test('a bracket never runs off the left of the chart', () => {
+    expect(routeLink('SS', { ...pred, leftPx: 3 }, { ...succ, leftPx: 5 }).points[1].x).toBe(2);
   });
 });

@@ -1,7 +1,12 @@
 // criticalPath.js -- pure CPM (Critical Path Method) algorithm.
 //
-// Input:  tasks[] with { id, startDate, deadline, blockedBy: string[] }
+// Input:  tasks[] with { id, startDate, deadline, blockedBy: string[], dependencyLinks? }
 // Output: Set<string> of task IDs whose total float == 0 (critical path).
+//
+// Each prerequisite link is finish-to-start unless dependencyLinks says otherwise
+// (start-to-start, finish-to-finish), and may carry a lag in days (lib/dependencyLinks).
+
+import { linkOf } from './dependencyLinks';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -65,21 +70,39 @@ export function computeCriticalPath(tasks) {
     ES[t.id] = 0;
   }
 
+  // The earliest the successor may start, given this prerequisite's early dates.
+  const earliestBy = (predId, succId) => {
+    const { type, lag } = linkOf(byId[succId], predId);
+    if (type === 'SS') return ES[predId] + lag;
+    if (type === 'FF') return EF[predId] + lag - dur[succId];
+    return EF[predId] + lag;
+  };
+
   for (const id of topoOrder) {
     EF[id] = ES[id] + dur[id];
     for (const succId of (successors[id] || [])) {
-      if (EF[id] > ES[succId]) ES[succId] = EF[id];
+      const e = earliestBy(id, succId);
+      if (e > ES[succId]) ES[succId] = e;
     }
   }
 
   const projectEnd = Math.max(...Object.values(EF));
 
   for (const id of topoOrder) LF[id] = projectEnd;
+  // The latest the prerequisite may finish without delaying this successor.
+  const latestFinishFor = (predId, succId) => {
+    const { type, lag } = linkOf(byId[succId], predId);
+    if (type === 'SS') return LS[succId] - lag + dur[predId];
+    if (type === 'FF') return LF[succId] - lag;
+    return LS[succId] - lag;
+  };
+
   for (const id of [...topoOrder].reverse()) {
     LS[id] = LF[id] - dur[id];
     for (const predId of (byId[id]?.blockedBy || [])) {
       if (!byId[predId]) continue;
-      if (LS[id] < LF[predId]) LF[predId] = LS[id];
+      const lf = latestFinishFor(predId, id);
+      if (lf < LF[predId]) LF[predId] = lf;
     }
   }
   for (const id of topoOrder) LS[id] = LF[id] - dur[id];

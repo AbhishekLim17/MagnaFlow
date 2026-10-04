@@ -16,7 +16,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { runBoundedQuery } from '@/lib/firestoreQuery';
-import { wouldCreateCycle, unfinishedBlockers } from '@/lib/dependencies';
+import { wouldCreateCycle } from '@/lib/dependencies';
+import { blocksStatus, blockerAdvice, cleanLinks, normalizeLink } from '@/lib/dependencyLinks';
 import { statusLabel } from '@/lib/taskLabels';
 import { sendCriticalTaskAlert } from './emailService';
 import { deleteAllSubtasksForTask } from './subtaskService';
@@ -143,6 +144,7 @@ export const createTask = async (taskData) => {
       departmentId,
       projectId,
       blockedBy,
+      dependencyLinks,
       milestone,
       repeat,
       occurrence,
@@ -173,6 +175,10 @@ export const createTask = async (taskData) => {
       updatedAt: Timestamp.now(),
       completedAt: null,
       blockedBy: Array.isArray(blockedBy) ? blockedBy : [],
+      // How it depends on each prerequisite, when not plain finish-to-start (lib/dependencyLinks).
+      ...(Object.keys(cleanLinks(blockedBy, dependencyLinks)).length
+        ? { dependencyLinks: cleanLinks(blockedBy, dependencyLinks) }
+        : {}),
       // A milestone is a key date (a sign-off, a launch) rather than a span of work.
       milestone: Boolean(milestone),
       // Repeating tasks: the schedule, and the flag the hourly job looks for (see
@@ -203,12 +209,21 @@ const STARTED_STATUSES = new Set(['in-progress', 'review', 'completed']);
 
 // "Blocked by “Rewrite the emails” (In progress). Finish it first." - the user needs to
 // know WHICH task is in the way, not just that one is.
+// What to do depends on how the task depends on them (lib/dependencyLinks): finish them,
+// start them, or wait for them to finish before completing this one.
+const PLURAL_ADVICE = {
+  FS: 'Finish them first.',
+  SS: 'Start them first.',
+  FF: 'They have to finish before this one can.',
+};
 const describeBlockers = (blockers) => {
   const named = blockers.map((b) => `“${b.title || 'Untitled task'}” (${statusLabel(b.status)})`);
-  if (named.length === 1) return `Blocked by ${named[0]}. Finish it first.`;
+  const types = new Set(blockers.map((b) => normalizeLink(b.link).type));
+  if (named.length === 1) return `Blocked by ${named[0]}. ${blockerAdvice(blockers[0].link)}`;
   const shown = named.slice(0, 3).join(', ');
   const more = named.length > 3 ? ` and ${named.length - 3} more` : '';
-  return `Blocked by ${named.length} tasks: ${shown}${more}. Finish them first.`;
+  const advice = types.size === 1 ? PLURAL_ADVICE[[...types][0]] : 'Check what it depends on first.';
+  return `Blocked by ${named.length} tasks: ${shown}${more}. ${advice}`;
 };
 
 const taskError = (code, message, extra = {}) => Object.assign(new Error(message), { code, userFacing: true, ...extra });
@@ -231,14 +246,19 @@ const assertDependenciesAllow = async (taskId, currentTask, updates) => {
   const movingToStarted = updates.status && updates.status !== currentTask.status && STARTED_STATUSES.has(updates.status);
   if (movingToStarted) {
     const blockers = Array.isArray(updates.blockedBy) ? updates.blockedBy : (currentTask.blockedBy || []);
+    const links = updates.dependencyLinks !== undefined ? updates.dependencyLinks : currentTask.dependencyLinks;
     if (blockers.length > 0) {
       const loaded = new Map();
       await Promise.all(blockers.map(async (id) => {
         loaded.set(id, await getTaskById(id).catch(() => null));
       }));
-      const open = unfinishedBlockers(blockers, (id) => loaded.get(id));
+      // A prerequisite that no longer exists never blocks.
+      const open = [...new Set(blockers)].filter((id) => {
+        const dep = loaded.get(id);
+        return dep && blocksStatus(normalizeLink(links?.[id]), dep.status, updates.status);
+      });
       if (open.length > 0) {
-        throw taskError('task-blocked', describeBlockers(open.map((id) => loaded.get(id))), {
+        throw taskError('task-blocked', describeBlockers(open.map((id) => ({ ...loaded.get(id), link: links?.[id] }))), {
           blockers: open.map((id) => ({ id, title: loaded.get(id).title, status: loaded.get(id).status })),
         });
       }
@@ -260,6 +280,13 @@ export const updateTask = async (taskId, updates) => {
       ...updates,
       updatedAt: Timestamp.now(),
     };
+    // Links are stored only for listed prerequisites, and only when not plain finish-to-start.
+    if (updates.dependencyLinks !== undefined) {
+      updatedData.dependencyLinks = cleanLinks(
+        Array.isArray(updates.blockedBy) ? updates.blockedBy : currentTask.blockedBy,
+        updates.dependencyLinks,
+      );
+    }
     
     // If status is changed to 'completed', set completedAt timestamp
     if (updates.status === 'completed' && !updates.completedAt) {

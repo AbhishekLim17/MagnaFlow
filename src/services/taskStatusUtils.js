@@ -4,7 +4,7 @@
 
 import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { unfinishedBlockers } from '../lib/dependencies';
+import { blocksStatus, linkOf } from '../lib/dependencyLinks';
 
 const TASKS_COLLECTION = 'tasks';
 
@@ -62,7 +62,11 @@ export const recomputeTaskStatus = async (taskId, completedCount, totalCount) =>
         deps.set(id, null);
       }
     }));
-    blocked = unfinishedBlockers(task.blockedBy, (id) => deps.get(id)).length > 0;
+    // Would any prerequisite stop it being completed (by how it is linked)?
+    blocked = task.blockedBy.some((id) => {
+      const dep = deps.get(id);
+      return Boolean(dep) && blocksStatus(linkOf(task, id), dep.status, 'completed');
+    });
   }
 
   const next = nextStatusFromSubtasks(task.status, completedCount, totalCount, { blocked });
