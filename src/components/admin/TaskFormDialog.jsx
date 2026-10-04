@@ -28,8 +28,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { REPEAT_OPTIONS, repeatFromOption, nextOccurrence } from '@/lib/recurrence';
+import { formatDate } from '@/lib/format';
 
 const FIELD_CLASS = 'bg-muted border-border';
+
+// What the Repeat field says will happen next.
+const repeatHint = (option, deadline) => {
+  const repeat = repeatFromOption(option, { deadline });
+  if (!repeat) return null;
+  if (!deadline) return 'Set a deadline: the schedule counts from it.';
+  const next = nextOccurrence(repeat, 0, deadline);
+  return `When this task is completed, the next one is created (within the hour), due ${formatDate(next.deadline)}.`;
+};
 
 /**
  * @param {'add'|'edit'} mode
@@ -203,6 +214,21 @@ const TaskFormDialog = ({
               </span>
             </span>
           </label>
+
+          <div>
+            <Label htmlFor={idFor('repeat')}>Repeat</Label>
+            <Select value={formData.repeat || 'none'} onValueChange={(v) => set({ repeat: v })}>
+              <SelectTrigger id={idFor('repeat')} className={FIELD_CLASS} aria-describedby={idFor('repeat-hint')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REPEAT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p id={idFor('repeat-hint')} className="mt-1 text-xs text-muted-foreground">
+              {repeatHint(formData.repeat, formData.deadline) || 'For work that comes round regularly: reports, reviews, payroll.'}
+            </p>
+          </div>
 
           {/* Depends On (blockedBy) multi-select */}
           {tasks.length > 0 && (

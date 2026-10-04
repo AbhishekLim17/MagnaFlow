@@ -144,6 +144,9 @@ export const createTask = async (taskData) => {
       projectId,
       blockedBy,
       milestone,
+      repeat,
+      occurrence,
+      seriesId,
     } = taskData;
     let { orgId } = taskData;
 
@@ -172,6 +175,12 @@ export const createTask = async (taskData) => {
       blockedBy: Array.isArray(blockedBy) ? blockedBy : [],
       // A milestone is a key date (a sign-off, a launch) rather than a span of work.
       milestone: Boolean(milestone),
+      // Repeating tasks: the schedule, and the flag the hourly job looks for (see
+      // scripts/roll-recurring-tasks.cjs).
+      repeat: repeat || null,
+      repeating: Boolean(repeat),
+      occurrence: Number(occurrence) || 0,
+      ...(seriesId && { seriesId }),
     };
     
     const docRef = await addDoc(collection(db, TASKS_COLLECTION), taskDoc);

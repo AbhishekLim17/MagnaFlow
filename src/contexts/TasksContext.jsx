@@ -408,12 +408,15 @@ export const TasksProvider = ({ children }) => {
    * Update task status
    */
   const updateTaskStatus = async (taskId, status) => {
-    const title = tasks.find((t) => t.id === taskId)?.title;
+    const task = tasks.find((t) => t.id === taskId);
+    const title = task?.title;
+    const rolls = task?.repeating && (status === 'completed' || status === 'cancelled');
     return updateTask(taskId, { status }, {
       successTitle: 'Status updated',
-      successDescription: title
+      successDescription: (title
         ? `“${title}” is now ${statusLabel(status).toLowerCase()}.`
-        : `Status changed to ${statusLabel(status).toLowerCase()}.`,
+        : `Status changed to ${statusLabel(status).toLowerCase()}.`)
+        + (rolls ? ' It repeats: the next one will appear within the hour.' : ''),
     });
   };
 

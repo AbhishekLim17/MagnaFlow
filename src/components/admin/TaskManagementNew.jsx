@@ -33,6 +33,7 @@ import { getAssignableUsers, getAllUsers } from '@/services/userService';
 import { getProjects, getDepartments, getOrganizationById } from '@/services/organizationService';
 import TaskImportExportDialog from '@/components/admin/TaskImportExportDialog';
 import TemplatesDialog from '@/components/admin/TemplatesDialog';
+import { optionFromRepeat, repeatFromOption, describeRepeat } from '@/lib/recurrence';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
@@ -77,6 +78,9 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
             <div className="ml-4 flex flex-wrap items-start justify-end gap-2">
               {task.milestone && (
                 <Badge className="bg-primary-soft text-primary border border-primary/30">◆ Milestone</Badge>
+              )}
+              {task.repeat && task.repeating !== false && (
+                <Badge className="bg-muted text-muted-foreground border border-border">↻ {describeRepeat(task.repeat)}</Badge>
               )}
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
                 {priorityLabel(task.priority)}
@@ -229,6 +233,7 @@ const TaskManagement = () => {
     projectId: '',
     blockedBy: [],
     milestone: false,
+    repeat: 'none',
   });
 
   const { toast } = useToast();
@@ -314,12 +319,35 @@ const TaskManagement = () => {
 
     // A milestone is a single date: its deadline.
     const dates = formData.milestone ? { startDate: formData.deadline } : {};
-    return { ...formData, ...dates, milestone: Boolean(formData.milestone), projectId, departmentId };
+    // Saving re-bases the schedule on these dates (occurrence 0), so editing a repeating
+    // task's dates moves the rest of the series with it.
+    const repeat = repeatFromOption(formData.repeat, {
+      startDate: dates.startDate ?? formData.startDate,
+      deadline: formData.deadline,
+    });
+    return {
+      ...formData,
+      ...dates,
+      milestone: Boolean(formData.milestone),
+      repeat,
+      repeating: Boolean(repeat),
+      occurrence: 0,
+      projectId,
+      departmentId,
+    };
   };
 
   // A deadline before the start date makes a nonsense Gantt bar (it is silently
   // clamped to a one-day task), so refuse it up front.
   const datesAreInvalid = () => {
+    if (formData.repeat && formData.repeat !== 'none' && !formData.deadline) {
+      toast({
+        title: "A repeating task needs a deadline",
+        description: "The schedule counts from it.",
+        variant: "destructive",
+      });
+      return true;
+    }
     if (formData.milestone && !formData.deadline) {
       toast({
         title: "A milestone needs a date",
@@ -406,6 +434,7 @@ const TaskManagement = () => {
       projectId: task.projectId || '',
       blockedBy: Array.isArray(task.blockedBy) ? task.blockedBy : [],
       milestone: Boolean(task.milestone),
+      repeat: optionFromRepeat(task.repeating !== false ? task.repeat : null),
     });
     setIsEditDialogOpen(true);
   };
@@ -427,6 +456,7 @@ const TaskManagement = () => {
       projectId: '',
       blockedBy: [],
       milestone: false,
+      repeat: 'none',
     });
     setSelectedTask(null);
   };

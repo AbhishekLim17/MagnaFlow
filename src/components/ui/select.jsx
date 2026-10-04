@@ -17,7 +17,8 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
       // must be the same height and radius or the form looks assembled.
       'flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-4 py-2 text-sm text-foreground ' +
         'transition-[border-color,box-shadow] duration-200 ease-premium hover:border-border ' +
-        'data-[placeholder]:text-muted-foreground/70 ' +
+        // a select's placeholder is real text on screen (unlike an input's), so it needs AA contrast
+        'data-[placeholder]:text-muted-foreground ' +
         'focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/12 ' +
         'disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-muted [&>span]:line-clamp-1',
       className

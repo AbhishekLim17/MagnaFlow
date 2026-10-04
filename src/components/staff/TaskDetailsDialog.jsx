@@ -4,7 +4,7 @@
 // deleting are for the task's creator.
 
 import React, { useState } from 'react';
-import { Calendar, User, Clock, CheckCircle, Edit, Trash2, ListChecks, Plus, Lock } from 'lucide-react';
+import { Calendar, User, Clock, CheckCircle, Edit, Trash2, ListChecks, Plus, Lock, Repeat } from 'lucide-react';
 import SubtaskList from '../SubtaskList';
 import AddSubtaskDialog from '../AddSubtaskDialog';
 import CommentSection from '../tasks/CommentSection';
@@ -18,6 +18,7 @@ import { formatDate, formatDateLong } from '@/lib/format';
 import { statusLabel, priorityLabel } from '@/lib/taskLabels';
 import { describeDeadline, isOverdueTask } from '@/lib/taskState';
 import { isResolved } from '@/lib/dependencies';
+import { describeRepeat } from '@/lib/recurrence';
 
 const PRIORITY_STYLES = {
   low: 'bg-success-soft text-success border-success/30',
@@ -167,6 +168,12 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
             </Fact>
             {task.completedAt && (
               <Fact icon={CheckCircle} label="Completed">{formatDate(task.completedAt)}</Fact>
+            )}
+            {task.repeat && (
+              <Fact icon={Repeat} label="Repeats">
+                {describeRepeat(task.repeat).replace(/^./, (c) => c.toUpperCase())}
+                {task.repeating === false && task.nextId ? ' · next one created' : ''}
+              </Fact>
             )}
           </div>
 
