@@ -27,3 +27,14 @@ if (!window.matchMedia) {
     dispatchEvent: () => false,
   });
 }
+
+// Radix Select uses pointer capture and scrolls the highlighted option into view;
+// jsdom implements neither.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

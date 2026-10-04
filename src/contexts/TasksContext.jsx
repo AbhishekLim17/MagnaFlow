@@ -140,69 +140,66 @@ export const TasksProvider = ({ children }) => {
     return () => window.removeEventListener('taskStatusUpdated', handler);
   }, [loadTasks]);
 
+  // Who created a task and where it lives. Department heads and managers default to their
+  // own scope unless the caller chose one explicitly.
+  const stampNewTask = (taskData) => {
+    const newTaskData = {
+      ...taskData,
+      createdBy: user.id,
+      ...(user.orgId !== undefined && { orgId: user.orgId }),
+    };
+    if (newTaskData.departmentId === undefined && user.role === 'department-head') {
+      newTaskData.departmentId = user.departmentIds?.[0];
+    }
+    if (newTaskData.projectId === undefined && user.role === 'manager') {
+      newTaskData.projectId = user.projectIds?.[0];
+    }
+    return newTaskData;
+  };
+
+  // Email the assignee. The recipient is named by uid: the mail job looks the address up
+  // itself (and checks the account is active), so the browser never handles it. A failed
+  // email never fails the task.
+  const notifyAssignee = async (taskData, taskId) => {
+    if (!taskData.assignedTo) return;
+    try {
+      const emailParams = {
+        toUid: taskData.assignedTo,
+        taskTitle: taskData.title,
+        taskDescription: taskData.description || 'No description provided',
+        taskPriority: taskData.priority?.charAt(0).toUpperCase() + taskData.priority?.slice(1) || 'Medium',
+        dueDate: (taskData.deadline || taskData.dueDate) ? formatDate(taskData.deadline || taskData.dueDate) : 'Not specified',
+        assignedBy: user?.name || 'Admin',
+        taskId,
+      };
+      if (taskData.priority === 'critical') {
+        await sendCriticalTaskAlert(emailParams);
+      } else {
+        await sendTaskAssignedEmail(emailParams);
+      }
+    } catch (emailError) {
+      console.error('Error sending email notification:', emailError);
+    }
+  };
+
   /**
    * Create a new task
    */
   const createTask = async (taskData) => {
     try {
-      console.log("➕ Creating new task:", taskData.title);
-      
-      const newTaskData = {
-        ...taskData,
-        createdBy: user.id,
-        ...(user.orgId !== undefined && { orgId: user.orgId }),
-      };
-      // Default department-head/manager-created tasks to their own scope
-      // unless the caller already specified one explicitly.
-      if (newTaskData.departmentId === undefined && user.role === 'department-head') {
-        newTaskData.departmentId = user.departmentIds?.[0];
-      }
-      if (newTaskData.projectId === undefined && user.role === 'manager') {
-        newTaskData.projectId = user.projectIds?.[0];
-      }
-
-      const newTask = await createTaskService(newTaskData);
-      
+      const newTask = await createTaskService(stampNewTask(taskData));
       setTasks(prev => [newTask, ...prev]);
-      
-      // Send email notification to assigned staff member
-      if (taskData.assignedTo) {
-        try {
-          // The recipient is named by uid: the mail job looks the address up itself
-          // (and checks the account is active), so the browser never handles it.
-          const emailParams = {
-            toUid: taskData.assignedTo,
-            taskTitle: taskData.title,
-            taskDescription: taskData.description || 'No description provided',
-            taskPriority: taskData.priority?.charAt(0).toUpperCase() + taskData.priority?.slice(1) || 'Medium',
-            dueDate: (taskData.deadline || taskData.dueDate) ? formatDate(taskData.deadline || taskData.dueDate) : 'Not specified',
-            assignedBy: user?.name || 'Admin',
-            taskId: newTask.id,
-          };
-
-          // Send critical alert for critical priority tasks
-          if (taskData.priority === 'critical') {
-            await sendCriticalTaskAlert(emailParams);
-          } else {
-            await sendTaskAssignedEmail(emailParams);
-          }
-        } catch (emailError) {
-          console.error("❌ Error sending email notification:", emailError);
-          // Don't fail task creation if email fails
-        }
-      }
-      
-      // Refresh statistics
+      await notifyAssignee(taskData, newTask.id);
       await refreshStatistics();
-      
+
       toast({
         title: "Task Created",
         description: `Task "${taskData.title}" has been created successfully.`,
       });
-      
+
       return newTask;
     } catch (error) {
-      console.error("❌ Error creating task:", error);
+      console.error("Error creating task:", error);
       toast({
         title: "Couldn't create the task",
         description: toUserMessage(error, 'Please try again.'),
@@ -210,6 +207,48 @@ export const TasksProvider = ({ children }) => {
       });
       throw error;
     }
+  };
+
+  /**
+   * Create many tasks at once (CSV import). One summary toast, one statistics refresh at
+   * the end, and emails only when asked for: importing 200 tasks should not send 200
+   * emails unless that is what the person wants. Rows that fail (a project outside the
+   * caller's scope, a dropped connection) are reported back instead of stopping the rest.
+   *
+   * @param {Object[]} taskList  payloads as the task dialogs build them
+   * @param {{ notify?: boolean, onProgress?: (done: number, total: number) => void }} [options]
+   * @returns {Promise<{ created: Object[], failed: { index: number, task: Object, message: string }[] }>}
+   */
+  const importTasks = async (taskList, { notify = false, onProgress } = {}) => {
+    const created = [];
+    const failed = [];
+    for (let i = 0; i < taskList.length; i += 1) {
+      const taskData = taskList[i];
+      try {
+        const newTask = await createTaskService(stampNewTask(taskData));
+        created.push(newTask);
+        if (notify) await notifyAssignee(taskData, newTask.id);
+      } catch (error) {
+        failed.push({ index: i, task: taskData, message: toUserMessage(error, 'Could not create this task.') });
+      }
+      onProgress?.(i + 1, taskList.length);
+    }
+    if (created.length) setTasks((prev) => [...created.slice().reverse(), ...prev]);
+    await refreshStatistics();
+
+    if (failed.length === 0) {
+      toast({
+        title: 'Tasks imported',
+        description: `${created.length} task${created.length === 1 ? '' : 's'} added.`,
+      });
+    } else {
+      toast({
+        title: `Imported ${created.length} of ${taskList.length} tasks`,
+        description: `${failed.length} could not be created. The import window lists why.`,
+        variant: created.length ? undefined : 'destructive',
+      });
+    }
+    return { created, failed };
   };
 
   /**
@@ -353,6 +392,7 @@ export const TasksProvider = ({ children }) => {
     loading,
     statistics,
     createTask,
+    importTasks,
     updateTask,
     deleteTask,
     updateTaskStatus,

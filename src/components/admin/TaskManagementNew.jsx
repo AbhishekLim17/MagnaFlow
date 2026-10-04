@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, LayoutGrid, List, ArrowDownUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,8 +29,10 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useTasks } from '@/contexts/TasksContext';
 import TaskFormDialog from '@/components/admin/TaskFormDialog';
-import { getAssignableUsers } from '@/services/userService';
-import { getProjects } from '@/services/organizationService';
+import { getAssignableUsers, getAllUsers } from '@/services/userService';
+import { getProjects, getDepartments, getOrganizationById } from '@/services/organizationService';
+import TaskImportExportDialog from '@/components/admin/TaskImportExportDialog';
+import { useDesignations } from '@/contexts/DesignationsContext';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
@@ -186,6 +188,9 @@ const TaskManagement = () => {
   const location = useLocation();
   const [staff, setStaff] = useState([]);        // assignable in this scope
   const [projects, setProjects] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [ioOpen, setIoOpen] = useState(false);
+  const { designations } = useDesignations();
   // Filters live in the URL (?q=&status=&assignee=&project=&sort=), so a filtered list can be
   // bookmarked, shared and survives Back and a refresh. They used to reset on every visit.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -231,6 +236,7 @@ const TaskManagement = () => {
   useEffect(() => {
     loadStaff();
     loadProjects();
+    loadDepartments();
     refreshTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -274,6 +280,16 @@ const TaskManagement = () => {
       setProjects(visible);
     } catch (error) {
       console.error('Error loading projects:', error);
+    }
+  };
+
+  // Department names, for exports. Best-effort: a list without them is still useful.
+  const loadDepartments = async () => {
+    if (!currentUser?.orgId) return;
+    try {
+      setDepartments(await getDepartments(currentUser.orgId));
+    } catch (error) {
+      console.error('Error loading departments:', error);
     }
   };
 
@@ -447,6 +463,33 @@ const TaskManagement = () => {
     [tasks, filters, staff, currentUser?.uid]
   );
   const filterCount = activeFilterCount(filters);
+
+  const isOrgAdmin = role === 'org-admin' || role === 'admin';
+  const exportLookups = useMemo(() => ({
+    person: (uid) => staff.find((s) => s.id === uid),
+    projectName: (id) => projects.find((p) => p.id === id)?.name,
+    departmentName: (id) => departments.find((d) => d.id === id)?.name,
+  }), [staff, projects, departments]);
+
+  // The whole-workspace export is for org-admins: they are the only role that can read
+  // every person, project and department in the organisation.
+  const loadWorkspace = async () => {
+    const [people, allProjects, allDepartments, org] = await Promise.all([
+      getAllUsers(),
+      getProjects(currentUser.orgId),
+      getDepartments(currentUser.orgId),
+      getOrganizationById(currentUser.orgId).catch(() => null),
+    ]);
+    return {
+      people,
+      projects: allProjects,
+      departments: allDepartments,
+      designations,
+      organisation: org?.name || '',
+      exportedBy: currentUser?.name || currentUser?.email || '',
+      tasksTruncated,
+    };
+  };
   const clearFilters = () => setFilters({ q: '', status: 'all', priority: 'all', assignee: 'all', project: 'all' });
 
   return (
@@ -476,12 +519,31 @@ const TaskManagement = () => {
               <LayoutGrid className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)} variant="success">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setIoOpen(true)} aria-label="Import or export tasks">
+              <ArrowDownUp aria-hidden="true" />
+              <span className="hidden sm:inline">Import / export</span>
+            </Button>
+            <Button onClick={() => setIsAddDialogOpen(true)} variant="success">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Task
+            </Button>
+          </div>
         </div>
       </div>
+
+      <TaskImportExportDialog
+        open={ioOpen}
+        onOpenChange={setIoOpen}
+        people={staff}
+        projects={projects}
+        visibleTasks={filteredTasks}
+        allTasks={tasks}
+        filtered={filterCount > 0}
+        lookups={exportLookups}
+        defaultProjectId={isManager ? currentUser?.projectIds?.[0] : undefined}
+        loadWorkspace={isOrgAdmin && currentUser?.orgId ? loadWorkspace : undefined}
+      />
 
       {/* A read this size is bounded (see taskService); this is the only
           visible sign that bound was actually hit, so the list can look
