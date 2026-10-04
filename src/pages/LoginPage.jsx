@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { LogIn, Mail, Lock, Eye, EyeOff, Moon, Sun, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
+import { LogIn, Mail, Lock, Eye, EyeOff, Moon, Sun, ArrowLeft, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import { toUserMessage } from "@/lib/errorMessages";
 import { isValidEmail } from "@/utils/validation";
 import { usePageTitle } from "@/lib/usePageTitle";
 import Brandmark from '@/components/shared/Brandmark';
+import ProviderIcon from '@/components/shared/ProviderIcon';
+import { useToast } from '@/components/ui/use-toast';
+import { configuredProviders } from '@/lib/signInProviders';
 
 // A single centred card rather than a marketing split. Nobody arrives here to
 // be sold anything - MagnaFlow has no public signup, so every visitor is an
@@ -39,7 +42,12 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({}); // { email, password, form }
   const [resetSent, setResetSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const { login, notice } = useAuth();
+  // Google / Microsoft sign-in (off unless VITE_SIGNIN_PROVIDERS lists them)
+  const providers = configuredProviders();
+  const [providerBusy, setProviderBusy] = useState("");
+  const [note, setNote] = useState(""); // "sign in with your password once to connect …"
+  const { login, loginWithProvider, notice } = useAuth();
+  const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -81,6 +89,9 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const result = await login(email.trim(), password);
+      if (result.success && result.linked) {
+        toast({ title: `${result.linked} connected`, description: `Next time you can sign in with ${result.linked}.` });
+      }
       if (!result.success) {
         // login() already maps the failure to a sentence a person can act on. It stays
         // on screen (a toast vanished before it could be read), the wrong password is
@@ -93,6 +104,29 @@ const LoginPage = () => {
       setErrors({ form: toUserMessage(error, "We couldn't sign you in. Please try again.") });
       refocusPassword.current = true;
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProvider = async (provider) => {
+    setErrors({});
+    setNote("");
+    setProviderBusy(provider.key);
+    setLoading(true);
+    try {
+      const result = await loginWithProvider(provider.key);
+      if (!result.success) {
+        if (result.needsPassword) {
+          // Their address already has a password: one password sign-in connects the provider.
+          if (result.email) setEmail(result.email);
+          setNote(result.error);
+          refocusPassword.current = true;
+        } else if (result.error) {
+          setErrors({ form: result.error });
+        }
+      }
+    } finally {
+      setProviderBusy("");
       setLoading(false);
     }
   };
@@ -167,7 +201,7 @@ const LoginPage = () => {
         {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       </Button>
 
-      <motion.div
+      <motion.main
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -194,6 +228,16 @@ const LoginPage = () => {
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
               <span>{notice}</span>
+            </div>
+          )}
+
+          {note && !isReset && (
+            <div
+              role="status"
+              className="mb-5 flex items-start gap-2 rounded-xl border border-primary/30 bg-primary-soft p-3 text-sm text-foreground"
+            >
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span>{note}</span>
             </div>
           )}
 
@@ -309,6 +353,39 @@ const LoginPage = () => {
                 )}
               </Button>
 
+              {!isReset && providers.length > 0 && (
+                <>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">
+                    <span className="h-px flex-1 bg-border" />
+                    or
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                  <div className="space-y-2">
+                    {providers.map((p) => (
+                      <Button
+                        key={p.key}
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        className="w-full"
+                        disabled={loading}
+                        onClick={() => handleProvider(p)}
+                      >
+                        {providerBusy === p.key ? (
+                          <span
+                            className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-foreground"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <ProviderIcon provider={p.key} className="h-5 w-5" />
+                        )}
+                        Continue with {p.label}
+                      </Button>
+                    ))}
+                  </div>
+                </>
+              )}
+
               {isReset && (
                 <Button type="button" variant="ghost" className="w-full" onClick={backToSignIn}>
                   <ArrowLeft className="h-4 w-4" /> Back to sign in
@@ -321,7 +398,7 @@ const LoginPage = () => {
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Trouble signing in? Contact your organisation administrator.
         </p>
-      </motion.div>
+      </motion.main>
     </div>
   );
 };

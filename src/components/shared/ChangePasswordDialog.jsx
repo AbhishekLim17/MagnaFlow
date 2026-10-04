@@ -19,11 +19,15 @@ import { auth } from '@/config/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { passwordProblem } from '@/lib/password';
 import { reportError } from '@/lib/reportError';
+import ConnectedAccounts from '@/components/shared/ConnectedAccounts';
+import { configuredProviders } from '@/lib/signInProviders';
 
 const EMPTY = { currentPassword: '', newPassword: '', confirmPassword: '' };
 
 const ChangePasswordDialog = ({ open, onOpenChange }) => {
   const { toast } = useToast();
+  // With Google / Microsoft sign-in switched on, this is also where they are connected.
+  const withProviders = configuredProviders().length > 0;
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(EMPTY);
   const [errors, setErrors] = useState({});
@@ -107,10 +111,12 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
               <Lock className="w-4 h-4 text-primary-foreground" aria-hidden="true" />
             </div>
-            <span>Change Password</span>
+            <span>{withProviders ? 'Password and sign-in' : 'Change Password'}</span>
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Update your password to keep your account secure.
+            {withProviders
+              ? 'Change your password, or connect an account to sign in with.'
+              : 'Update your password to keep your account secure.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -171,6 +177,9 @@ const ChangePasswordDialog = ({ open, onOpenChange }) => {
             </Button>
           </DialogFooter>
         </form>
+
+        {/* Google / Microsoft, when switched on (renders nothing otherwise) */}
+        <ConnectedAccounts />
       </DialogContent>
     </Dialog>
   );

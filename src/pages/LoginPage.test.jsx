@@ -4,7 +4,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const login = vi.fn();
-const authState = { login, notice: null };
+const loginWithProvider = vi.fn();
+const authState = { login, loginWithProvider, notice: null };
+const toast = vi.fn();
+vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => authState }));
 vi.mock('@/contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }) }));
 const resetUserPassword = vi.fn();
@@ -20,6 +23,7 @@ const type = async (user, label, text) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
   authState.notice = null;
 });
 
@@ -112,5 +116,56 @@ describe('forgot password', () => {
     await openReset(user);
     await user.click(screen.getByRole('button', { name: /back to sign in/i }));
     expect(screen.getByRole('heading', { name: /sign in to magnaflow/i })).toBeInTheDocument();
+  });
+});
+
+describe('Google and Microsoft sign-in', () => {
+  test('hidden unless switched on for this build', () => {
+    render(<LoginPage />);
+    expect(screen.queryByRole('button', { name: /continue with/i })).not.toBeInTheDocument();
+  });
+
+  test('a button per provider that is switched on', async () => {
+    vi.stubEnv('VITE_SIGNIN_PROVIDERS', 'google,microsoft');
+    loginWithProvider.mockResolvedValue({ success: true });
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    expect(screen.getByRole('button', { name: 'Continue with Microsoft' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(loginWithProvider).toHaveBeenCalledWith('google');
+  });
+
+  test('an address with a password: fills it in, explains, and connects after the password sign-in', async () => {
+    vi.stubEnv('VITE_SIGNIN_PROVIDERS', 'microsoft');
+    loginWithProvider.mockResolvedValue({
+      success: false, needsPassword: true, email: 'sana@x.test',
+      error: 'This email signs in with a password. Sign in with your password below once, and Microsoft will be connected for next time.',
+    });
+    login.mockResolvedValue({ success: true, linked: 'Microsoft' });
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: 'Continue with Microsoft' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/Microsoft will be connected/);
+    expect(screen.getByLabelText('Email')).toHaveValue('sana@x.test');
+    await waitFor(() => expect(screen.getByLabelText('Password')).toHaveFocus());
+
+    await user.type(screen.getByLabelText('Password'), 'pw');
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Microsoft connected' })));
+  });
+
+  test('a refusal is shown on the form; closing the window shows nothing', async () => {
+    vi.stubEnv('VITE_SIGNIN_PROVIDERS', 'google');
+    loginWithProvider.mockResolvedValueOnce({ success: false, error: '' });
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeEnabled());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    loginWithProvider.mockResolvedValueOnce({ success: false, error: 'No MagnaFlow account uses this Google address.' });
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No MagnaFlow account uses this Google address/);
   });
 });

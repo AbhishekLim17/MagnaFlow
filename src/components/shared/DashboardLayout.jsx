@@ -32,6 +32,10 @@ import TaskDeepLink from '@/components/shared/TaskDeepLink';
 import { usePageTitle } from '@/lib/usePageTitle';
 import ChangePasswordDialog from '@/components/shared/ChangePasswordDialog';
 import Brandmark from '@/components/shared/Brandmark';
+import { configuredProviders } from '@/lib/signInProviders';
+
+// Google / Microsoft sign-in switched on for this build (they are managed beside the password).
+const signInProviders = configuredProviders();
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -343,7 +347,7 @@ const DashboardLayout = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsChangePasswordOpen(true)}
-                aria-label="Change password"
+                aria-label={signInProviders.length ? 'Password and sign-in' : 'Change password'}
               >
                 <KeyRound className="h-5 w-5" />
               </Button>

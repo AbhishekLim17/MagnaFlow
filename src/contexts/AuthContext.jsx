@@ -4,6 +4,9 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { 
   signInWithEmailAndPassword, 
+  signInWithPopup,
+  linkWithCredential,
+  getAdditionalUserInfo,
   signOut, 
   onAuthStateChanged 
 } from "firebase/auth";
@@ -15,6 +18,8 @@ import { isValidEmail } from "@/utils/validation";
 import { toUserMessage, isTransientError } from "@/lib/errorMessages";
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { formatTime } from '@/lib/format';
+import { PROVIDERS, providerErrorMessage } from '@/lib/signInProviders';
+import { makeProvider, credentialFromError } from '@/services/authProviderService';
 
 const AuthContext = createContext();
 
@@ -39,6 +44,22 @@ const orgIsSuspended = async (orgId) => {
   }
 };
 
+// Connect the provider credential waiting from a failed provider sign-in, when it was
+// for this same email. Never fatal: the password sign-in itself has succeeded.
+const linkPendingProvider = async (pendingRef, firebaseUser, email) => {
+  const pending = pendingRef.current;
+  pendingRef.current = null;
+  if (!pending?.credential || !pending.email) return null;
+  if (pending.email.toLowerCase() !== String(email || '').trim().toLowerCase()) return null;
+  try {
+    await linkWithCredential(firebaseUser, pending.credential);
+    return pending.label;
+  } catch (error) {
+    console.warn(`Could not connect ${pending.label}:`, error?.code || error?.message);
+    return null;
+  }
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -56,6 +77,9 @@ export const AuthProvider = ({ children }) => {
   // signInWithEmailAndPassword resolves and could briefly authenticate an
   // account login() is about to reject (deactivated, org suspended).
   const loginInFlight = useRef(false);
+  // A Google/Microsoft sign-in that hit an existing password login: its credential waits
+  // here, and is connected to that login once the person signs in with the password.
+  const pendingLink = useRef(null);
 
   // Why a signed-in browser could not be turned into a session, so the app can say so
   // instead of silently showing the login page (which looked like being logged out for
@@ -204,9 +228,13 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Your organization has been suspended. Please contact support.");
       }
       
+      // They came from "Continue with Google/Microsoft" and were asked for their password
+      // first: connect that account now, so next time it signs them straight in.
+      const linked = await linkPendingProvider(pendingLink, userCredential.user, email);
+
       setUser(userData);
       setIsAuthenticated(true);
-      return { success: true, user: userData };
+      return { success: true, user: userData, linked };
       
     } catch (error) {
       // This list used to be maintained by hand here and had fallen behind the
@@ -216,6 +244,53 @@ export const AuthProvider = ({ children }) => {
       // "Firebase: Error (auth/invalid-credential)."
       console.error('âŒ Login failed:', error?.code || error);
       return { success: false, error: toUserMessage(error, 'Login failed. Please try again.') };
+    } finally {
+      loginInFlight.current = false;
+    }
+  };
+
+  /**
+   * Sign in with Google or Microsoft (when switched on, see lib/signInProviders).
+   * Only ever reaches a login an admin created: a provider account that no MagnaFlow
+   * profile uses is removed again and the person is told why.
+   * @param {'google'|'microsoft'} key
+   * @returns {Promise<{success: boolean, error?: string, needsPassword?: boolean, email?: string, user?: Object}>}
+   *          error '' means they closed the window (nothing to show)
+   */
+  const loginWithProvider = async (key) => {
+    const label = PROVIDERS[key]?.label || 'that account';
+    loginInFlight.current = true;
+    setNotice(null);
+    try {
+      const result = await signInWithPopup(auth, makeProvider(key));
+      const userData = await getUserById(result.user.uid);
+      if (!userData) {
+        // Firebase just created this account (nobody here uses that address): undo that.
+        if (getAdditionalUserInfo(result)?.isNewUser) await result.user.delete().catch(() => signOut(auth));
+        else await signOut(auth);
+        throw Object.assign(new Error('no profile'), { code: 'magnaflow/no-profile' });
+      }
+      if (userData.status === 'inactive') {
+        await signOut(auth);
+        throw new Error("Your account has been deactivated. Please contact administrator.");
+      }
+      if (await orgIsSuspended(userData.orgId)) {
+        await signOut(auth);
+        throw new Error("Your organization has been suspended. Please contact support.");
+      }
+      pendingLink.current = null;
+      setUser(userData);
+      setIsAuthenticated(true);
+      return { success: true, user: userData };
+    } catch (error) {
+      if (error?.code === 'auth/account-exists-with-different-credential') {
+        const email = error.customData?.email || '';
+        pendingLink.current = { label, email, credential: credentialFromError(key, error) };
+        return { success: false, needsPassword: true, email, error: providerErrorMessage(error.code, label) };
+      }
+      const said = providerErrorMessage(error?.code, label);
+      if (said === null) console.error(`${label} sign-in failed:`, error?.code || error);
+      return { success: false, error: said ?? toUserMessage(error, `Couldn't sign in with ${label}. Please try again.`) };
     } finally {
       loginInFlight.current = false;
     }
@@ -271,6 +346,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     login,
+    loginWithProvider,
     logout,
     sessionProblem,
     retrySession,
