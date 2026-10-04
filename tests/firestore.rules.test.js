@@ -1348,3 +1348,82 @@ describe('client conversation and milestone sign-off', () => {
     await assertFails(addDoc(collection(db, 'comment_notifications'), note(MGR_A, { mentionedBy: MGR_A })));
   });
 });
+
+describe('client requests', () => {
+  const req = (extra = {}) => ({
+    orgId: ORG_A, projectId: PROJ_A, title: 'Add a dark mode', details: 'For the dashboard', urgency: 'normal',
+    neededBy: '2026-11-01', requestedBy: CLIENT_A, requestedByName: 'Acme', status: 'new', notified: false,
+    createdAt: serverTimestamp(), ...extra,
+  });
+  const answer = (uid, extra = {}) => ({
+    status: 'declined', decidedBy: uid, decidedByName: 'Someone', decidedAt: serverTimestamp(),
+    response: 'Not in scope', notified: false, ...extra,
+  });
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'client_requests', 'r1'), { ...req(), createdAt: new Date() });
+      await setDoc(doc(db, 'client_requests', 'r2'), { ...req({ projectId: PROJ_A2 }), createdAt: new Date() });
+      await setDoc(doc(db, 'tasks', 'fromRequest'), {
+        title: 'Add a dark mode', orgId: ORG_A, departmentId: DEPT_A, projectId: PROJ_A, createdBy: MGR_A, status: 'pending',
+      });
+    });
+  });
+
+  test('a client sends one about their own project, as themselves', async () => {
+    const db = asUser(CLIENT_A);
+    await assertSucceeds(addDoc(collection(db, 'client_requests'), req()));
+    await assertSucceeds(addDoc(collection(db, 'client_requests'), req({ neededBy: null, details: '' })));
+    await assertFails(addDoc(collection(db, 'client_requests'), req({ projectId: PROJ_A2 })));
+    await assertFails(addDoc(collection(db, 'client_requests'), req({ requestedBy: MGR_A })));
+    await assertFails(addDoc(collection(db, 'client_requests'), req({ status: 'accepted' })));
+    await assertFails(addDoc(collection(db, 'client_requests'), req({ title: '' })));
+    await assertFails(addDoc(collection(db, 'client_requests'), req({ neededBy: 'soon' })));
+    await assertFails(addDoc(collection(db, 'client_requests'), req({ taskId: 'fromRequest' })));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'client_requests'), req({ requestedBy: STAFF_A })));
+  });
+
+  test('who reads them: the client of the project, and the people who run it', async () => {
+    const q = (uid, projectId) => getDocs(query(collection(asUser(uid), 'client_requests'),
+      where('orgId', '==', ORG_A), where('projectId', '==', projectId)));
+    await assertSucceeds(q(CLIENT_A, PROJ_A));
+    await assertFails(q(CLIENT_A, PROJ_A2));
+    await assertSucceeds(q(MGR_A, PROJ_A));
+    await assertSucceeds(q(HEAD_A, PROJ_A));
+    await assertFails(q(HEAD_A, PROJ_A2));
+    await assertFails(q(STAFF_SCOPED, PROJ_A));
+    await assertSucceeds(getDocs(query(collection(asUser(ADMIN_A), 'client_requests'), where('orgId', '==', ORG_A))));
+    await assertFails(getDocs(query(collection(asUser(ADMIN_B), 'client_requests'), where('orgId', '==', ORG_A))));
+  });
+
+  test('the project manager declines with a reason, or accepts with a task in the same project', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(MGR_A), 'client_requests', 'r1'), answer(MGR_A)));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'client_requests', 'r1'), { status: 'new' });
+    });
+    await assertSucceeds(updateDoc(doc(asUser(HEAD_A), 'client_requests', 'r1'),
+      answer(HEAD_A, { status: 'accepted', taskId: 'fromRequest', response: '' })));
+  });
+
+  test('answers are checked: once, as yourself, in scope, with a real task', async () => {
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'client_requests', 'r1'), answer(ADMIN_A)));
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'client_requests', 'r1'), answer(MGR_A, { status: 'accepted' })));
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'client_requests', 'r1'), answer(MGR_A, { status: 'accepted', taskId: 'taskB' })));
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'client_requests', 'r1'), answer(MGR_A, { title: 'Rewritten' })));
+    await assertFails(updateDoc(doc(asUser(MGR_A), 'client_requests', 'r2'), answer(MGR_A)));
+    await assertFails(updateDoc(doc(asUser(STAFF_SCOPED), 'client_requests', 'r1'), answer(STAFF_SCOPED)));
+    await assertFails(updateDoc(doc(asUser(CLIENT_A), 'client_requests', 'r1'), answer(CLIENT_A)));
+    await assertSucceeds(updateDoc(doc(asUser(ADMIN_A), 'client_requests', 'r1'), answer(ADMIN_A)));
+    await assertFails(updateDoc(doc(asUser(ADMIN_A), 'client_requests', 'r1'), answer(ADMIN_A, { response: 'again' })));
+  });
+
+  test('a client withdraws their own request only while it is new', async () => {
+    await assertFails(deleteDoc(doc(asUser(MGR_A), 'client_requests', 'r1')));
+    await assertSucceeds(deleteDoc(doc(asUser(CLIENT_A), 'client_requests', 'r1')));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'client_requests', 'r2'), { status: 'declined', projectId: PROJ_A });
+    });
+    await assertFails(deleteDoc(doc(asUser(CLIENT_A), 'client_requests', 'r2')));
+  });
+});

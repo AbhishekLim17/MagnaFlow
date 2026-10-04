@@ -312,3 +312,66 @@ describe('client conversation emails', () => {
     expect((await stray.get()).data()).toMatchObject({ notified: true, notifyResult: 'task no longer matches' });
   });
 });
+
+describe('client request emails', () => {
+  const seedRequests = async () => {
+    await clearAll();
+    for (const name of ['client_messages', 'client_requests']) {
+      for (const d of (await db.collection(name).get()).docs) await d.ref.delete();
+    }
+    await seedBase();
+    const orgA = db.collection('organizations').doc('orgA');
+    await orgA.collection('projects').doc('pA').set({ name: 'Apollo', departmentId: 'dA' });
+    await orgA.collection('projects').doc('pLone').set({ name: 'Lonely', departmentId: 'dNone' });
+    const people = {
+      uM: { name: 'Mo Manager', email: 'mo@a.test', orgId: 'orgA', status: 'active', role: 'manager', projectIds: ['pA'] },
+      uH: { name: 'Hana Head', email: 'hana@a.test', orgId: 'orgA', status: 'active', role: 'department-head', departmentIds: ['dA'] },
+      uAdm: { name: 'Ada Admin', email: 'ada@a.test', orgId: 'orgA', status: 'active', role: 'org-admin' },
+      uC: { name: 'Cleo Client', email: 'cleo@client.test', orgId: 'orgA', status: 'active', role: 'client', projectIds: ['pA', 'pLone'] },
+      // a staff member on the project is not told about requests
+      uS: { name: 'Sam Staff', email: 'sam@a.test', orgId: 'orgA', status: 'active', role: 'staff', projectIds: ['pA'] },
+    };
+    for (const [id, u] of Object.entries(people)) await db.collection('users').doc(id).set(u);
+  };
+  const request = (extra) => ({
+    orgId: 'orgA', projectId: 'pA', title: 'Add a dark mode', details: 'For the dashboard', urgency: 'urgent',
+    neededBy: '2026-11-01', requestedBy: 'uC', requestedByName: 'Cleo Client', status: 'new', notified: false,
+    createdAt: admin.firestore.Timestamp.now(), ...extra,
+  });
+
+  test("a new request reaches the project's manager and department head, not its staff", async () => {
+    await seedRequests();
+    const ref = await db.collection('client_requests').add(request());
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    const to = run.mails.map((m) => addressesOf(m.to)).join(' ');
+    expect(run.mails).toHaveLength(2);
+    expect(to).toContain('mo@a.test');
+    expect(to).toContain('hana@a.test');
+    expect(to).not.toContain('sam@a.test');
+    expect(run.mails[0].subject).toContain('Cleo Client asked for “Add a dark mode”');
+    expect(run.mails[0].text).toContain('Urgent');
+    expect((await ref.get()).data()).toMatchObject({ notified: true });
+  });
+
+  test('a project nobody runs falls back to the org admins', async () => {
+    await seedRequests();
+    await db.collection('client_requests').add(request({ projectId: 'pLone' }));
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.mails).toHaveLength(1);
+    expect(addressesOf(run.mails[0].to)).toContain('ada@a.test');
+  });
+
+  test('the client hears the answer, with the reason', async () => {
+    await seedRequests();
+    await db.collection('client_requests').add(request({
+      status: 'declined', decidedBy: 'uM', decidedByName: 'Mo Manager', response: 'Out of scope for this phase',
+    }));
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    expect(run.mails).toHaveLength(1);
+    expect(addressesOf(run.mails[0].to)).toContain('cleo@client.test');
+    expect(run.mails[0].subject).toContain('was declined');
+    expect(run.mails[0].text).toContain('Out of scope for this phase');
+  });
+});

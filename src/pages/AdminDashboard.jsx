@@ -15,6 +15,7 @@ import {
   Globe,
   DollarSign,
   History,
+  Inbox,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +34,7 @@ import { AdminCommandCenter } from '@/components/admin/AdminCommandCenter';
 import ClientsManagement from '@/components/admin/ClientsManagement';
 import BudgetTracker from '@/components/admin/BudgetTracker';
 import ActivityLog from '@/components/admin/ActivityLog';
+import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -44,6 +46,7 @@ const menuItems = [
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'clients', label: 'Client Portal', icon: Globe },
+  { id: 'requests', label: 'Client Requests', icon: Inbox },
   { id: 'budget', label: 'Budget Tracker', icon: DollarSign },
   { id: 'activity', label: 'Activity Log', icon: History },
 ];
@@ -143,6 +146,7 @@ const AdminDashboard = () => {
         <Route path="/timeline" element={<ProjectTimeline />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />
+        <Route path="/requests" element={<ClientRequestsInbox />} />
         <Route path="/budget" element={<BudgetTracker />} />
         <Route path="/activity" element={<ActivityLog />} />
       </Routes>

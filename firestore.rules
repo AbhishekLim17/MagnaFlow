@@ -496,6 +496,68 @@ service cloud.firestore {
       allow delete: if isSignedIn() && (isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
     }
 
+    // Requests a client sends from the portal. The people who run the project (its manager,
+    // the head of its department, an org admin) see them and either accept one (it becomes
+    // a task in the same project) or decline it, saying why. Nobody else on the team sees
+    // them. A client sees their own projects' requests and may withdraw one while it is new.
+    function canTriage(orgId, projId) {
+      return isMasterAdmin() || isOrgAdmin(orgId)
+        || (isManager() && isProjectMember(orgId, projId))
+        || (isDeptHead() && isOrgMember(orgId) && projectDept(orgId, projId) in myDeptIds());
+    }
+    match /client_requests/{requestId} {
+      allow read: if isSignedIn() && (
+        (isClient() && isOrgMember(resource.data.get('orgId', null))
+          && resource.data.get('projectId', null) in myProjectIds())
+        || (!isClient() && canTriage(resource.data.get('orgId', null), resource.data.get('projectId', null))));
+
+      allow create: if isSignedIn() && isClient()
+        && request.resource.data.keys().hasOnly(['orgId', 'projectId', 'title', 'details', 'urgency', 'neededBy',
+             'requestedBy', 'requestedByName', 'status', 'notified', 'createdAt'])
+        && isOrgMember(request.resource.data.orgId)
+        && request.resource.data.projectId in myProjectIds()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.requestedByName is string
+        && request.resource.data.requestedByName.size() <= 120
+        && request.resource.data.status == 'new'
+        && request.resource.data.notified == false
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 200
+        && request.resource.data.details is string
+        && request.resource.data.details.size() <= 4000
+        && request.resource.data.urgency in ['normal', 'urgent']
+        && (request.resource.data.neededBy == null
+            || (request.resource.data.neededBy is string
+                && request.resource.data.neededBy.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+
+      // Answered once, by someone who runs the project, as themselves and at the server's
+      // time; an accepted request names a task that really is in the same project.
+      allow update: if isSignedIn() && !isClient()
+        && canTriage(resource.data.get('orgId', null), resource.data.get('projectId', null))
+        && resource.data.status == 'new'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'decidedBy', 'decidedByName', 'decidedAt', 'response', 'taskId', 'notified'])
+        && request.resource.data.status in ['accepted', 'declined']
+        && request.resource.data.decidedBy == request.auth.uid
+        && request.resource.data.decidedAt == request.time
+        && request.resource.data.decidedByName is string
+        && request.resource.data.decidedByName.size() <= 120
+        && request.resource.data.response is string
+        && request.resource.data.response.size() <= 2000
+        && request.resource.data.notified == false
+        && (request.resource.data.status == 'declined'
+            || (request.resource.data.get('taskId', null) is string
+                && taskData(request.resource.data.taskId).get('orgId', null) == resource.data.orgId
+                && taskData(request.resource.data.taskId).get('projectId', null) == resource.data.projectId));
+
+      allow delete: if isSignedIn() && (
+        (isClient() && resource.data.get('requestedBy', null) == request.auth.uid
+          && resource.data.get('status', null) == 'new')
+        || isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
+    }
+
     // Task attachments (metadata; the files live in Storage, see storage.rules)
     match /task_attachments/{attachmentId} {
       allow read: if canSeeTask(resource.data.get('taskId', null));

@@ -34,7 +34,7 @@ const messageData = (task, author, fromClient, kind, text) => ({
   orgId: task.orgId,
   projectId: task.projectId,
   taskId: task.id,
-  authorId: author.uid,
+  authorId: author.uid || author.id,
   authorName: nameOf(author),
   fromClient,
   kind,
@@ -45,11 +45,11 @@ const messageData = (task, author, fromClient, kind, text) => ({
 
 // The bell, for the task's author and assignee, when the client says something.
 const notifyTeam = (batch, task, author, type, text) => {
-  for (const userId of teamRecipients(task, author.uid)) {
+  for (const userId of teamRecipients(task, author.uid || author.id)) {
     batch.set(doc(collection(db, 'comment_notifications')), {
       userId,
       taskId: task.id,
-      mentionedBy: author.uid,
+      mentionedBy: author.uid || author.id,
       mentionedByName: nameOf(author),
       type,
       taskTitle: task.title ? String(task.title).slice(0, 200) : null,
@@ -83,7 +83,7 @@ export const sendClientMessage = async ({ task, author, fromClient, text }) => {
 export const decideMilestone = async ({ task, author, decision, note = '' }) => {
   const batch = writeBatch(db);
   const trimmed = String(note || '').trim().slice(0, MAX_NOTE);
-  const approval = { decision, by: author.uid, byName: nameOf(author), at: serverTimestamp(), note: trimmed };
+  const approval = { decision, by: author.uid || author.id, byName: nameOf(author), at: serverTimestamp(), note: trimmed };
   batch.update(doc(db, 'tasks', task.id), { clientApproval: approval });
   const ref = doc(collection(db, MESSAGES));
   const data = messageData(task, author, true, decision, trimmed);

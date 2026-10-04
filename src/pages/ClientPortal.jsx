@@ -26,6 +26,7 @@ import { listProjectMessages, sendClientMessage, decideMilestone } from "@/servi
 import { groupByTask } from "@/lib/clientThread";
 import ClientThread from "@/components/shared/ClientThread";
 import MilestoneSignOff from "@/components/client/MilestoneSignOff";
+import ClientRequests from "@/components/client/ClientRequests";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -349,6 +350,9 @@ const ClientPortal = () => {
                     </Card>
                   );
                 })()}
+
+                {/* ── Requests to the team ─────────────────────────── */}
+                <ClientRequests orgId={currentUser?.orgId} projectId={activeProjectId} author={currentUser} />
 
                 {/* ── Task list (title + status + deadline only) ────── */}
                 {activeTasks.length > 0 && (

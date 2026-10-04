@@ -23,6 +23,7 @@ describe('wantsEmail', () => {
     expect(wantsEmail({ statusChanges: false }, 'task_completed')).toBe(false);
     expect(wantsEmail({ statusChanges: false }, 'task_status_changed')).toBe(false);
     expect(wantsEmail({ clientMessages: false }, 'client_approved')).toBe(false);
+    expect(wantsEmail({ clientMessages: false }, 'client_request')).toBe(false);
     // a client's reply notice has no setting (clients have no settings screen)
     expect(wantsEmail({ clientMessages: false }, 'client_reply')).toBe(true);
   });

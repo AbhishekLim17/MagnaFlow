@@ -16,7 +16,7 @@ const admin = require('firebase-admin');
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
-const { sendClientUpdates } = require('./lib/clientUpdates.cjs');
+const { sendClientUpdates, sendRequestUpdates } = require('./lib/clientUpdates.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -39,21 +39,28 @@ async function main() {
   const getTransport = () => (transport ||= createTransport());
   const queue = await drainQueue(db, tenant, getTransport, wantsEmail);
 
-  // Then the client conversations: tell the other side about new messages.
-  const conv = await sendClientUpdates({
+  // Then the client portal: tell the other side about new conversation messages and requests.
+  const portalDeps = (source) => ({
     db, admin, tenant, wantsEmail,
     transport: null,
     send: (_unused, mail) => sendNotification(getTransport(), mail),
     dryRun: DRY_RUN,
-    log: (mail, orgId, status) => logEmail(db, null, { ...mail, source: 'client_conversation' }, orgId, status),
+    log: (mail, orgId, status) => logEmail(db, null, { ...mail, source }, orgId, status),
   });
+  const conv = await sendClientUpdates(portalDeps('client_conversation'));
   if (conv.messages) {
     console.log(`Client conversation: ${conv.messages} message(s), sent ${conv.sent}, skipped ${conv.skipped}, failed ${conv.failed}.`);
+  }
+  const reqs = await sendRequestUpdates(portalDeps('client_request'));
+  if (reqs.requests) {
+    console.log(`Client requests: ${reqs.requests} update(s), sent ${reqs.sent}, skipped ${reqs.skipped}, failed ${reqs.failed}.`);
   }
 
   // A single bad address should not turn the whole run red; a run where nothing
   // got through should.
-  if (!DRY_RUN && queue.sent + conv.sent === 0 && queue.failed + conv.failed > 0) process.exit(1);
+  const sentAll = queue.sent + conv.sent + reqs.sent;
+  const failedAll = queue.failed + conv.failed + reqs.failed;
+  if (!DRY_RUN && sentAll === 0 && failedAll > 0) process.exit(1);
 }
 
 async function drainQueue(db, tenant, getTransport, wantsEmail) {

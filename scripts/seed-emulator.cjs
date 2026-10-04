@@ -110,7 +110,7 @@ async function reset() {
   const collections = [
     'users', 'tasks', 'organizations', 'designations',
     'audit_logs', 'error_logs', 'subtasks', 'task_comments',
-    'client_messages', 'comment_notifications',
+    'client_messages', 'client_requests', 'comment_notifications',
   ];
   for (const name of collections) {
     const snap = await db.collection(name).get();
