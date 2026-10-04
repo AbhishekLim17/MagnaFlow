@@ -1211,3 +1211,32 @@ describe('email settings (notificationPrefs)', () => {
     await assertSucceeds(updateDoc(doc(asUser('legacy'), 'users', 'legacy'), { notificationPrefs: { mentions: false } }));
   });
 });
+
+describe('client portal branding', () => {
+  const brandDoc = (db, org = ORG_A) => doc(db, 'organizations', org, 'branding', 'portal');
+  const good = { accent: '#0f766e', logo: 'data:image/png;base64,iVBORw0KGgo=', welcome: 'Hello', updatedBy: ADMIN_A };
+
+  test('an org admin sets it; every member, clients included, reads it', async () => {
+    await assertSucceeds(setDoc(brandDoc(asUser(ADMIN_A)), good));
+    await assertSucceeds(getDoc(brandDoc(asUser(CLIENT_A))));
+    await assertSucceeds(getDoc(brandDoc(asUser(STAFF_A))));
+    await assertFails(getDoc(brandDoc(asUser(STAFF_B))));
+  });
+
+  test('nobody else sets it, and not for another organization', async () => {
+    await assertFails(setDoc(brandDoc(asUser(MGR_A)), good));
+    await assertFails(setDoc(brandDoc(asUser(CLIENT_A)), good));
+    await assertFails(setDoc(brandDoc(asUser(ADMIN_B)), good));
+  });
+
+  test('only a raster data URL, a hex colour and a short note get in', async () => {
+    const db = asUser(ADMIN_A);
+    await assertFails(setDoc(brandDoc(db), { ...good, logo: 'https://evil.example/x.png' }));
+    await assertFails(setDoc(brandDoc(db), { ...good, logo: 'data:image/svg+xml;base64,PHN2Zz4=' }));
+    await assertFails(setDoc(brandDoc(db), { ...good, accent: 'red' }));
+    await assertFails(setDoc(brandDoc(db), { ...good, welcome: 'x'.repeat(501) }));
+    await assertFails(setDoc(brandDoc(db), { ...good, script: '<b>' }));
+    await assertFails(setDoc(doc(db, 'organizations', ORG_A, 'branding', 'other'), good));
+    await assertSucceeds(setDoc(brandDoc(db), { accent: null, logo: null, welcome: '' }));
+  });
+});

@@ -209,6 +209,24 @@ service cloud.firestore {
           || (isOrgMember(orgId) && resource.data.createdBy == request.auth.uid));
       }
 
+      // The client portal's look (logo, accent colour, welcome note). Every member,
+      // clients included, reads it; org admins set it. The logo is a small raster data
+      // URL (no Cloud Storage on this plan), so its type and size are pinned here.
+      match /branding/{docId} {
+        allow read: if isSignedIn() && (isOrgMember(orgId) || isMasterAdmin());
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && docId == 'portal'
+          && request.resource.data.keys().hasOnly(['accent', 'logo', 'welcome', 'updatedBy', 'updatedAt'])
+          && (request.resource.data.get('accent', null) == null
+              || (request.resource.data.accent is string && request.resource.data.accent.matches('^#[0-9a-f]{6}$')))
+          && (request.resource.data.get('logo', null) == null
+              || (request.resource.data.logo is string
+                  && request.resource.data.logo.size() <= 150000
+                  && request.resource.data.logo.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$')))
+          && request.resource.data.get('welcome', '') is string
+          && request.resource.data.get('welcome', '').size() <= 500;
+      }
+
       match /projects/{projId} {
         allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient())
           || isMasterAdmin()

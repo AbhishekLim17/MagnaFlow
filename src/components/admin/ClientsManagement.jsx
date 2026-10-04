@@ -28,6 +28,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjects } from "@/services/organizationService";
 import { useConfirm } from '@/components/shared/ConfirmDialog';
+import PortalBrandingCard from '@/components/admin/PortalBrandingCard';
 import { reportError } from "@/lib/reportError";
 import { generatePassword } from "@/lib/password";
 import { emailProblem, nameProblem } from "@/lib/accountForm";
@@ -506,6 +507,9 @@ const ClientsManagement = () => {
           ))}
         </div>
       )}
+
+      {/* How the portal looks to clients */}
+      {currentUser?.orgId && <PortalBrandingCard orgId={currentUser.orgId} />}
 
       {/* Add Dialog */}
       <ClientFormDialog

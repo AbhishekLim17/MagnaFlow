@@ -11,7 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getProjectsByIds } from "@/services/organizationService";
+import { getProjectsByIds, getOrganizationById } from "@/services/organizationService";
+import { getBranding } from "@/services/brandingService";
+import PortalBrandBar from "@/components/shared/PortalBrandBar";
+import { EMPTY_BRANDING } from "@/lib/branding";
 import { getAllTasks } from "@/services/taskService";
 import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
 import { reportError } from "@/lib/reportError";
@@ -38,6 +41,21 @@ const ClientPortal = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeProjectId, setActiveProjectId] = useState(null);
+  // The organisation's look (logo, colour, welcome note) and name, set by their admin.
+  const [branding, setBranding] = useState(EMPTY_BRANDING);
+  const [orgName, setOrgName] = useState("");
+
+  useEffect(() => {
+    if (!currentUser?.orgId) return undefined;
+    let cancelled = false;
+    Promise.all([getBranding(currentUser.orgId), getOrganizationById(currentUser.orgId).catch(() => null)])
+      .then(([b, org]) => {
+        if (cancelled) return;
+        setBranding(b);
+        setOrgName(org?.name || "");
+      });
+    return () => { cancelled = true; };
+  }, [currentUser?.orgId]);
 
   // Load project names and tasks for this client's assigned projects
   useEffect(() => {
@@ -90,6 +108,8 @@ const ClientPortal = () => {
     ? [...(tasksByProject[activeProjectId] ?? [])].sort(byStatusGroup)
     : [];
   const summary = summarizeProject(activeTasks);
+  // Header buttons sit on the organisation's colour when one is set: keep its text colour.
+  const onAccent = branding.accent ? "text-current hover:bg-black/10 hover:text-current" : "";
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -107,33 +127,35 @@ const ClientPortal = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* ── Top Bar ─────────────────────────────────────────────────── */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <FolderOpen className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="font-semibold text-sm">MagnaFlow</span>
-              <span className="text-muted-foreground text-xs ml-2">Client View</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              {currentUser?.name}
-            </span>
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="h-8 w-8">
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign out</span>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PortalBrandBar as="header" className="sticky top-0 z-10" branding={branding} orgName={orgName}>
+        <span className={`hidden text-sm sm:block ${branding.accent ? "opacity-90" : "text-muted-foreground"}`}>
+          {currentUser?.name}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          className={`h-9 w-9 ${onAccent}`}
+        >
+          {theme === "dark" ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={logout} className={`gap-1.5 ${onAccent}`}>
+          <LogOut className="w-4 h-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Sign out</span>
+        </Button>
+      </PortalBrandBar>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+        {branding.welcome && (
+          <p
+            className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-foreground"
+            style={branding.accent ? { borderLeft: `4px solid ${branding.accent}` } : undefined}
+          >
+            {branding.welcome}
+          </p>
+        )}
 
         {projects.length === 0 ? (
           /* Empty state */
@@ -202,13 +224,13 @@ const ClientPortal = () => {
                       label: "In Progress",
                       value: summary.inProgress,
                       icon: Clock,
-                      color: "text-blue-500",
+                      color: "text-info",
                     },
                     {
                       label: "In Review",
                       value: summary.inReview,
                       icon: Clock,
-                      color: "text-amber-500",
+                      color: "text-warning",
                     },
                     {
                       label: "Overdue",
