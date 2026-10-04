@@ -10,6 +10,8 @@
  *
  *   node scripts/send-queued-emails.cjs [--dry-run]
  */
+const path = require('path');
+const { pathToFileURL } = require('url');
 const admin = require('firebase-admin');
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
@@ -28,6 +30,8 @@ async function main() {
   initAdmin();
   const db = admin.firestore();
   const tenant = createTenantLookup(db);
+  // The same rules the settings screen describes.
+  const { wantsEmail } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'lib', 'notificationPrefs.js')).href);
 
   const snap = await db
     .collection('mail_queue')
@@ -47,6 +51,7 @@ async function main() {
   let sent = 0;
   let failed = 0;
   let rejected = 0;
+  let optedOut = 0;
 
   for (const doc of snap.docs) {
     const data = doc.data();
@@ -63,6 +68,20 @@ async function main() {
         await doc.ref.update({
           status: 'rejected',
           error: verdict.reason,
+          lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      continue;
+    }
+
+    // The recipient turned this kind of email off (in-app notifications still happen).
+    if (!wantsEmail(verdict.recipient.prefs, data.type)) {
+      optedOut += 1;
+      console.log(`  skipped (recipient turned off ${data.type || 'this'} emails)`);
+      if (!DRY_RUN) {
+        await doc.ref.update({
+          status: 'skipped',
+          error: 'recipient turned this kind of email off',
           lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
@@ -115,7 +134,7 @@ async function main() {
     console.log('\nDry run complete. No mail sent, queue untouched.');
     return;
   }
-  console.log(`\nDone. Sent ${sent}, failed ${failed}, rejected ${rejected}.`);
+  console.log(`\nDone. Sent ${sent}, failed ${failed}, rejected ${rejected}, turned off by the recipient ${optedOut}.`);
   // A single bad address should not turn the whole run red; a run where nothing
   // got through should.
   if (sent === 0 && failed > 0) process.exit(1);

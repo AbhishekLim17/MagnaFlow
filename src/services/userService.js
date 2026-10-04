@@ -6,7 +6,6 @@ import {
   collection,
   doc,
   documentId,
-  addDoc,
   getDoc,
   getDocs,
   setDoc,
@@ -27,28 +26,13 @@ import {
 import { auth, db, secondaryAuth } from '@/config/firebase';
 import { isFirestoreInternalAssertion, recoverFromFirestoreFailure } from '@/lib/firestoreRecovery';
 import { runBoundedQuery } from '@/lib/firestoreQuery';
+import { writeAuditLog } from './auditService';
 
 // Collection reference
 const USERS_COLLECTION = 'users';
 
 // Upper bound on a single user query — see the note in taskService.
 const DEFAULT_USER_LIMIT = 500;
-
-// Best-effort audit trail for account changes. Deliberately swallows its own
-// errors: an audit write must never block the operation it is recording, and
-// rules may forbid the write for some roles.
-const writeAuditLog = async (entry) => {
-  try {
-    await addDoc(collection(db, 'audit_logs'), {
-      actorId: auth.currentUser?.uid || null,
-      actorEmail: auth.currentUser?.email || null,
-      timestamp: Timestamp.now(),
-      ...entry,
-    });
-  } catch (err) {
-    console.warn('Audit log write skipped:', err?.code || err?.message);
-  }
-};
 
 // Cached lookup of the signed-in caller's own user doc (orgId/departmentIds/
 // projectIds/role). Firestore rules require org-scoped queries/writes for
@@ -479,6 +463,7 @@ export const createUser = async (userData) => {
       action: 'create_user',
       targetUserId: uid,
       targetEmail: email,
+      targetName: userDoc.name || null,
       targetRole: userDoc.role,
       orgId: orgId ?? null,
     });
@@ -518,6 +503,23 @@ export const createUser = async (userData) => {
   }
 };
 
+// Changes to someone's access that the org admin's Activity log records.
+const ACCESS_FIELDS = ['status', 'role', 'departmentIds', 'projectIds'];
+const sameValue = (a, b) => (Array.isArray(a) || Array.isArray(b)
+  ? JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort())
+  : (a ?? null) === (b ?? null));
+
+/**
+ * The access fields an update really changes (edit forms send every field, changed or not).
+ * @returns {Object|null} { field: newValue } or null when nothing changed
+ */
+export const accessChanges = (before, updates) => {
+  // A profile with no status is active (as the rules and the sign-in treat it).
+  const current = (f) => (f === 'status' ? before?.status ?? 'active' : before?.[f]);
+  const changed = ACCESS_FIELDS.filter((f) => f in (updates || {}) && !sameValue(current(f), updates[f]));
+  return changed.length ? Object.fromEntries(changed.map((f) => [f, updates[f]])) : null;
+};
+
 /**
  * Update user information
  * @param {string} uid - User ID
@@ -527,7 +529,11 @@ export const createUser = async (userData) => {
 export const updateUser = async (uid, updates) => {
   try {
     const userRef = doc(db, USERS_COLLECTION, uid);
-    
+
+    // Someone else's access is changing: note what it was, for the audit entry.
+    const touchesAccess = uid !== auth.currentUser?.uid && ACCESS_FIELDS.some((f) => f in (updates || {}));
+    const before = touchesAccess ? await getUserById(uid).catch(() => null) : null;
+
     const updatedData = {
       ...updates,
       updatedAt: Timestamp.now(),
@@ -537,6 +543,18 @@ export const updateUser = async (uid, updates) => {
     
     // Return updated user
     const updatedUser = await getUserById(uid);
+
+    const changes = before ? accessChanges(before, updates) : null;
+    if (changes) {
+      await writeAuditLog({
+        action: 'update_user',
+        targetUserId: uid,
+        targetName: before.name || null,
+        targetEmail: before.email || null,
+        orgId: before.orgId ?? null,
+        changes,
+      });
+    }
     return updatedUser;
   } catch (error) {
     console.error('Error updating user:', error);
@@ -605,6 +623,7 @@ export const deleteUser = async (uid) => {
         action: 'delete_user',
         targetUserId: uid,
         targetEmail: victim.email || null,
+        targetName: victim.name || null,
         orgId: victim.orgId ?? null,
       });
     }
@@ -722,6 +741,11 @@ export const resetUserPassword = async (email) => {
   try {
     await sendPasswordResetEmail(auth, email);
     console.log('Password reset email sent to:', email);
+    // An admin sending someone else a link (the sign-in page's "Forgot password" is nobody's action).
+    if (auth.currentUser && auth.currentUser.email !== email) {
+      const caller = await getCallerProfile().catch(() => null);
+      await writeAuditLog({ action: 'reset_password', targetEmail: email, orgId: caller?.orgId ?? null });
+    }
   } catch (error) {
     console.error('Error sending password reset email:', error);
     throw error;

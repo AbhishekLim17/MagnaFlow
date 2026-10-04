@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { beforeAll, afterAll, beforeEach, describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1147,5 +1147,67 @@ describe('task templates', () => {
     await assertSucceeds(updateDoc(tplRef(asUser(HEAD_A), 'byHead'), { name: 'Renamed' }));
     await assertFails(updateDoc(tplRef(asUser(HEAD_A), 'byHead'), { createdBy: MGR_A }));
     await assertSucceeds(deleteDoc(tplRef(asUser(ADMIN_A), 'byHead')));
+  });
+});
+
+describe('activity log (audit_logs)', () => {
+  const entry = (actorId, orgId, extra = {}) => ({
+    action: 'create_user', actorId, orgId, timestamp: serverTimestamp(), ...extra,
+  });
+
+  test('an org admin records and reads their own organization', async () => {
+    const db = asUser(ADMIN_A);
+    await assertSucceeds(addDoc(collection(db, 'audit_logs'), entry(ADMIN_A, ORG_A)));
+    await assertSucceeds(getDocs(query(collection(db, 'audit_logs'), where('orgId', '==', ORG_A))));
+  });
+
+  test("an org admin cannot read or write another organization's log", async () => {
+    const db = asUser(ADMIN_B);
+    await assertFails(getDocs(query(collection(db, 'audit_logs'), where('orgId', '==', ORG_A))));
+    await assertFails(addDoc(collection(db, 'audit_logs'), entry(ADMIN_B, ORG_A)));
+  });
+
+  test('heads and managers record what they do, but cannot read the log', async () => {
+    await assertSucceeds(addDoc(collection(asUser(HEAD_A), 'audit_logs'), entry(HEAD_A, ORG_A)));
+    await assertSucceeds(addDoc(collection(asUser(MGR_A), 'audit_logs'), entry(MGR_A, ORG_A)));
+    await assertFails(getDocs(query(collection(asUser(HEAD_A), 'audit_logs'), where('orgId', '==', ORG_A))));
+  });
+
+  test('nobody signs for someone else, backdates, or writes as staff or client', async () => {
+    await assertFails(addDoc(collection(asUser(HEAD_A), 'audit_logs'), entry(ADMIN_A, ORG_A)));
+    await assertFails(addDoc(collection(asUser(ADMIN_A), 'audit_logs'),
+      { ...entry(ADMIN_A, ORG_A), timestamp: Timestamp.fromDate(new Date('2020-01-01')) }));
+    await assertFails(addDoc(collection(asUser(HEAD_A), 'audit_logs'), entry(HEAD_A, ORG_B)));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'audit_logs'), entry(STAFF_A, ORG_A)));
+    await assertFails(addDoc(collection(asUser(CLIENT_A), 'audit_logs'), entry(CLIENT_A, ORG_A)));
+  });
+
+  test('history cannot be edited or deleted, even by its author', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'audit_logs', 'kept'), { orgId: ORG_A, actorId: ADMIN_A, action: 'delete_user' });
+    });
+    await assertFails(updateDoc(doc(asUser(ADMIN_A), 'audit_logs', 'kept'), { action: 'nothing' }));
+    await assertFails(deleteDoc(doc(asUser(ADMIN_A), 'audit_logs', 'kept')));
+  });
+});
+
+describe('email settings (notificationPrefs)', () => {
+  test('anyone may change their own email settings', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(STAFF_A), 'users', STAFF_A), {
+      notificationPrefs: { assignments: true, mentions: false, critical: true, statusChanges: false, dailyReminder: false },
+    }));
+    await assertSucceeds(updateDoc(doc(asUser(CLIENT_A), 'users', CLIENT_A), { notificationPrefs: { statusChanges: false } }));
+  });
+
+  test("but not someone else's, and not their own status while at it", async () => {
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'users', STAFF_SCOPED), { notificationPrefs: { mentions: false } }));
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'users', STAFF_A), { notificationPrefs: {}, status: 'inactive' }));
+  });
+
+  test('a profile saved before status existed can still change its settings', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'legacy'), { role: 'staff', orgId: ORG_A, email: 'old@x.com' });
+    });
+    await assertSucceeds(updateDoc(doc(asUser('legacy'), 'users', 'legacy'), { notificationPrefs: { mentions: false } }));
   });
 });

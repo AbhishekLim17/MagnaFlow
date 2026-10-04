@@ -209,3 +209,32 @@ describe('send-daily-reminders', () => {
     expect(log).not.toContain('Critical B');
   });
 });
+
+describe('email preferences', () => {
+  test('a turned-off kind of email is skipped (and recorded), other kinds still arrive', async () => {
+    await clearAll();
+    await seedBase();
+    await db.collection('users').doc('uA1').update({ notificationPrefs: { assignments: false } });
+    const off = await db.collection('mail_queue').add(queued({ type: 'task_assigned' }));
+    const on = await db.collection('mail_queue').add(queued({ type: 'mention', notification_type: 'Mention' }));
+
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    expect(run.mails).toHaveLength(1);
+    expect((await db.collection('mail_queue').doc(off.id).get()).data()).toMatchObject({ status: 'skipped' });
+    expect((await db.collection('mail_queue').doc(on.id).get()).data()).toMatchObject({ status: 'sent' });
+  });
+
+  test('someone who turned off the morning reminder does not get it', async () => {
+    await clearAll();
+    await seedBase();
+    await db.collection('users').doc('uA1').update({ notificationPrefs: { dailyReminder: false } });
+    await db.collection('tasks').doc('cA').set({ title: 'Critical A', priority: 'critical', status: 'pending', orgId: 'orgA', assignedTo: 'uA1' });
+    await db.collection('tasks').doc('cB').set({ title: 'Critical B', priority: 'critical', status: 'pending', orgId: 'orgB', assignedTo: 'uB1' });
+
+    const run = runScript('send-daily-reminders.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    expect(run.mails).toHaveLength(1);
+    expect(addressesOf(run.mails[0].to)).toContain('bea@b.test');
+  });
+});

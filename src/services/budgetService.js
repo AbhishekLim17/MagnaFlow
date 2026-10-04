@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { DEFAULT_CURRENCY } from '@/lib/money';
+import { writeAuditLog } from './auditService';
 
 const orgsCol = 'organizations';
 
@@ -123,17 +124,21 @@ export const attachBudgets = (orgId, projects) =>
     })
   );
 
-export const updateProjectBudget = async (orgId, projId, budgetFields) => {
+/** @param {string} [projectName] for the audit entry */
+export const updateProjectBudget = async (orgId, projId, budgetFields, projectName) => {
   try {
-    await setDoc(
-      financeRef(orgId, projId),
-      {
-        budget: Number(budgetFields.budget) || 0,
-        currency: budgetFields.currency || DEFAULT_CURRENCY,
-        budgetNotes: budgetFields.budgetNotes || '',
-      },
-      { merge: true }
-    );
+    const finance = {
+      budget: Number(budgetFields.budget) || 0,
+      currency: budgetFields.currency || DEFAULT_CURRENCY,
+      budgetNotes: budgetFields.budgetNotes || '',
+    };
+    await setDoc(financeRef(orgId, projId), finance, { merge: true });
+    await writeAuditLog({
+      action: 'update_budget',
+      orgId,
+      targetName: projectName || null,
+      changes: { budget: finance.budget, currency: finance.currency },
+    });
   } catch (error) {
     console.error('Error updating project budget:', error);
     throw error;

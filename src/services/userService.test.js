@@ -26,6 +26,7 @@ vi.mock('firebase/firestore', () => ({
   orderBy: vi.fn(() => ({})),
   limit: vi.fn(() => ({})),
   Timestamp: { now: () => ({ __now: true }) },
+  serverTimestamp: () => ({ __serverTime: true }),
 }));
 
 vi.mock('firebase/auth', () => ({
@@ -40,7 +41,7 @@ vi.mock('@/config/firebase', () => ({
   secondaryAuth: { currentUser: null },
 }));
 
-const { getPendingAuthCleanups, getUsersByIds, getAllUsers, assertMayCreate } = await import('./userService');
+const { getPendingAuthCleanups, getUsersByIds, getAllUsers, assertMayCreate, accessChanges } = await import('./userService');
 const { getDocs } = await import('firebase/firestore');
 
 beforeEach(() => {
@@ -174,5 +175,21 @@ describe('assertMayCreate', () => {
   test('staff, clients and unknown callers may create nothing', () => {
     expect(() => assertMayCreate(staff, { role: 'staff', orgId: 'o1' })).toThrow();
     expect(() => assertMayCreate(null, { role: 'staff', orgId: 'o1' })).toThrow();
+  });
+});
+
+// The Activity log records real access changes only: edit forms send every field.
+describe('accessChanges', () => {
+  const before = { role: 'staff', status: 'active', departmentIds: ['d1', 'd2'], projectIds: [] };
+
+  test('an unchanged form is not a change', () => {
+    expect(accessChanges(before, { name: 'New name', role: 'staff', status: 'active', departmentIds: ['d2', 'd1'], projectIds: [] })).toBeNull();
+  });
+
+  test('reports only what moved', () => {
+    expect(accessChanges(before, { role: 'manager', status: 'active', departmentIds: ['d1'] }))
+      .toEqual({ role: 'manager', departmentIds: ['d1'] });
+    expect(accessChanges({ role: 'staff' }, { status: 'inactive' })).toEqual({ status: 'inactive' });
+    expect(accessChanges({ role: 'staff' }, { status: 'active' })).toBeNull();
   });
 });

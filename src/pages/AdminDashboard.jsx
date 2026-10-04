@@ -14,6 +14,7 @@ import {
   GanttChartSquare,
   Globe,
   DollarSign,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import { AdminCommandCenter } from '@/components/admin/AdminCommandCenter';
 import ClientsManagement from '@/components/admin/ClientsManagement';
 import BudgetTracker from '@/components/admin/BudgetTracker';
+import ActivityLog from '@/components/admin/ActivityLog';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -43,6 +45,7 @@ const menuItems = [
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'clients', label: 'Client Portal', icon: Globe },
   { id: 'budget', label: 'Budget Tracker', icon: DollarSign },
+  { id: 'activity', label: 'Activity Log', icon: History },
 ];
 
 const AdminDashboard = () => {
@@ -141,6 +144,7 @@ const AdminDashboard = () => {
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />
         <Route path="/budget" element={<BudgetTracker />} />
+        <Route path="/activity" element={<ActivityLog />} />
       </Routes>
     </DashboardLayout>
   );

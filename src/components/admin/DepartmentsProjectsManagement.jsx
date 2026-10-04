@@ -90,7 +90,7 @@ const DepartmentsProjectsManagement = () => {
   const confirmDeleteDept = async () => {
     if (!deptToDelete) return;
     try {
-      await deleteDepartment(user.orgId, deptToDelete.id);
+      await deleteDepartment(user.orgId, deptToDelete.id, deptToDelete.name);
       loadAll();
     } catch (error) {
       reportError(error, { title: 'Failed to delete department' });
@@ -125,7 +125,7 @@ const DepartmentsProjectsManagement = () => {
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
     try {
-      await deleteProject(user.orgId, projectToDelete.id);
+      await deleteProject(user.orgId, projectToDelete.id, projectToDelete.name);
       loadAll();
     } catch (error) {
       reportError(error, { title: 'Failed to delete project' });

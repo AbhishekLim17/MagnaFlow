@@ -72,7 +72,8 @@ describe('tenant lookup', () => {
 
   test('a recipient is resolved by uid, with the address taken from the user record', async () => {
     const t = createTenantLookup(db);
-    expect(await t.resolveRecipient('uA', 'orgA')).toEqual({ email: 'staff@a.com', name: 'Ann' });
+    // prefs: their email settings (none saved here), which the drain job honours
+    expect(await t.resolveRecipient('uA', 'orgA')).toEqual({ email: 'staff@a.com', name: 'Ann', prefs: null });
   });
 
   test('a recipient outside the organization, deactivated, unknown or without a valid address is refused', async () => {

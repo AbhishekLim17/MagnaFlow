@@ -88,7 +88,7 @@ function createTenantLookup(db) {
     if (!u || !EMAIL_RE.test(String(u.email || ''))) return null;
     if (u.status === 'inactive') return null;
     if ((u.orgId ?? null) !== (orgId ?? null)) return null;
-    return { email: u.email, name: u.name || u.email };
+    return { email: u.email, name: u.name || u.email, prefs: u.notificationPrefs || null };
   }
 
   return { getOrg, getSettings, getTask, getUser, ccFor, resolveRecipient };

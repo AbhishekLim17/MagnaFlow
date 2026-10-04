@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToUnreadNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
-import { Bell, MessageSquare, X } from 'lucide-react';
+import { Bell, Mail, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { formatRelative } from '@/lib/format';
 import { taskLink } from '@/lib/taskLink';
+import NotificationSettingsDialog from './NotificationSettingsDialog';
 
 /**
  * NotificationBell Component
@@ -23,6 +24,7 @@ const NotificationBell = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   // Subscribe to notifications. Keyed on the uid (a stable string) rather than
@@ -218,9 +220,22 @@ const NotificationBell = () => {
                 </div>
               )}
             </div>
+
+            <div className="border-t border-border bg-background p-2">
+              <button
+                type="button"
+                onClick={() => { setShowDropdown(false); setSettingsOpen(true); }}
+                className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                Email settings
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <NotificationSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };

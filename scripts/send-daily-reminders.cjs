@@ -17,6 +17,8 @@
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { APP_URL, createTenantLookup } = require('./lib/tenant.cjs');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const DONE_STATUSES = new Set(['completed', 'cancelled']);
@@ -69,6 +71,7 @@ async function main() {
   const transport = DRY_RUN ? null : createTransport();
   const db = initAdmin().firestore();
   const tenant = createTenantLookup(db);
+  const { wantsEmail } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'lib', 'notificationPrefs.js')).href);
 
   // Only critical tasks are read (single-field equality needs no composite
   // index); finished ones are dropped in memory. This used to download the whole
@@ -101,6 +104,11 @@ async function main() {
     // A reminder is for someone who can still act on the task: skip deleted,
     // deactivated, address-less users, and anyone now in a different org.
     if (!user || !user.email || user.status === 'inactive' || (user.orgId ?? null) !== (task.orgId ?? null)) {
+      skipped += 1;
+      continue;
+    }
+    // They turned the morning reminder off in their notification settings.
+    if (!wantsEmail(user.notificationPrefs, 'critical_task_reminder')) {
       skipped += 1;
       continue;
     }

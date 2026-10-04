@@ -255,7 +255,7 @@ const BudgetTracker = () => {
   const handleSaveBudget = async (e) => {
     e.preventDefault();
     try {
-      await updateProjectBudget(user.orgId, selectedProject.id, budgetForm);
+      await updateProjectBudget(user.orgId, selectedProject.id, budgetForm, selectedProject.name);
       // Optimistically update local project list
       setProjects((prev) =>
         prev.map((p) =>

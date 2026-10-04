@@ -11,19 +11,17 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
   setDoc,
   updateDoc,
   deleteDoc,
   query,
   where,
-  orderBy,
-  limit as firestoreLimit,
   writeBatch,
   Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { DEFAULT_CURRENCY } from '@/lib/money';
+import { writeAuditLog } from './auditService';
 
 const ORGS_COLLECTION = 'organizations';
 
@@ -35,20 +33,6 @@ const ORGS_COLLECTION = 'organizations';
 const PRIVATE_FIELDS = ['seatLimit', 'storageQuotaMB', 'billingEmail', 'ccEmails'];
 const settingsRef = (orgId) => doc(db, ORGS_COLLECTION, orgId, 'private', 'settings');
 const seatsRef = (orgId) => doc(db, ORGS_COLLECTION, orgId, 'meta', 'seats');
-
-// Best-effort audit trail. Rules allow only master-admin to write audit_logs,
-// so this silently no-ops for other callers rather than failing their action.
-const writeAuditLog = async (entry) => {
-  try {
-    await addDoc(collection(db, 'audit_logs'), {
-      actorId: auth.currentUser?.uid || null,
-      timestamp: Timestamp.now(),
-      ...entry,
-    });
-  } catch (err) {
-    console.warn('Audit log write skipped:', err?.code || err?.message);
-  }
-};
 
 // ─── Organizations (master-admin) ──────────────────────────────────────────
 
@@ -121,7 +105,7 @@ export const provisionOrganization = async (orgId, orgData) => {
   });
   batch.set(seatsRef(orgId), { seatsUsed: existing.size, seatLimit, lastSeatUid: null });
   await batch.commit();
-  await writeAuditLog({ action: 'provision_org', targetOrgId: orgId });
+  await writeAuditLog({ action: 'provision_org', targetOrgId: orgId, orgId });
   return { orgId };
 };
 
@@ -156,7 +140,7 @@ export const updateOrganization = async (orgId, updates) => {
   // The limit is enforced against the seat counter, so keep them in step.
   if (priv.seatLimit !== undefined) batch.set(seatsRef(orgId), { seatLimit: priv.seatLimit }, { merge: true });
   await batch.commit();
-  await writeAuditLog({ action: 'update_org', targetOrgId: orgId });
+  await writeAuditLog({ action: 'update_org', targetOrgId: orgId, orgId });
   return { success: true };
 };
 
@@ -187,7 +171,7 @@ export const getOrgMemberCount = async (orgId) => {
  */
 export const suspendOrganization = async (orgId) => {
   await updateDoc(doc(db, ORGS_COLLECTION, orgId), { status: 'suspended' });
-  await writeAuditLog({ action: 'suspend_org', targetOrgId: orgId });
+  await writeAuditLog({ action: 'suspend_org', targetOrgId: orgId, orgId });
   return { success: true };
 };
 
@@ -197,7 +181,7 @@ export const suspendOrganization = async (orgId) => {
  */
 export const reactivateOrganization = async (orgId) => {
   await updateDoc(doc(db, ORGS_COLLECTION, orgId), { status: 'active' });
-  await writeAuditLog({ action: 'reactivate_org', targetOrgId: orgId });
+  await writeAuditLog({ action: 'reactivate_org', targetOrgId: orgId, orgId });
   return { success: true };
 };
 
@@ -234,15 +218,8 @@ export const computeOrgUsage = async (orgId) => {
   return { activeUserCount: usersSnap.size, taskCount: tasksSnap.size };
 };
 
-/**
- * Most recent audit entries. Bounded — this collection only grows.
- * @param {number} max
- */
-export const getAuditLogs = async (max = 200) => {
-  const q = query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), firestoreLimit(max));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-};
+// The platform-wide audit read lives with the rest of the audit trail.
+export { getAuditLogs } from './auditService';
 
 // ─── Departments (org-admin, within their own org) ─────────────────────────
 
@@ -255,6 +232,7 @@ export const createDepartment = async (orgId, name) => {
   const deptRef = doc(collection(db, ORGS_COLLECTION, orgId, 'departments'));
   const deptDoc = { name, createdAt: Timestamp.now() };
   await setDoc(deptRef, deptDoc);
+  await writeAuditLog({ action: 'create_department', orgId, targetName: name });
   return { id: deptRef.id, ...deptDoc };
 };
 
@@ -262,8 +240,10 @@ export const updateDepartment = async (orgId, deptId, updates) => {
   await updateDoc(doc(db, ORGS_COLLECTION, orgId, 'departments', deptId), updates);
 };
 
-export const deleteDepartment = async (orgId, deptId) => {
+/** @param {string} [name] for the audit entry */
+export const deleteDepartment = async (orgId, deptId, name) => {
   await deleteDoc(doc(db, ORGS_COLLECTION, orgId, 'departments', deptId));
+  await writeAuditLog({ action: 'delete_department', orgId, targetName: name || null });
 };
 
 // ─── Projects (org-admin, within their own org) ────────────────────────────
@@ -306,6 +286,7 @@ export const createProject = async (
   batch.set(projRef, projDoc);
   batch.set(doc(projRef, 'finance', 'budget'), finance);
   await batch.commit();
+  await writeAuditLog({ action: 'create_project', orgId, targetName: name });
   return { id: projRef.id, ...projDoc, ...finance };
 };
 
@@ -313,6 +294,8 @@ export const updateProject = async (orgId, projId, updates) => {
   await updateDoc(doc(db, ORGS_COLLECTION, orgId, 'projects', projId), updates);
 };
 
-export const deleteProject = async (orgId, projId) => {
+/** @param {string} [name] for the audit entry */
+export const deleteProject = async (orgId, projId, name) => {
   await deleteDoc(doc(db, ORGS_COLLECTION, orgId, 'projects', projId));
+  await writeAuditLog({ action: 'delete_project', orgId, targetName: name || null });
 };

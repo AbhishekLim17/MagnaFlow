@@ -211,13 +211,23 @@ async function seed() {
   }
 
   console.log('Creating audit and error log entries…');
-  for (let i = 0; i < 5; i++) {
+  // The shape the services write (see src/services/auditService.js), so the org admin's
+  // Activity log and the master dashboard both have something to show.
+  const auditEntries = [
+    { action: 'provision_org', actorId: 'u-master', targetOrgId: ORG_ID },
+    { action: 'create_department', actorId: 'u-orgadmin', targetName: 'Engineering' },
+    { action: 'create_project', actorId: 'u-orgadmin', targetName: 'Apollo Platform' },
+    { action: 'create_user', actorId: 'u-orgadmin', targetUserId: 'u-head', targetName: 'Neha Head', targetRole: 'department-head' },
+    { action: 'create_user', actorId: 'u-head', targetUserId: 'u-staff3', targetName: 'Aisha Khan', targetRole: 'staff' },
+    { action: 'update_user', actorId: 'u-orgadmin', targetUserId: 'u-staff2', targetName: 'Vikram Iyer', changes: { projectIds: [PROJ_ATLAS] } },
+    { action: 'update_budget', actorId: 'u-orgadmin', targetName: 'Apollo Platform', changes: { budget: 500000, currency: 'INR' } },
+    { action: 'reset_password', actorId: 'u-orgadmin', targetEmail: 'staff@demo.test' },
+  ];
+  for (const [i, entry] of auditEntries.entries()) {
     await db.collection('audit_logs').add({
-      action: ['org.provisioned', 'user.created', 'user.role_changed', 'org.suspended', 'user.deleted'][i],
-      actorId: 'u-master',
-      targetOrgId: ORG_ID,
-      targetUserId: PEOPLE[i % PEOPLE.length].uid,
-      timestamp: day(-i - 1),
+      ...entry,
+      orgId: ORG_ID,
+      timestamp: day(i - auditEntries.length),
     });
   }
   await db.collection('error_logs').add({
