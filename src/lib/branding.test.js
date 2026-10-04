@@ -43,6 +43,6 @@ describe('logo', () => {
 
 test('reading and saving keep only clean values', () => {
   expect(brandingFromDoc(undefined)).toEqual({ accent: null, logo: null, welcome: '' });
-  expect(brandingFromDoc({ accent: 'red', logo: 'javascript:alert(1)', welcome: 5 })).toEqual({ accent: null, logo: null, welcome: '' });
+  expect(brandingFromDoc({ accent: 'red', logo: 'http://example.com/logo.png', welcome: 5 })).toEqual({ accent: null, logo: null, welcome: '' });
   expect(brandingToDoc({ accent: '0f766e', logo: '', welcome: '  Hello  ' })).toEqual({ accent: '#0f766e', logo: null, welcome: 'Hello' });
 });
