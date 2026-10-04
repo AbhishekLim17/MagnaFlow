@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare, LayoutGrid, List } from 'lucide-react';
+import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import KanbanBoard from '@/components/shared/KanbanBoard';
+import TaskCalendar from '@/components/shared/TaskCalendar';
+import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import StatCard from '@/components/shared/StatCard';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
@@ -161,11 +163,11 @@ const StaffDashboard = () => {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('staffTaskViewMode') || 'list');
+  const [viewMode, setViewMode] = useState(() => savedView('staffTaskViewMode'));
 
   const switchView = (mode) => {
     setViewMode(mode);
-    localStorage.setItem('staffTaskViewMode', mode);
+    try { localStorage.setItem('staffTaskViewMode', mode); } catch { /* remembering is a nicety */ }
   };
 
   useEffect(() => {
@@ -302,23 +304,7 @@ const StaffDashboard = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">My Tasks</h2>
               <div className="flex items-center gap-2">
-                {/* View toggle */}
-                <div className="flex items-center rounded-lg border border-border overflow-hidden bg-muted">
-                  <button
-                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                    onClick={() => switchView('list')}
-                    title="List view"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                    onClick={() => switchView('kanban')}
-                    title="Kanban view"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                </div>
+                <ViewToggle value={viewMode} onChange={switchView} />
                 <Button onClick={() => setIsAddTaskOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Personal Task
@@ -393,6 +379,11 @@ const StaffDashboard = () => {
                 onCardClick={setSelectedTask}
                 canAdd={false}
               />
+            )}
+
+            {/* Calendar View */}
+            {viewMode === 'calendar' && !loading && (
+              <TaskCalendar tasks={filteredTasks} onTaskClick={setSelectedTask} />
             )}
 
             {/* Tasks List */}

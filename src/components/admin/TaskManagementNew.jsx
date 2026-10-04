@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, LayoutGrid, List, ArrowDownUp } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, User, MessageSquare, ListChecks, AlertTriangle, ArrowDownUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,8 @@ import {
   SORT_OPTIONS, filterAndSortTasks, activeFilterCount, filtersFromParams, writeFilters,
 } from '@/lib/taskFilters';
 import KanbanBoard from '@/components/shared/KanbanBoard';
+import TaskCalendar from '@/components/shared/TaskCalendar';
+import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import {
   Tooltip,
   TooltipContent,
@@ -201,11 +203,11 @@ const TaskManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskForComments, setTaskForComments] = useState(null);
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('taskViewMode') || 'list');
+  const [viewMode, setViewMode] = useState(() => savedView('taskViewMode'));
 
   const switchView = (mode) => {
     setViewMode(mode);
-    localStorage.setItem('taskViewMode', mode);
+    try { localStorage.setItem('taskViewMode', mode); } catch { /* remembering is a nicety */ }
   };
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
@@ -498,27 +500,7 @@ const TaskManagement = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground">Create and assign tasks to your team</p>
         <div className="flex items-center justify-between gap-2 sm:justify-end">
-          {/* View toggle */}
-          <div className="flex items-center rounded-lg border border-border overflow-hidden bg-muted">
-            <button
-              className={`h-10 w-11 justify-center text-sm flex items-center gap-1.5 transition-colors sm:h-9 ${viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={() => switchView('list')}
-              title="List view"
-              aria-label="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <List className="w-4 h-4" aria-hidden="true" />
-            </button>
-            <button
-              className={`h-10 w-11 justify-center text-sm flex items-center gap-1.5 transition-colors sm:h-9 ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={() => switchView('kanban')}
-              title="Kanban view"
-              aria-label="Board view"
-              aria-pressed={viewMode === 'kanban'}
-            >
-              <LayoutGrid className="w-4 h-4" aria-hidden="true" />
-            </button>
-          </div>
+          <ViewToggle value={viewMode} onChange={switchView} />
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={() => setIoOpen(true)} aria-label="Import or export tasks">
               <ArrowDownUp aria-hidden="true" />
@@ -674,6 +656,11 @@ const TaskManagement = () => {
           }}
           canAdd={true}
         />
+      )}
+
+      {/* Calendar View */}
+      {viewMode === 'calendar' && !loading && (
+        <TaskCalendar tasks={filteredTasks} onTaskClick={setTaskForComments} />
       )}
 
       {/* Tasks List */}
