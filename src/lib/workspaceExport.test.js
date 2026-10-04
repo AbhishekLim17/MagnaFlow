@@ -35,7 +35,7 @@ describe('buildWorkspaceSheets', () => {
     expect(header[0]).toBe('Title');
     expect(row.slice(0, 6)).toEqual(['Write the spec', '', 'Pending', 'High', 'Sana Staff', 'sana@demo.test']);
     expect(row[8]).toBe('Apollo');
-    expect(row[9]).toBe('Engineering');
+    expect(row[10]).toBe('Engineering');
   });
 
   test('people show role, scope and status in words; unknown ids are dropped, not printed', () => {

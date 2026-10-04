@@ -3,9 +3,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { toUserMessage } from '@/lib/errorMessages';
 import { statusLabel } from '@/lib/taskLabels';
-import { formatDate } from '@/lib/format';
+import { formatDate, toDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, getTaskStatistics } from '@/services/taskService';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
@@ -289,6 +290,52 @@ export const TasksProvider = ({ children }) => {
   };
 
   /**
+   * New dates for a task (dragged on the timeline). Saves quietly, then says what changed
+   * with an Undo button, since a drag is easy to make by accident. `onChange` lets a screen
+   * that keeps its own copy of the tasks (the project timeline) follow along.
+   *
+   * @param {Object} task the task as it was
+   * @param {{ startDate: string, deadline: string }} next "YYYY-MM-DD"
+   * @param {{ onChange?: (taskId: string, dates: Object) => void }} [options]
+   */
+  const rescheduleTask = async (task, next, { onChange } = {}) => {
+    // The stored day of each date ("YYYY-MM-DD"; dates are kept as midnight UTC).
+    const storedDay = (value) => {
+      const d = toDate(value);
+      return d ? d.toISOString().slice(0, 10) : '';
+    };
+    const before = { startDate: storedDay(task.startDate), deadline: storedDay(task.deadline) };
+    const updated = await updateTask(task.id, next, { quiet: true });
+    onChange?.(task.id, updated);
+
+    const span = next.startDate && next.startDate !== next.deadline
+      ? `${formatDate(next.startDate)} to ${formatDate(next.deadline)}`
+      : formatDate(next.deadline);
+    toast({
+      // long enough to notice a slip of the mouse and take it back
+      duration: 10000,
+      title: 'Rescheduled',
+      description: `“${task.title}” now ${next.startDate && next.startDate !== next.deadline ? 'runs' : 'is due'} ${span}.`,
+      action: (
+        <ToastAction
+          altText="Undo the new dates"
+          onClick={async () => {
+            try {
+              const restored = await updateTask(task.id, before, { quiet: true });
+              onChange?.(task.id, restored);
+            } catch {
+              // updateTask has already said what went wrong
+            }
+          }}
+        >
+          Undo
+        </ToastAction>
+      ),
+    });
+    return updated;
+  };
+
+  /**
    * Delete a task
    */
   const deleteTask = async (taskId) => {
@@ -394,6 +441,7 @@ export const TasksProvider = ({ children }) => {
     createTask,
     importTasks,
     updateTask,
+    rescheduleTask,
     deleteTask,
     updateTaskStatus,
     // Cheap no-op when the data is still fresh — safe to call on every mount.

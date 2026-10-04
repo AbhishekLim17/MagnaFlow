@@ -161,9 +161,11 @@ const TaskFormDialog = ({
               <Input
                 id={idFor('startDate')}
                 type="date"
-                value={formData.startDate}
+                value={formData.milestone ? '' : formData.startDate}
                 onChange={(e) => set({ startDate: e.target.value })}
                 className={FIELD_CLASS}
+                disabled={Boolean(formData.milestone)}
+                aria-describedby={formData.milestone ? idFor('milestone-hint') : undefined}
               />
             </div>
             <div>
@@ -185,6 +187,22 @@ const TaskFormDialog = ({
             </div>
           </div>
 
+
+          <label className="flex items-start gap-3 rounded-xl border border-border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]"
+              checked={Boolean(formData.milestone)}
+              onChange={(e) => set({ milestone: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium text-foreground">This is a milestone</span>
+              <span id={idFor('milestone-hint')} className="block text-xs text-muted-foreground">
+                A key date, such as a sign-off or a launch. It has one date (the deadline), shows as a
+                diamond on the timeline and is listed for clients.
+              </span>
+            </span>
+          </label>
 
           {/* Depends On (blockedBy) multi-select */}
           {tasks.length > 0 && (

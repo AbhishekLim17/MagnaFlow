@@ -80,7 +80,9 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
 
         {/* Priority indicator dot + title */}
         <div className="flex items-start gap-2 mb-2 pr-8">
-          <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${priority.dot}`} />
+          {task.milestone
+            ? <span className="mt-1.5 h-2 w-2 shrink-0 rotate-45 rounded-[1px] bg-primary" title="Milestone" aria-hidden="true" />
+            : <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${priority.dot}`} aria-hidden="true" />}
           <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2">
             {/* The keyboard way in. Its ::after stretches over the whole card, so a click
                 anywhere on the card lands here and bubbles up to the card's onClick; this

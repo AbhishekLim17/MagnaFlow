@@ -17,6 +17,7 @@ import AddTaskDialog from '@/components/staff/AddTaskDialog';
 import EditTaskDialog from '@/components/staff/EditTaskDialog';
 import TaskDetailsDialog from '@/components/staff/TaskDetailsDialog';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
+import { canEditTask } from '@/lib/taskPermissions';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import KanbanBoard from '@/components/shared/KanbanBoard';
 import TaskCalendar from '@/components/shared/TaskCalendar';
@@ -154,7 +155,7 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
 const StaffDashboard = () => {
   const confirm = useConfirm();
   const { user, currentUser } = useAuth();
-  const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
+  const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks, rescheduleTask } = useTasks();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -292,7 +293,12 @@ const StaffDashboard = () => {
             {loading ? (
               <LoadingState label="Loading timeline..." />
             ) : (
-              <ProjectGanttChart tasks={tasks} getStaffName={() => user?.name || 'You'} />
+              <ProjectGanttChart
+                tasks={tasks}
+                getStaffName={() => user?.name || 'You'}
+                canReschedule={(task) => canEditTask(user, task)}
+                onReschedule={(task, dates) => rescheduleTask(task, dates)}
+              />
             )}
           </CardContent>
         </Card>

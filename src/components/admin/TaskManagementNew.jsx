@@ -74,6 +74,9 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
               <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
             </div>
             <div className="ml-4 flex flex-wrap items-start justify-end gap-2">
+              {task.milestone && (
+                <Badge className="bg-primary-soft text-primary border border-primary/30">◆ Milestone</Badge>
+              )}
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
                 {priorityLabel(task.priority)}
               </Badge>
@@ -223,6 +226,7 @@ const TaskManagement = () => {
     deadline: '',
     projectId: '',
     blockedBy: [],
+    milestone: false,
   });
 
   const { toast } = useToast();
@@ -306,12 +310,22 @@ const TaskManagement = () => {
     let departmentId = project?.departmentId || undefined;
     if (!departmentId && isDeptHead) departmentId = currentUser?.departmentIds?.[0];
 
-    return { ...formData, projectId, departmentId };
+    // A milestone is a single date: its deadline.
+    const dates = formData.milestone ? { startDate: formData.deadline } : {};
+    return { ...formData, ...dates, milestone: Boolean(formData.milestone), projectId, departmentId };
   };
 
   // A deadline before the start date makes a nonsense Gantt bar (it is silently
   // clamped to a one-day task), so refuse it up front.
   const datesAreInvalid = () => {
+    if (formData.milestone && !formData.deadline) {
+      toast({
+        title: "A milestone needs a date",
+        description: "Set the deadline: that is the milestone's date.",
+        variant: "destructive",
+      });
+      return true;
+    }
     if (formData.startDate && formData.deadline && formData.deadline < formData.startDate) {
       toast({
         title: "Check the dates",
@@ -389,6 +403,7 @@ const TaskManagement = () => {
       deadline: task.deadline ? formatDateForInput(task.deadline) : '',
       projectId: task.projectId || '',
       blockedBy: Array.isArray(task.blockedBy) ? task.blockedBy : [],
+      milestone: Boolean(task.milestone),
     });
     setIsEditDialogOpen(true);
   };
@@ -409,6 +424,7 @@ const TaskManagement = () => {
       deadline: '',
       projectId: '',
       blockedBy: [],
+      milestone: false,
     });
     setSelectedTask(null);
   };

@@ -39,6 +39,7 @@ import FieldError from '@/components/shared/FieldError';
 import { validateNewAccount } from '@/lib/accountForm';
 import { EmptyState, LoadingState } from '@/components/shared/States';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
+import { canEditTask } from '@/lib/taskPermissions';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import { reportError } from '@/lib/reportError';
@@ -159,7 +160,7 @@ const ScopedDashboard = ({ scope }) => {
   const confirm = useConfirm();
   const cfg = SCOPE_CONFIG[scope];
   const { user } = useAuth();
-  const { tasks, statistics, loading: tasksLoading } = useTasks();
+  const { tasks, statistics, loading: tasksLoading, rescheduleTask } = useTasks();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -272,7 +273,12 @@ const ScopedDashboard = ({ scope }) => {
           {tasksLoading ? (
             <LoadingState label="Loading timeline..." />
           ) : (
-            <ProjectGanttChart tasks={tasks} getStaffName={staffNameFor} />
+            <ProjectGanttChart
+              tasks={tasks}
+              getStaffName={staffNameFor}
+              canReschedule={(task) => canEditTask(user, task)}
+              onReschedule={(task, dates) => rescheduleTask(task, dates)}
+            />
           )}
         </CardContent>
       </Card>

@@ -16,10 +16,13 @@ import { getProjects } from '@/services/organizationService';
 import { getAllTasks } from '@/services/taskService';
 import { getAllUsers } from '@/services/userService';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
+import { useTasks } from '@/contexts/TasksContext';
+import { canEditTask } from '@/lib/taskPermissions';
 import { reportError } from '@/lib/reportError';
 
 const ProjectTimeline = () => {
   const { currentUser } = useAuth();
+  const { rescheduleTask } = useTasks();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [tasks, setTasks] = useState([]);
@@ -118,7 +121,15 @@ const ProjectTimeline = () => {
           ) : loadingTasks ? (
             <div className="text-center py-12 text-muted-foreground">Loading timeline...</div>
           ) : (
-            <ProjectGanttChart tasks={tasks} getStaffName={getStaffName} />
+            <ProjectGanttChart
+              tasks={tasks}
+              getStaffName={getStaffName}
+              canReschedule={(task) => canEditTask(currentUser, task)}
+              onReschedule={(task, dates) => rescheduleTask(task, dates, {
+                // this screen loads the project's tasks itself; keep that copy in step
+                onChange: (id, updated) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t))),
+              })}
+            />
           )}
         </CardContent>
       </Card>

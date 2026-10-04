@@ -21,6 +21,7 @@ export const TASK_COLUMNS = [
   { key: 'startDate', header: 'Start date', aliases: ['start', 'start on', 'begin', 'begins'] },
   { key: 'deadline', header: 'Deadline', aliases: ['due date', 'due', 'due on', 'end date', 'end', 'finish'] },
   { key: 'project', header: 'Project', aliases: ['project name'] },
+  { key: 'milestone', header: 'Milestone', aliases: ['is milestone', 'key date'] },
 ];
 
 // Export-only columns (ignored on import).
@@ -217,6 +218,13 @@ export const parseTaskImport = (text, ctx = {}) => {
       errors.push('The deadline is before the start date.');
     }
 
+    const milestoneText = norm(cell(row, 'milestone'));
+    const milestone = ['yes', 'y', 'true', '1', 'x', 'milestone'].includes(milestoneText);
+    if (milestoneText && !milestone && !['no', 'n', 'false', '0', '-'].includes(milestoneText)) {
+      errors.push(`Milestone “${cell(row, 'milestone')}” should be Yes or No.`);
+    }
+    if (milestone && !dates.deadline) errors.push('A milestone needs a deadline (its date).');
+
     let project = null;
     const projectText = cell(row, 'project');
     if (projectText) {
@@ -237,8 +245,10 @@ export const parseTaskImport = (text, ctx = {}) => {
         status,
         priority,
         assignedTo: person ? person.id : '',
-        startDate: dates.startDate || '',
+        // a milestone is one date: its deadline
+        startDate: milestone ? dates.deadline : dates.startDate || '',
         deadline: dates.deadline || '',
+        milestone,
         ...(project && { projectId: project.id, departmentId: project.departmentId || undefined }),
       },
     };
@@ -286,6 +296,7 @@ export const tasksToRows = (tasks, lookups = {}) => {
       storedDay(t.startDate),
       storedDay(t.deadline),
       (t.projectId && lookups.projectName?.(t.projectId)) || '',
+      t.milestone ? 'Yes' : '',
       (t.departmentId && lookups.departmentName?.(t.departmentId)) || '',
       waitingOn,
       storedDay(t.createdAt),
@@ -299,6 +310,7 @@ export const tasksToRows = (tasks, lookups = {}) => {
 /** A small file showing the expected columns, offered from the import dialog. */
 export const sampleImportRows = () => [
   TASK_COLUMNS.map((c) => c.header),
-  ['Draft the launch plan', 'One page: goals, owners, dates', 'Pending', 'High', '', 'someone@yourcompany.com', '06/10/2026', '10/10/2026', ''],
-  ['Book the venue', '', 'In progress', 'Medium', 'Asha Rao', '', '2026-10-07', '2026-10-09', ''],
+  ['Draft the launch plan', 'One page: goals, owners, dates', 'Pending', 'High', '', 'someone@yourcompany.com', '06/10/2026', '10/10/2026', '', ''],
+  ['Book the venue', '', 'In progress', 'Medium', 'Asha Rao', '', '2026-10-07', '2026-10-09', '', ''],
+  ['Launch day', '', 'Pending', 'High', '', '', '', '20/10/2026', '', 'Yes'],
 ];

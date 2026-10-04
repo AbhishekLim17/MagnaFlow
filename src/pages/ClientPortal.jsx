@@ -17,7 +17,7 @@ import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
 import { reportError } from "@/lib/reportError";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { isOverdueTask, summarizeProject } from "@/lib/taskState";
-import { formatDate } from "@/lib/format";
+import { formatDate, toDate } from "@/lib/format";
 import { statusLabel } from "@/lib/taskLabels";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -249,6 +249,37 @@ const ClientPortal = () => {
                         {done} of {summary.total} tasks complete
                         {summary.cancelled > 0 && ` · ${summary.cancelled} cancelled task${summary.cancelled > 1 ? 's' : ''} not counted`}
                       </p>
+                    </Card>
+                  );
+                })()}
+
+                {/* ── Milestones: the dates a client cares about ───────── */}
+                {(() => {
+                  const milestones = activeTasks
+                    .filter((t) => t.milestone)
+                    .sort((a, b) => (toDate(a.deadline)?.getTime() ?? Infinity) - (toDate(b.deadline)?.getTime() ?? Infinity));
+                  if (milestones.length === 0) return null;
+                  return (
+                    <Card className="p-5">
+                      <h2 className="text-base font-semibold mb-4">Milestones</h2>
+                      <ol className="space-y-2">
+                        {milestones.map((m) => {
+                          const done = m.status === 'completed';
+                          const overdue = isOverdueTask(m);
+                          return (
+                            <li key={m.id} className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
+                              <span
+                                aria-hidden="true"
+                                className={`h-3 w-3 shrink-0 rotate-45 rounded-[2px] ${done ? 'bg-success-accent' : overdue ? 'bg-destructive' : 'bg-primary'}`}
+                              />
+                              <span className={`flex-1 text-sm font-medium ${m.status === 'cancelled' ? 'line-through text-muted-foreground' : ''}`}>{m.title}</span>
+                              <span className={`text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                {done ? 'Reached' : overdue ? 'Was due' : 'Due'} {m.deadline ? formatDate(m.deadline) : 'date to be set'}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ol>
                     </Card>
                   );
                 })()}

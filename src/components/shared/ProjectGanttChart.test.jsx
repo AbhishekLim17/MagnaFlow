@@ -1,6 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import ProjectGanttChart from './ProjectGanttChart';
+import { addDays, startOfDay } from '@/lib/ganttLayout';
+import { dayKey } from '@/lib/calendarLayout';
 
 // Firestore Timestamp stand-in.
 const ts = (iso) => ({ toDate: () => new Date(iso) });
@@ -202,5 +205,139 @@ describe('ProjectGanttChart dependencies', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) });
     render(<ProjectGanttChart tasks={[long, first, after()]} />);
     expect(screen.queryByTestId('gantt-dependency')).not.toBeInTheDocument();
+  });
+});
+
+describe('ProjectGanttChart rescheduling and milestones', () => {
+  // jsdom has no PointerEvent; a MouseEvent with the pointer fields is enough here.
+  class FakePointerEvent extends MouseEvent {
+    constructor(type, init = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 1;
+      this.pointerType = init.pointerType ?? 'mouse';
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-03-10T12:00:00'));
+    window.PointerEvent = FakePointerEvent;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 800, height: 0, top: 0, left: 0, right: 800, bottom: 0, x: 0, y: 0, toJSON: () => ({}),
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    delete window.PointerEvent;
+  });
+
+  // Mar 1 - Mar 31 keeps the span fixed: the axis runs Feb 28 .. Apr 2 (33 days).
+  const long = task({ id: 'long', title: 'Whole project', startDate: ts('2026-03-01'), deadline: ts('2026-03-31') });
+  const report = task({ id: 'b', title: 'Report', startDate: ts('2026-03-09'), deadline: ts('2026-03-12') });
+  const day = (iso, plus) => dayKey(addDays(startOfDay(new Date(iso)), plus));
+  const DAY_PX = 800 / 33;
+
+  const setup = (props = {}) => {
+    const onReschedule = vi.fn().mockResolvedValue(undefined);
+    const utils = render(
+      <ProjectGanttChart tasks={[long, report]} canReschedule={(t) => t.id === 'b'} onReschedule={onReschedule} {...props} />
+    );
+    return { ...utils, onReschedule, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) };
+  };
+  const bar = (name) => screen.getByRole('button', { name: new RegExp(`^${name}:`) });
+
+  test('only bars the viewer may edit can be grabbed', () => {
+    setup();
+    expect(bar('Report')).toHaveAttribute('tabindex', '0');
+    expect(screen.queryByRole('button', { name: /^Whole project:/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Whole project:/ })).toBeInTheDocument();
+    expect(screen.getByText(/Drag a bar to move it/)).toBeInTheDocument();
+  });
+
+  test('without a reschedule handler nothing is draggable and no help is shown', () => {
+    render(<ProjectGanttChart tasks={[long, report]} />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Drag a bar to move it/)).not.toBeInTheDocument();
+  });
+
+  test('dragging the bar moves both dates by whole days', () => {
+    const { onReschedule } = setup();
+    const el = bar('Report');
+    fireEvent.pointerDown(el, { clientX: 300, button: 0 });
+    fireEvent.pointerMove(el, { clientX: 300 + DAY_PX * 2 + 2 });
+    fireEvent.pointerUp(el, { clientX: 300 + DAY_PX * 2 + 2 });
+    expect(onReschedule).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'b' }),
+      { startDate: day('2026-03-09', 2), deadline: day('2026-03-12', 2) },
+    );
+  });
+
+  test('dragging the right edge changes only the deadline', () => {
+    const { onReschedule, container } = setup();
+    // eslint-disable-next-line testing-library/no-node-access -- the edge handle is decorative, so it has no role
+    const handle = container.querySelectorAll('.cursor-ew-resize')[1];
+    fireEvent.pointerDown(handle, { clientX: 400, button: 0 });
+    fireEvent.pointerMove(bar('Report'), { clientX: 400 + DAY_PX * 3 });
+    fireEvent.pointerUp(bar('Report'), { clientX: 400 + DAY_PX * 3 });
+    expect(onReschedule).toHaveBeenCalledWith(expect.anything(), {
+      startDate: day('2026-03-09', 0), deadline: day('2026-03-12', 3),
+    });
+  });
+
+  test('a click without movement, or a touch, does not reschedule', () => {
+    const { onReschedule } = setup();
+    const el = bar('Report');
+    fireEvent.pointerDown(el, { clientX: 300, button: 0 });
+    fireEvent.pointerUp(el, { clientX: 301 });
+    fireEvent.pointerDown(el, { clientX: 300, button: 0, pointerType: 'touch' });
+    fireEvent.pointerMove(el, { clientX: 400, pointerType: 'touch' });
+    fireEvent.pointerUp(el, { clientX: 400, pointerType: 'touch' });
+    expect(onReschedule).not.toHaveBeenCalled();
+  });
+
+  test('arrow keys move the task; Shift moves only the deadline; Enter saves', async () => {
+    const { onReschedule, user } = setup();
+    bar('Report').focus();
+    await user.keyboard('{ArrowRight}{ArrowRight}{Shift>}{ArrowRight}{/Shift}{Enter}');
+    expect(onReschedule).toHaveBeenCalledTimes(1);
+    expect(onReschedule.mock.calls[0][1]).toEqual({ startDate: day('2026-03-09', 2), deadline: day('2026-03-12', 3) });
+  });
+
+  test('arrow-key changes save themselves after a pause, and Escape cancels them', async () => {
+    const { onReschedule, user } = setup();
+    bar('Report').focus();
+    await user.keyboard('{ArrowLeft}{Escape}');
+    await act(async () => { vi.advanceTimersByTime(1500); });
+    expect(onReschedule).not.toHaveBeenCalled();
+
+    await user.keyboard('{ArrowLeft}');
+    await act(async () => { vi.advanceTimersByTime(1500); });
+    expect(onReschedule).toHaveBeenCalledWith(expect.anything(), { startDate: day('2026-03-09', -1), deadline: day('2026-03-12', -1) });
+  });
+
+  test('a refused change puts the bar back where it was', async () => {
+    const onReschedule = vi.fn().mockRejectedValue(new Error('denied'));
+    setup({ onReschedule });
+    const el = bar('Report');
+    const before = el.style.left;
+    fireEvent.pointerDown(el, { clientX: 300, button: 0 });
+    fireEvent.pointerMove(el, { clientX: 300 + DAY_PX * 2 });
+    fireEvent.pointerUp(el, { clientX: 300 + DAY_PX * 2 });
+    await waitFor(() => expect(onReschedule).toHaveBeenCalled());
+    await waitFor(() => expect(bar('Report').style.left).toBe(before));
+  });
+
+  test('a milestone is a diamond on its deadline, says so, and moves as one date', async () => {
+    const launch = task({ id: 'm', title: 'Launch', startDate: ts('2026-03-02'), deadline: ts('2026-03-20'), milestone: true });
+    const onReschedule = vi.fn().mockResolvedValue(undefined);
+    render(<ProjectGanttChart tasks={[long, launch]} canReschedule={() => true} onReschedule={onReschedule} />);
+    const diamond = screen.getByRole('button', { name: /^Launch: milestone/ });
+    expect(diamond).toHaveAttribute('aria-roledescription', 'milestone');
+    expect(diamond.className).toContain('rotate-45');
+    expect(screen.getByText('Milestone')).toBeInTheDocument(); // legend
+    diamond.focus();
+    await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).keyboard('{Shift>}{ArrowRight}{/Shift}{Enter}');
+    expect(onReschedule.mock.calls[0][1]).toEqual({ startDate: day('2026-03-20', 1), deadline: day('2026-03-20', 1) });
   });
 });

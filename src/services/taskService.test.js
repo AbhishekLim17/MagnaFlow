@@ -202,6 +202,14 @@ describe('updateTask dependency guards', () => {
     expect(updateDoc.mock.calls[0][1]).toMatchObject({ status: 'in-progress', completedAt: null });
   });
 
+  test('new dates are stored as timestamps, and an emptied date is cleared rather than saved as ""', async () => {
+    tasksById.a = { id: 'a', status: 'pending', blockedBy: [] };
+    await updateTask('a', { startDate: '', deadline: '2026-10-12' });
+    const written = updateDoc.mock.calls[0][1];
+    expect(written.startDate).toBeNull();
+    expect(written.deadline).toEqual({ __ts: new Date('2026-10-12') });
+  });
+
   test('updating a task that no longer exists reports it', async () => {
     await expect(updateTask('gone', { status: 'completed' })).rejects.toMatchObject({ code: 'task-not-found' });
   });

@@ -162,3 +162,28 @@ export const dependencyKind = (pred, succ) => {
   if (pred.resolved) return 'done';
   return 'open';
 };
+
+/**
+ * A bar's dates after dragging it `days` days. `mode` is what was dragged:
+ *  - 'move': the whole bar (both dates move)
+ *  - 'start': the left edge (start moves, never past the end)
+ *  - 'end': the right edge (end moves, never before the start)
+ * A milestone only ever moves as a whole.
+ *
+ * @param {{ start: Date, end: Date }} range local day starts
+ * @param {'move'|'start'|'end'} mode
+ * @param {number} days
+ * @returns {{ start: Date, end: Date }}
+ */
+export const shiftRange = ({ start, end }, mode, days) => {
+  const d = Math.trunc(days) || 0;
+  if (mode === 'start') {
+    const s = addDays(start, d);
+    return { start: s > end ? end : s, end };
+  }
+  if (mode === 'end') {
+    const e = addDays(end, d);
+    return { start, end: e < start ? start : e };
+  }
+  return { start: addDays(start, d), end: addDays(end, d) };
+};

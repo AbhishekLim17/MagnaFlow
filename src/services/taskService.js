@@ -143,6 +143,7 @@ export const createTask = async (taskData) => {
       departmentId,
       projectId,
       blockedBy,
+      milestone,
     } = taskData;
     let { orgId } = taskData;
 
@@ -169,6 +170,8 @@ export const createTask = async (taskData) => {
       updatedAt: Timestamp.now(),
       completedAt: null,
       blockedBy: Array.isArray(blockedBy) ? blockedBy : [],
+      // A milestone is a key date (a sign-off, a launch) rather than a span of work.
+      milestone: Boolean(milestone),
     };
     
     const docRef = await addDoc(collection(db, TASKS_COLLECTION), taskDoc);
@@ -257,14 +260,13 @@ export const updateTask = async (taskId, updates) => {
       updatedData.completedAt = null;
     }
     
-    // Convert deadline to Timestamp if it's a string
-    if (updates.deadline && typeof updates.deadline === 'string') {
-      updatedData.deadline = Timestamp.fromDate(new Date(updates.deadline));
-    }
-
-    // Convert startDate to Timestamp if it's a string
-    if (updates.startDate && typeof updates.startDate === 'string') {
-      updatedData.startDate = Timestamp.fromDate(new Date(updates.startDate));
+    // Dates arrive as "YYYY-MM-DD" from the forms; an empty field clears the date (it used
+    // to be written to the database as an empty string).
+    for (const field of ['deadline', 'startDate']) {
+      if (updates[field] === '') updatedData[field] = null;
+      else if (updates[field] && typeof updates[field] === 'string') {
+        updatedData[field] = Timestamp.fromDate(new Date(updates[field]));
+      }
     }
 
     await updateDoc(taskRef, updatedData);

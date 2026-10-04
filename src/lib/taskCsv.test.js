@@ -81,8 +81,21 @@ describe('parseTaskImport', () => {
         deadline: '2026-10-05',
         projectId: 'p1',
         departmentId: 'd1',
+        milestone: false,
       },
     });
+  });
+
+  test('a milestone is read as one date, and needs one', () => {
+    const r = parseTaskImport(csv(
+      'Title,Deadline,Start date,Milestone',
+      'Launch,20/10/2026,01/10/2026,Yes',
+      'Sign-off,,,yes',
+      'Odd,20/10/2026,,maybe',
+    ), ctx);
+    expect(r.rows[0].task).toMatchObject({ milestone: true, startDate: '2026-10-20', deadline: '2026-10-20' });
+    expect(r.rows[1].errors).toEqual(['A milestone needs a deadline (its date).']);
+    expect(r.rows[2].errors).toEqual(['Milestone “maybe” should be Yes or No.']);
   });
 
   test('defaults: pending, medium, unassigned (with a warning), no dates, default project', () => {
@@ -162,10 +175,10 @@ describe('export', () => {
 
   test('rows carry the import columns first, then read-only context', () => {
     const [header, first, second] = tasksToRows(tasks, lookups);
-    expect(header.slice(0, 9)).toEqual(['Title', 'Description', 'Status', 'Priority', 'Assignee', 'Assignee email', 'Start date', 'Deadline', 'Project']);
+    expect(header.slice(0, 10)).toEqual(['Title', 'Description', 'Status', 'Priority', 'Assignee', 'Assignee email', 'Start date', 'Deadline', 'Project', 'Milestone']);
     expect(first).toEqual([
       'Write the spec', 'Notes', 'In progress', 'High', 'Sana Staff', 'sana@demo.test',
-      '2026-10-01', '2026-10-05', 'Apollo Platform', 'Engineering', 'Agree scope', '2026-09-30', '', 't1',
+      '2026-10-01', '2026-10-05', 'Apollo Platform', '', 'Engineering', 'Agree scope', '2026-09-30', '', 't1',
     ]);
     expect(second[4]).toBe('');
   });
@@ -184,6 +197,6 @@ describe('export', () => {
   test('the sample file parses (apart from its placeholder people)', () => {
     const rows = parseCsv(toCsv(sampleImportRows()));
     expect(rows[0][0]).toBe('Title');
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
   });
 });

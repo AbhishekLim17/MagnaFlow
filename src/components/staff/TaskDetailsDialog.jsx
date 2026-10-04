@@ -105,6 +105,9 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               Details, subtasks and comments for this task.
             </DialogDescription>
             <div className="flex flex-wrap items-center gap-2">
+              {task.milestone && (
+                <Badge className="bg-primary-soft text-primary border border-primary/30">◆ Milestone</Badge>
+              )}
               <Badge className={`${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium} border`}>
                 {priorityLabel(task.priority)} priority
               </Badge>

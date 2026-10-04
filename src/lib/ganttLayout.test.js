@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { addDays, axisTicks, routeDependency, roundedPath, dependencyKind } from './ganttLayout';
+import { addDays, axisTicks, routeDependency, roundedPath, dependencyKind, shiftRange } from './ganttLayout';
 
 const d = (y, m, day) => new Date(y, m - 1, day);
 
@@ -174,5 +174,26 @@ describe('dependencyKind', () => {
 
   test('a conflict outranks critical', () => {
     expect(dependencyKind(pred({ critical: true }), succ({ critical: true, start: d(2026, 10, 2) }))).toBe('conflict');
+  });
+});
+
+describe('shiftRange', () => {
+  const range = { start: d(2026, 10, 5), end: d(2026, 10, 9) };
+
+  test('moving shifts both ends by whole days', () => {
+    expect(shiftRange(range, 'move', 3)).toEqual({ start: d(2026, 10, 8), end: d(2026, 10, 12) });
+    expect(shiftRange(range, 'move', -5)).toEqual({ start: d(2026, 9, 30), end: d(2026, 10, 4) });
+  });
+
+  test('dragging an edge changes only that end, and never past the other one', () => {
+    expect(shiftRange(range, 'end', 2)).toEqual({ start: d(2026, 10, 5), end: d(2026, 10, 11) });
+    expect(shiftRange(range, 'end', -9)).toEqual({ start: d(2026, 10, 5), end: d(2026, 10, 5) });
+    expect(shiftRange(range, 'start', -2)).toEqual({ start: d(2026, 10, 3), end: d(2026, 10, 9) });
+    expect(shiftRange(range, 'start', 7)).toEqual({ start: d(2026, 10, 9), end: d(2026, 10, 9) });
+  });
+
+  test('no movement, or a fraction of a day, changes nothing', () => {
+    expect(shiftRange(range, 'move', 0)).toEqual(range);
+    expect(shiftRange(range, 'move', 0.6)).toEqual(range);
   });
 });
