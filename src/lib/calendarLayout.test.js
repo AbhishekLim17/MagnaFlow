@@ -23,10 +23,9 @@ describe('monthGrid', () => {
 
   test('every day is a local midnight, one day apart, across a clock change', () => {
     const grid = monthGrid(new Date(2026, 2, 1));
-    grid.forEach((d, i) => {
-      expect([d.getHours(), d.getMinutes()]).toEqual([0, 0]);
-      if (i) expect(Math.round((d - grid[i - 1]) / 86400000)).toBe(1);
-    });
+    grid.forEach((d) => expect([d.getHours(), d.getMinutes()]).toEqual([0, 0]));
+    const gaps = grid.slice(1).map((d, i) => Math.round((d - grid[i]) / 86400000));
+    expect(new Set(gaps)).toEqual(new Set([1]));
   });
 });
 
