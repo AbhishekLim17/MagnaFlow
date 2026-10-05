@@ -17,7 +17,7 @@ import { computeCriticalPath } from '@/lib/criticalPath';
 import { isResolved } from '@/lib/dependencies';
 import { formatDayMonth, toDate } from '@/lib/format';
 import {
-  addDays, startOfDay, axisTicks, routeLink, roundedPath, dependencyKind, shiftRange,
+  addDays, startOfDay, axisTicks, routeLink, roundedPath, dependencyKind, shiftRange, taskRange,
 } from '@/lib/ganttLayout';
 import { linkOf, violates, describeLink, isDefaultLink, cascadeSchedule } from '@/lib/dependencyLinks';
 import { endVariance, describeVariance } from '@/lib/baselines';
@@ -136,16 +136,9 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
 
     const rows = tasks
       .map((t) => {
-        const isMilestone = Boolean(t.milestone);
-        // A milestone is one day: its deadline (or whatever single date it has).
-        const start = isMilestone
-          ? toDate(t.deadline) || toDate(t.startDate) || toDate(t.createdAt)
-          : toDate(t.startDate) || toDate(t.createdAt);
-        const end   = isMilestone ? start : toDate(t.deadline) || start;
-        if (!start && !end) return null;
-        const s = startOfDay(start || end);
-        let   e = startOfDay(end   || start);
-        if (e < s) e = s;
+        const range = taskRange(t);
+        if (!range) return null;
+        const { start: s, end: e, isMilestone } = range;
         // Where the saved plan had it, and how far it has moved since (end to end).
         const entry = baseline?.[t.id];
         const planned = entry

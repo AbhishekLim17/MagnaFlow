@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { GanttChartSquare, Save, Trash2 } from 'lucide-react';
+import { GanttChartSquare, Save, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import { listBaselines, saveBaseline, deleteBaseline } from '@/services/baseline
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDate } from '@/lib/format';
+import { downloadGanttPdf } from '@/lib/ganttPdf';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import { useTasks } from '@/contexts/TasksContext';
 import { canEditTask, runsProject } from '@/lib/taskPermissions';
@@ -191,6 +192,17 @@ const ProjectTimeline = () => {
               <Button type="button" variant="outline" onClick={saveCurrentPlan} disabled={savingBaseline || loadingTasks || tasks.length === 0}>
                 <Save className="mr-2 h-4 w-4" aria-hidden="true" />
                 {savingBaseline ? 'Saving…' : 'Save as baseline'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loadingTasks || tasks.length === 0}
+                onClick={() => downloadGanttPdf({
+                  title: selectedProject.name, tasks, baseline: baseline?.tasks || null, baselineName: baseline?.name || '',
+                }).catch((error) => reportError(error, { title: "Couldn't make the PDF" }))}
+              >
+                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                Download PDF
               </Button>
               {baseline && (
                 <Button type="button" variant="ghost" onClick={removeBaseline}>

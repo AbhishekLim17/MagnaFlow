@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, CheckCircle2, Clock, AlertTriangle, LogOut, Sun, Moon, MessageSquare } from "lucide-react";
+import { FolderOpen, CheckCircle2, Clock, AlertTriangle, LogOut, Sun, Moon, MessageSquare, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { groupByTask } from "@/lib/clientThread";
 import ClientThread from "@/components/shared/ClientThread";
 import MilestoneSignOff from "@/components/client/MilestoneSignOff";
 import ClientRequests from "@/components/client/ClientRequests";
+import { downloadGanttPdf } from "@/lib/ganttPdf";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -432,7 +433,18 @@ const ClientPortal = () => {
                 {/* ── Gantt Timeline ───────────────────────────────── */}
                 {activeTasks.length > 0 && (
                   <Card className="p-5">
-                    <h2 className="text-base font-semibold mb-4">Timeline</h2>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="text-base font-semibold">Timeline</h2>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => downloadGanttPdf({ title: activeProject.name, tasks: activeTasks })
+                          .catch((err) => reportError(err, { title: "Couldn't make the PDF" }))}
+                      >
+                        <Download className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                        Download PDF
+                      </Button>
+                    </div>
                     <ProjectGanttChart tasks={activeTasks} />
                   </Card>
                 )}

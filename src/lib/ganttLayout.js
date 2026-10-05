@@ -7,12 +7,31 @@
 // vertical, and into the successor's left edge, or - when the successor starts at or before
 // the predecessor's end - around the successor and in from the left.
 
+import { toDate } from './format';
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Calendar-day arithmetic that survives daylight-saving changes (adding 24h would not). */
 export const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
 export const startOfDay = (date) => addDays(date, 0);
+
+/**
+ * The days a task's bar covers (local day starts, end inclusive), or null when it has no date.
+ * A milestone is one day: its deadline, or whatever single date it has.
+ */
+export const taskRange = (t) => {
+  const isMilestone = Boolean(t.milestone);
+  const start = isMilestone
+    ? toDate(t.deadline) || toDate(t.startDate) || toDate(t.createdAt)
+    : toDate(t.startDate) || toDate(t.createdAt);
+  const end = isMilestone ? start : toDate(t.deadline) || start;
+  if (!start && !end) return null;
+  const s = startOfDay(start || end);
+  let e = startOfDay(end || start);
+  if (e < s) e = s;
+  return { start: s, end: e, isMilestone };
+};
 
 const addMonths = (date, months) => new Date(date.getFullYear(), date.getMonth() + months, 1);
 
