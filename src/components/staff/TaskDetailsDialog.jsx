@@ -9,6 +9,7 @@ import SubtaskList from '../SubtaskList';
 import AddSubtaskDialog from '../AddSubtaskDialog';
 import CommentSection from '../tasks/CommentSection';
 import ClientConversation from '../tasks/ClientConversation';
+import TaskTime from '../tasks/TaskTime';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -261,6 +262,11 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               )}
             </div>
           )}
+
+          {/* Time logged against the estimate */}
+          <div className="pt-6 border-t border-border">
+            <TaskTime task={task} />
+          </div>
 
           {/* What the client sees and says (project tasks only) */}
           {task.projectId && (

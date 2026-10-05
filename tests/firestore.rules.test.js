@@ -1486,3 +1486,56 @@ describe('project status updates', () => {
     await assertSucceeds(deleteDoc(doc(col(asUser(MGR_A)), 'u1')));
   });
 });
+
+describe('time tracking and cost rates', () => {
+  const entry = (uid, extra = {}) => ({
+    orgId: ORG_A, projectId: PROJ_A, taskId: 'taskA', userId: uid, userName: 'Someone',
+    minutes: 90, date: '2026-10-05', note: '', createdAt: serverTimestamp(), ...extra,
+  });
+
+  test('anyone who can see the task logs their own time on it', async () => {
+    await assertSucceeds(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(STAFF_A)));
+    await assertSucceeds(addDoc(collection(asUser(MGR_A), 'time_entries'), entry(MGR_A)));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(MGR_A)));
+    await assertFails(addDoc(collection(asUser(STAFF_B), 'time_entries'), entry(STAFF_B)));
+    await assertFails(addDoc(collection(asUser(CLIENT_A), 'time_entries'), entry(CLIENT_A)));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(STAFF_A, { minutes: 0 })));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(STAFF_A, { minutes: 1.5 })));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(STAFF_A, { minutes: 1441 })));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(STAFF_A, { projectId: PROJ_A2 })));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'time_entries'), entry(STAFF_A, { date: 'today' })));
+  });
+
+  test("reading: the task's viewers by task, whoever runs the project by project, nobody else", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'time_entries', 'e1'), { ...entry(STAFF_A), createdAt: new Date() });
+    });
+    await assertSucceeds(getDocs(query(collection(asUser(STAFF_SCOPED), 'time_entries'), where('taskId', '==', 'taskA'))));
+    await assertSucceeds(getDocs(query(collection(asUser(MGR_A), 'time_entries'), where('orgId', '==', ORG_A), where('projectId', '==', PROJ_A))));
+    await assertSucceeds(getDocs(query(collection(asUser(STAFF_A), 'time_entries'), where('userId', '==', STAFF_A))));
+    await assertFails(getDocs(query(collection(asUser(STAFF_SCOPED), 'time_entries'), where('orgId', '==', ORG_A), where('projectId', '==', PROJ_A))));
+    await assertFails(getDocs(query(collection(asUser(STAFF_B), 'time_entries'), where('taskId', '==', 'taskA'))));
+    await assertFails(getDocs(query(collection(asUser(CLIENT_A), 'time_entries'), where('taskId', '==', 'taskA'))));
+  });
+
+  test('only the author (or an org admin) removes an entry; nobody edits one', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'time_entries', 'e2'), { ...entry(STAFF_A), createdAt: new Date() });
+    });
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'time_entries', 'e2'), { minutes: 600 }));
+    await assertFails(deleteDoc(doc(asUser(MGR_A), 'time_entries', 'e2')));
+    await assertSucceeds(deleteDoc(doc(asUser(STAFF_A), 'time_entries', 'e2')));
+  });
+
+  test('cost rates: org admins set them; money roles read them; staff and clients do not', async () => {
+    const rates = (db) => doc(db, 'organizations', ORG_A, 'finance', 'rates');
+    await assertSucceeds(setDoc(rates(asUser(ADMIN_A)), { defaultRate: 500, people: { [STAFF_A]: 800 } }));
+    await assertFails(setDoc(rates(asUser(MGR_A)), { defaultRate: 1, people: {} }));
+    await assertFails(setDoc(rates(asUser(ADMIN_A)), { defaultRate: -1, people: {} }));
+    await assertSucceeds(getDoc(rates(asUser(MGR_A))));
+    await assertSucceeds(getDoc(rates(asUser(HEAD_A))));
+    await assertFails(getDoc(rates(asUser(STAFF_A))));
+    await assertFails(getDoc(rates(asUser(CLIENT_A))));
+    await assertFails(getDoc(rates(asUser(ADMIN_B))));
+  });
+});

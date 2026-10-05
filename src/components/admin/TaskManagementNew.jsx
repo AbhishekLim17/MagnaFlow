@@ -49,6 +49,7 @@ import {
 import KanbanBoard from '@/components/shared/KanbanBoard';
 import TaskCalendar from '@/components/shared/TaskCalendar';
 import { approvalSummary } from '@/lib/clientThread';
+import { parseEstimate } from '@/lib/timeTracking';
 import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import {
   Tooltip,
@@ -339,6 +340,7 @@ const TaskManagement = () => {
       ...formData,
       ...dates,
       milestone: Boolean(formData.milestone),
+      estimateHours: parseEstimate(formData.estimateHours),
       repeat,
       repeating: Boolean(repeat),
       occurrence: 0,
@@ -446,6 +448,7 @@ const TaskManagement = () => {
       dependencyLinks: task.dependencyLinks || {},
       milestone: Boolean(task.milestone),
       repeat: optionFromRepeat(task.repeating !== false ? task.repeat : null),
+      estimateHours: task.estimateHours ?? '',
     });
     setIsEditDialogOpen(true);
   };

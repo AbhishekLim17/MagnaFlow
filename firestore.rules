@@ -187,6 +187,21 @@ service cloud.firestore {
           || (docId == 'seats' && isOrgMember(orgId) && !isClient() && seatBump(orgId)));
       }
 
+      // Hourly cost rates (labour cost in budgets): a default and one per person. Pay-like
+      // figures, so only the money roles read them (org admins, department heads, managers:
+      // the people who already see project budgets) and only org admins set them.
+      match /finance/{docId} {
+        allow read: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin()
+          || ((isManager() || isDeptHead()) && isOrgMember(orgId)));
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && docId == 'rates'
+          && request.resource.data.keys().hasOnly(['defaultRate', 'people'])
+          && request.resource.data.defaultRate is number
+          && request.resource.data.defaultRate >= 0
+          && request.resource.data.people is map
+          && request.resource.data.people.size() <= 1000;
+      }
+
       // Task templates: reusable plans of tasks. Everyone inside the organisation who plans
       // work may read them; admins, department heads and managers may save them; the author
       // or an org-admin may change or remove one. Clients never see them.
@@ -596,6 +611,36 @@ service cloud.firestore {
         (isClient() && resource.data.get('requestedBy', null) == request.auth.uid
           && resource.data.get('status', null) == 'new')
         || isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
+    }
+
+    // Time logged on a task. Anyone who can see the task logs their own time on it (never
+    // someone else's) and may remove their own entries. Everyone who can see the task sees
+    // how much was logged on it; whoever runs the project reads all of it (labour cost).
+    match /time_entries/{entryId} {
+      allow read: if isSignedIn() && !isClient() && (
+        resource.data.get('userId', null) == request.auth.uid
+        || taskVisible(taskData(resource.data.get('taskId', null)))
+        || (resource.data.get('projectId', null) != null
+            && canManageProjectMoney(resource.data.get('orgId', null), resource.data.get('projectId', null))));
+      allow create: if isSignedIn() && !isClient()
+        && request.resource.data.keys().hasOnly(['orgId', 'projectId', 'taskId', 'userId', 'userName', 'minutes', 'date', 'note', 'createdAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.minutes is int
+        && request.resource.data.minutes > 0
+        && request.resource.data.minutes <= 1440
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 500
+        && request.resource.data.userName is string
+        && request.resource.data.userName.size() <= 120
+        && taskVisible(taskData(request.resource.data.taskId))
+        && request.resource.data.orgId == taskData(request.resource.data.taskId).get('orgId', null)
+        && request.resource.data.projectId == taskData(request.resource.data.taskId).get('projectId', null);
+      allow delete: if isSignedIn() && (resource.data.get('userId', null) == request.auth.uid
+        || isOrgAdmin(resource.data.get('orgId', null)) || isMasterAdmin());
+      allow update: if false;
     }
 
     // Task attachments (metadata; the files live in Storage, see storage.rules)

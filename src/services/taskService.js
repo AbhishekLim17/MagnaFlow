@@ -145,6 +145,7 @@ export const createTask = async (taskData) => {
       projectId,
       blockedBy,
       dependencyLinks,
+      estimateHours,
       milestone,
       repeat,
       occurrence,
@@ -179,6 +180,10 @@ export const createTask = async (taskData) => {
       ...(Object.keys(cleanLinks(blockedBy, dependencyLinks)).length
         ? { dependencyLinks: cleanLinks(blockedBy, dependencyLinks) }
         : {}),
+      // Planned effort in hours (time tracking, capacity); null when nobody estimated it.
+      estimateHours: Number.isFinite(Number(estimateHours)) && estimateHours !== null && estimateHours !== ''
+        ? Number(estimateHours)
+        : null,
       // A milestone is a key date (a sign-off, a launch) rather than a span of work.
       milestone: Boolean(milestone),
       // Repeating tasks: the schedule, and the flag the hourly job looks for (see

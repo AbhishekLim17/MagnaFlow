@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { dependsOn } from '@/lib/dependencies';
 import { LINK_TYPES, MAX_LAG, normalizeLink } from '@/lib/dependencyLinks';
+import { MAX_ESTIMATE_HOURS } from '@/lib/timeTracking';
 import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -228,6 +229,25 @@ const TaskFormDialog = ({
             </Select>
             <p id={idFor('repeat-hint')} className="mt-1 text-xs text-muted-foreground">
               {repeatHint(formData.repeat, formData.deadline) || 'For work that comes round regularly: reports, reviews, payroll.'}
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor={idFor('estimate')}>Estimate <span className="text-muted-foreground text-xs font-normal">(hours, optional)</span></Label>
+            <Input
+              id={idFor('estimate')}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={MAX_ESTIMATE_HOURS}
+              step={0.25}
+              className={FIELD_CLASS}
+              value={formData.estimateHours ?? ''}
+              onChange={(e) => set({ estimateHours: e.target.value })}
+              aria-describedby={idFor('estimate-hint')}
+            />
+            <p id={idFor('estimate-hint')} className="mt-1 text-xs text-muted-foreground">
+              How much work it is. Used to compare with the time logged, and for workload.
             </p>
           </div>
 

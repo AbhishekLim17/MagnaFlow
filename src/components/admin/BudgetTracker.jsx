@@ -70,6 +70,10 @@ import {
 } from '@/services/budgetService';
 import { reportError } from '@/lib/reportError';
 import { CURRENCIES, DEFAULT_CURRENCY, formatMoney } from '@/lib/money';
+import { useTasks } from '@/contexts/TasksContext';
+import { listProjectEntries, getRates, saveRates } from '@/services/timeService';
+import { labourCost, estimatedHours } from '@/lib/timeTracking';
+import LabourCard from '@/components/admin/LabourCard';
 import { formatDate, toInputDate } from '@/lib/format';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -80,7 +84,10 @@ const CATEGORIES = [
   { value: 'tools', label: 'Tools & Software', color: '#10b981' },
   { value: 'travel', label: 'Travel', color: '#3b82f6' },
   { value: 'other', label: 'Other', color: '#8b5cf6' },
+  // not an expense anyone enters: time logged on the project's tasks at the cost rates
+  { value: 'logged_time', label: 'Logged time', color: '#0ea5e9' },
 ];
+const NO_RATES = { defaultRate: 0, people: {} };
 
 const catColor = (cat) => CATEGORIES.find((c) => c.value === cat)?.color ?? '#8b5cf6';
 const catLabel = (cat) => CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
@@ -133,6 +140,10 @@ const BudgetTracker = () => {
 
   // Expenses & summary
   const [expenses, setExpenses] = useState([]);
+  // Logged time on the project and what it costs (folded into Spent)
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [rates, setRates] = useState(NO_RATES);
+  const { tasks } = useTasks();
   const [summary, setSummary] = useState({ spent: 0, budget: 0, remaining: null, pctUsed: null, byCategory: {} });
   const [loading, setLoading] = useState(false);
 
@@ -168,9 +179,19 @@ const BudgetTracker = () => {
     if (!user?.orgId || !selectedProject?.id) return;
     setLoading(true);
     try {
-      const exps = await getExpenses(user.orgId, selectedProject.id);
+      const [exps, entries, r] = await Promise.all([
+        getExpenses(user.orgId, selectedProject.id),
+        listProjectEntries(user.orgId, selectedProject.id).catch(() => []),
+        getRates(user.orgId).catch(() => NO_RATES),
+      ]);
       setExpenses(exps);
-      setSummary(computeBudgetSummary(exps, selectedProject.budget || 0));
+      setTimeEntries(entries);
+      setRates(r);
+      const labour = labourCost(entries, r);
+      setSummary(computeBudgetSummary(
+        labour.cost > 0 ? [...exps, { amount: labour.cost, category: 'logged_time' }] : exps,
+        selectedProject.budget || 0,
+      ));
     } catch (err) {
       reportError(err, { title: 'Failed to load expenses' });
     } finally {
@@ -465,13 +486,33 @@ const BudgetTracker = () => {
           )}
 
           {/* Charts */}
-          {expenses.length > 0 && (
+          <LabourCard
+            labour={labourCost(timeEntries, rates)}
+            rates={rates}
+            currency={currency}
+            estimateHours={estimatedHours(tasks.filter((t) => t.projectId === selectedProject.id))}
+            canEditRates={['org-admin', 'admin'].includes(user?.role)}
+            onSaveRates={async (next) => {
+              try {
+                await saveRates(user.orgId, next);
+                toast({ title: 'Cost rates saved' });
+                await loadExpenses();
+              } catch (err) {
+                reportError(err, { title: "Couldn't save the cost rates" });
+                throw err;
+              }
+            }}
+          />
+
+          {(expenses.length > 0 || summary.spent > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Donut */}
               <Card className="p-6">
                 <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
                   Budget vs. Actual
                 </h2>
+                {/* the legend below and the cards above say the same in text */}
+                <div aria-hidden="true">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
@@ -493,6 +534,7 @@ const BudgetTracker = () => {
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                </div>
                 <div className="flex justify-center gap-6 mt-2">
                   {pieData.map((d) => (
                     <div key={d.name} className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -621,7 +663,7 @@ const BudgetTracker = () => {
                   <tfoot>
                     <tr className="bg-muted/50">
                       <td colSpan={3} className="py-3 px-6 font-semibold text-right text-sm">Total</td>
-                      <td className="py-3 px-4 text-right font-mono font-bold">{fmt(summary.spent, currency)}</td>
+                      <td className="py-3 px-4 text-right font-mono font-bold">{fmt(expenses.reduce((n, e) => n + (Number(e.amount) || 0), 0), currency)}</td>
                       <td colSpan={2} />
                     </tr>
                   </tfoot>
