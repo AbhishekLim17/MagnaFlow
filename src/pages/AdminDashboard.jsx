@@ -17,6 +17,7 @@ import {
   History,
   Inbox,
   HeartPulse,
+  Gauge,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -37,6 +38,7 @@ import BudgetTracker from '@/components/admin/BudgetTracker';
 import ActivityLog from '@/components/admin/ActivityLog';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import PortfolioHealth from '@/components/admin/PortfolioHealth';
+import WorkloadPlanner from '@/components/admin/WorkloadPlanner';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,6 +49,7 @@ const menuItems = [
   { id: 'tasks', label: 'Task Management', icon: CheckSquare },
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
   { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
+  { id: 'workload', label: 'Workload', icon: Gauge },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'clients', label: 'Client Portal', icon: Globe },
   { id: 'requests', label: 'Client Requests', icon: Inbox },
@@ -148,6 +151,7 @@ const AdminDashboard = () => {
         <Route path="/tasks" element={<TaskManagement />} />
         <Route path="/timeline" element={<ProjectTimeline />} />
         <Route path="/portfolio" element={<PortfolioHealth />} />
+        <Route path="/workload" element={<WorkloadPlanner />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />
         <Route path="/requests" element={<ClientRequestsInbox />} />

@@ -23,6 +23,7 @@ import {
   Trash2,
   Inbox,
   HeartPulse,
+  Gauge,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +48,7 @@ import TaskManagement from '@/components/admin/TaskManagementNew';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import PortfolioHealth from '@/components/admin/PortfolioHealth';
+import WorkloadPlanner from '@/components/admin/WorkloadPlanner';
 import { reportError } from '@/lib/reportError';
 
 export const SCOPE_CONFIG = {
@@ -257,6 +259,7 @@ const ScopedDashboard = ({ scope }) => {
     { id: 'staff', label: `${cfg.noun} Staff`, icon: Users },
     { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
     { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
+    { id: 'workload', label: 'Workload', icon: Gauge },
     { id: 'requests', label: 'Client Requests', icon: Inbox },
   ];
 
@@ -392,6 +395,7 @@ const ScopedDashboard = ({ scope }) => {
           <Route path="/staff" element={<StaffRoster />} />
           <Route path="/timeline" element={<ProjectTimeline />} />
           <Route path="/portfolio" element={<PortfolioHealth />} />
+          <Route path="/workload" element={<WorkloadPlanner />} />
           <Route path="/requests" element={<ClientRequestsInbox />} />
         </Routes>
       </motion.div>

@@ -20,7 +20,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { dependsOn } from '@/lib/dependencies';
 import { LINK_TYPES, MAX_LAG, normalizeLink } from '@/lib/dependencyLinks';
-import { MAX_ESTIMATE_HOURS } from '@/lib/timeTracking';
+import { MAX_ESTIMATE_HOURS, parseEstimate } from '@/lib/timeTracking';
+import { assignmentWarning } from '@/lib/capacity';
 import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -249,6 +250,18 @@ const TaskFormDialog = ({
             <p id={idFor('estimate-hint')} className="mt-1 text-xs text-muted-foreground">
               How much work it is. Used to compare with the time logged, and for workload.
             </p>
+            {(() => {
+              // Would this push the assignee over their weekly capacity? (lib/capacity)
+              const warning = assignmentWarning(tasks, {
+                id: taskId,
+                estimateHours: parseEstimate(formData.estimateHours),
+                startDate: formData.milestone ? formData.deadline : formData.startDate,
+                deadline: formData.deadline,
+                milestone: formData.milestone,
+                status: formData.status,
+              }, staff.find((m) => m.id === formData.assignedTo));
+              return warning && <p className="mt-1 text-xs font-medium text-warning" role="status">{warning}</p>;
+            })()}
           </div>
 
           {/* Depends On (blockedBy) multi-select */}
