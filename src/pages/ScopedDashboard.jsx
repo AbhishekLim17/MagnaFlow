@@ -44,6 +44,7 @@ import { canEditTask } from '@/lib/taskPermissions';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
+import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import { reportError } from '@/lib/reportError';
 
 export const SCOPE_CONFIG = {
@@ -252,6 +253,7 @@ const ScopedDashboard = ({ scope }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tasks', label: `${cfg.noun} Tasks`, icon: CheckSquare },
     { id: 'staff', label: `${cfg.noun} Staff`, icon: Users },
+    { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
     { id: 'requests', label: 'Client Requests', icon: Inbox },
   ];
 
@@ -385,6 +387,7 @@ const ScopedDashboard = ({ scope }) => {
           <Route path="/" element={<Overview />} />
           <Route path="/tasks" element={<TaskManagement />} />
           <Route path="/staff" element={<StaffRoster />} />
+          <Route path="/timeline" element={<ProjectTimeline />} />
           <Route path="/requests" element={<ClientRequestsInbox />} />
         </Routes>
       </motion.div>

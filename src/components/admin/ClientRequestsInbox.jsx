@@ -22,6 +22,7 @@ import { MAX_RESPONSE, REQUEST_STATUS, taskDraftFromRequest } from '@/lib/client
 import { formatDate, toInputDate } from '@/lib/format';
 import { priorityLabel } from '@/lib/taskLabels';
 import { reportError } from '@/lib/reportError';
+import { runsProject } from '@/lib/taskPermissions';
 import { toUserMessage } from '@/lib/errorMessages';
 
 const ORG_ADMIN = new Set(['org-admin', 'admin', 'master-admin']);
@@ -29,15 +30,9 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const UNASSIGNED = '__none__';
 
 /** The projects whose requests this person answers; null means the whole organization. */
-export const triageScope = (user, projects) => {
-  if (ORG_ADMIN.has(user?.role)) return null;
-  if (user?.role === 'manager') return user.projectIds || [];
-  if (user?.role === 'department-head') {
-    const depts = new Set(user.departmentIds || []);
-    return projects.filter((p) => depts.has(p.departmentId)).map((p) => p.id);
-  }
-  return [];
-};
+export const triageScope = (user, projects) => (ORG_ADMIN.has(user?.role)
+  ? null
+  : projects.filter((p) => runsProject(user, p)).map((p) => p.id));
 
 const AcceptDialog = ({ request, project, people, onClose, onAccepted }) => {
   const id = useId();

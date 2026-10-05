@@ -189,6 +189,22 @@ describe('ProjectGanttChart dependencies', () => {
     expect(screen.getByRole('img', { name: /Report:.*waits for Survey \(finish to start \+ 2 days\)/ })).toBeInTheDocument();
   });
 
+  test('against a baseline: a thin bar for the saved plan, and how far the end has moved', () => {
+    const baseline = { a: { s: '2026-03-02', e: '2026-03-04' }, b: { s: '2026-03-09', e: '2026-03-12' } };
+    render(<ProjectGanttChart tasks={[long, first, after()]} baseline={baseline} />);
+    expect(screen.getAllByTestId('gantt-baseline')).toHaveLength(2);
+    expect(screen.getByRole('img', { name: /^Survey:.*2 days later than the baseline/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Report:.*on the baseline/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Whole project:.*not in the baseline/ })).toBeInTheDocument();
+    expect(screen.getByText('Baseline (the saved plan)')).toBeInTheDocument();
+  });
+
+  test('no baseline, no baseline marks', () => {
+    render(<ProjectGanttChart tasks={[long, first, after()]} />);
+    expect(screen.queryByTestId('gantt-baseline')).not.toBeInTheDocument();
+    expect(screen.queryByText(/baseline/i)).not.toBeInTheDocument();
+  });
+
   test('a bar tells people who cannot see the lines what it is waiting for', () => {
     render(<ProjectGanttChart tasks={[long, first, after()]} />);
     expect(screen.getByRole('img', { name: /Report:.*waits for Survey/ })).toBeInTheDocument();

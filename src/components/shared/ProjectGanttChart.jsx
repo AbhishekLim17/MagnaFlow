@@ -20,6 +20,7 @@ import {
   addDays, startOfDay, axisTicks, routeLink, roundedPath, dependencyKind, shiftRange,
 } from '@/lib/ganttLayout';
 import { linkOf, violates, describeLink, isDefaultLink, cascadeSchedule } from '@/lib/dependencyLinks';
+import { endVariance, describeVariance } from '@/lib/baselines';
 import { dayKey } from '@/lib/calendarLayout';
 
 const ROW_H = 48; // px - keep in sync with h-12 (Tailwind)
@@ -106,8 +107,9 @@ const Arrowhead = ({ id, color }) => (
  * @param {(task: Object, dates: { startDate: string, deadline: string }, extra: { dependents: Array<{task, startDate, deadline}> }) => Promise<unknown>} [onReschedule]
  *        called with "YYYY-MM-DD" days, and the tasks that depend on it which have to move along
  *        to keep their links; a rejection puts the bars back
+ * @param {Object<string, {s: string, e: string}>} [baseline]  a saved plan to compare with (lib/baselines)
  */
-const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedule }) => {
+const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedule, baseline = null }) => {
   // The grid area is the flex-1 column that contains the Gantt bars.
   // We measure it so dependency lines have correct pixel coordinates.
   const gridAreaRef = useRef(null);
@@ -144,6 +146,11 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
         const s = startOfDay(start || end);
         let   e = startOfDay(end   || start);
         if (e < s) e = s;
+        // Where the saved plan had it, and how far it has moved since (end to end).
+        const entry = baseline?.[t.id];
+        const planned = entry
+          ? { start: startOfDay(toDate(entry.s)), end: startOfDay(toDate(entry.e)) }
+          : null;
         const isCompleted = t.status === 'completed';
         const isOverdue   =
           !isCompleted &&
@@ -161,6 +168,8 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
           isCritical: criticalSet.has(t.id),
           blockedBy:  Array.isArray(t.blockedBy) ? t.blockedBy : [],
           isMilestone,
+          planned,
+          variance:   baseline ? endVariance(t, entry) : undefined,
           task:       t,
         };
       })
@@ -172,8 +181,10 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
     let first = rows[0].start;
     let last  = rows[0].end;
     for (const r of rows) {
-      if (r.start < first) first = r.start;
-      if (r.end   > last)  last  = r.end;
+      for (const x of r.planned ? [r, r.planned] : [r]) {
+        if (x.start < first) first = x.start;
+        if (x.end   > last)  last  = x.end;
+      }
     }
     // A day of air before the first bar; the last bar covers its whole final day, plus a day of air.
     const min = addDays(first, -1);
@@ -196,7 +207,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
     const dayPct = (86400000 / span) * 100;
 
     return { rows, pct, ticks, todayPct, rowIndex, dayPct };
-  }, [tasks, getStaffName, criticalSet]);
+  }, [tasks, getStaffName, criticalSet, baseline]);
 
   // New data replaces a dropped position.
   useEffect(() => { setDropped(null); }, [tasks]);
@@ -473,7 +484,8 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
               const dragging = drag && drag.id === r.id && drag.moved;
               const changed = (keyed && keyed.id === r.id) || dragging;
               const span = r.isMilestone ? fmt(now.start) : `${fmt(now.start)} → ${fmt(now.end)}`;
-              const label = `${r.title}: ${r.isMilestone ? 'milestone, ' : ''}${style.label}${r.isCritical ? ', critical path' : ''}, ${r.isMilestone ? fmt(now.start) : `${fmt(now.start)} to ${fmt(now.end)}`}${waiting.length ? `, waits for ${waiting.join(', ')}` : ''}`;
+              const drift = baseline ? `, ${describeVariance(r.variance)}` : '';
+              const label = `${r.title}: ${r.isMilestone ? 'milestone, ' : ''}${style.label}${r.isCritical ? ', critical path' : ''}, ${r.isMilestone ? fmt(now.start) : `${fmt(now.start)} to ${fmt(now.end)}`}${drift}${waiting.length ? `, waits for ${waiting.join(', ')}` : ''}`;
               const shape = r.isMilestone
                 ? 'absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[3px] shadow'
                 : 'absolute top-1/2 -translate-y-1/2 h-5 rounded flex items-center px-1.5 shadow';
@@ -488,6 +500,18 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
                   onMouseEnter={() => setActiveId(r.id)}
                   onMouseLeave={() => setActiveId(null)}
                 >
+                  {/* the saved plan: a thin bar under the real one */}
+                  {r.planned && (() => {
+                    const g = geometryOf(pct, { ...r.planned, isMilestone: false }, gridWidth);
+                    return (
+                      <div
+                        aria-hidden="true"
+                        data-testid="gantt-baseline"
+                        className="pointer-events-none absolute bottom-1.5 h-1.5 rounded-full bg-muted-foreground/45"
+                        style={{ left: `${g.leftPct}%`, width: `${g.widthPct}%` }}
+                      />
+                    );
+                  })()}
                   <div
                     className={[
                       shape,
@@ -497,7 +521,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
                       dragging ? 'cursor-grabbing ring-2 ring-ring' : '',
                     ].join(' ')}
                     style={position}
-                    title={`${span} · ${style.label}${r.isCritical ? ' · Critical path' : ''}${waiting.length ? ` · Waits for ${waiting.join(', ')}` : ''}${canEdit ? ' · Drag to reschedule' : ''}`}
+                    title={`${span} · ${style.label}${r.isCritical ? ' · Critical path' : ''}${baseline ? ` · ${describeVariance(r.variance)}` : ''}${waiting.length ? ` · Waits for ${waiting.join(', ')}` : ''}${canEdit ? ' · Drag to reschedule' : ''}`}
                     {...(canEdit
                       ? {
                           role: 'button',
@@ -630,6 +654,12 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
             <span className="inline-block w-3 h-3 rounded bg-amber-400 ring-2 ring-amber-400" />
             Critical path
           </div>
+          {baseline && (
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-4 rounded-full bg-muted-foreground/45" />
+              Baseline (the saved plan)
+            </div>
+          )}
           {hasMilestone && (
             <div className="flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px] bg-slate-500 dark:bg-slate-400" />

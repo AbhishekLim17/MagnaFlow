@@ -27,3 +27,18 @@ export const canEditTask = (user, task) => {
   if (user.role === 'manager' && task.projectId && (user.projectIds || []).includes(task.projectId)) return true;
   return false;
 };
+
+/**
+ * Whether the person runs a project (its manager, the head of its department, or an org
+ * admin), mirroring canManageProjectMoney / canTriage in firestore.rules: they answer its
+ * client requests and save its baselines.
+ */
+export const runsProject = (user, project) => {
+  if (!user || !project) return false;
+  if (user.role === 'master-admin') return true;
+  if ((project.orgId ?? user.orgId ?? null) !== (user.orgId ?? null)) return false;
+  if (ORG_ADMIN.has(user.role)) return true;
+  if (user.role === 'manager') return (user.projectIds || []).includes(project.id);
+  if (user.role === 'department-head') return Boolean(project.departmentId) && (user.departmentIds || []).includes(project.departmentId);
+  return false;
+};

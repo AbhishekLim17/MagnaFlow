@@ -1427,3 +1427,33 @@ describe('client requests', () => {
     await assertFails(deleteDoc(doc(asUser(CLIENT_A), 'client_requests', 'r2')));
   });
 });
+
+describe('project baselines', () => {
+  const col = (db, proj = PROJ_A) => collection(db, 'organizations', ORG_A, 'projects', proj, 'baselines');
+  const plan = (uid, extra = {}) => ({
+    name: 'Plan as of 5 Oct', tasks: { taskA: { s: '2026-10-01', e: '2026-10-05' } },
+    createdBy: uid, createdByName: 'Someone', createdAt: serverTimestamp(), ...extra,
+  });
+
+  test('whoever runs the project saves one; the team reads them; clients do not', async () => {
+    await assertSucceeds(addDoc(col(asUser(MGR_A)), plan(MGR_A)));
+    await assertSucceeds(addDoc(col(asUser(HEAD_A)), plan(HEAD_A)));
+    await assertSucceeds(addDoc(col(asUser(ADMIN_A)), plan(ADMIN_A)));
+    await assertSucceeds(getDocs(col(asUser(STAFF_A))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+    await assertFails(getDocs(col(asUser(STAFF_B))));
+  });
+
+  test('nobody else saves one, nor as someone else, nor edits one', async () => {
+    await assertFails(addDoc(col(asUser(STAFF_SCOPED)), plan(STAFF_SCOPED)));
+    await assertFails(addDoc(col(asUser(MGR_A), PROJ_A2), plan(MGR_A)));
+    await assertFails(addDoc(col(asUser(MGR_A)), plan(ADMIN_A)));
+    await assertFails(addDoc(col(asUser(MGR_A)), plan(MGR_A, { name: '' })));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'organizations', ORG_A, 'projects', PROJ_A, 'baselines', 'b1'), { ...plan(MGR_A), createdAt: new Date() });
+    });
+    await assertFails(updateDoc(doc(col(asUser(MGR_A)), 'b1'), { name: 'Changed' }));
+    await assertFails(deleteDoc(doc(col(asUser(STAFF_SCOPED)), 'b1')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(MGR_A)), 'b1')));
+  });
+});
