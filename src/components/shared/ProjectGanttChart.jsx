@@ -19,7 +19,7 @@ import { formatDayMonth, toDate } from '@/lib/format';
 import {
   addDays, startOfDay, axisTicks, routeLink, roundedPath, dependencyKind, shiftRange,
 } from '@/lib/ganttLayout';
-import { linkOf, violates, describeLink, isDefaultLink } from '@/lib/dependencyLinks';
+import { linkOf, violates, describeLink, isDefaultLink, cascadeSchedule } from '@/lib/dependencyLinks';
 import { dayKey } from '@/lib/calendarLayout';
 
 const ROW_H = 48; // px - keep in sync with h-12 (Tailwind)
@@ -103,8 +103,9 @@ const Arrowhead = ({ id, color }) => (
  * @param {Object[]} tasks
  * @param {(uid: string) => string} [getStaffName]
  * @param {(task: Object) => boolean} [canReschedule]  whether the viewer may change this task's dates
- * @param {(task: Object, dates: { startDate: string, deadline: string }) => Promise<unknown>} [onReschedule]
- *        called with "YYYY-MM-DD" days; a rejection puts the bar back
+ * @param {(task: Object, dates: { startDate: string, deadline: string }, extra: { dependents: Array<{task, startDate, deadline}> }) => Promise<unknown>} [onReschedule]
+ *        called with "YYYY-MM-DD" days, and the tasks that depend on it which have to move along
+ *        to keep their links; a rejection puts the bars back
  */
 const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedule }) => {
   // The grid area is the flex-1 column that contains the Gantt bars.
@@ -117,7 +118,8 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
   const [drag, setDrag] = useState(null);
   // Arrow-key changes not yet saved: { id, move, end } (days)
   const [keyed, setKeyed] = useState(null);
-  // Where a bar was dropped, shown until the saved data comes back: { id, start, end }
+  // Where bars were dropped (the moved one and the dependents it pushed), shown until the
+  // saved data comes back: { [id]: { start, end } }
   const [dropped, setDropped] = useState(null);
   const [announcement, setAnnouncement] = useState('');
   const editable = useCallback(
@@ -204,7 +206,7 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
   const rangeOf = useCallback((r) => {
     if (drag && drag.id === r.id) return shiftRange(r, r.isMilestone ? 'move' : drag.mode, drag.days);
     if (keyed && keyed.id === r.id) return shiftRange(shiftRange(r, 'move', keyed.move), 'end', r.isMilestone ? 0 : keyed.end);
-    if (dropped && dropped.id === r.id) return { start: dropped.start, end: dropped.end };
+    if (dropped?.[r.id]) return dropped[r.id];
     return r;
   }, [drag, keyed, dropped]);
   const shown = useCallback((r) => ({ ...r, ...rangeOf(r) }), [rangeOf]);
@@ -249,16 +251,35 @@ const ProjectGanttChart = ({ tasks = [], getStaffName, canReschedule, onReschedu
 
   // ---- rescheduling ----
   const commit = useCallback(async (r, next) => {
-    const deadline = dayKey(next.end);
-    const startDate = r.isMilestone ? deadline : dayKey(next.start);
-    setDropped({ id: r.id, start: next.start, end: next.end });
-    setAnnouncement(`${r.title}: ${formatDayMonth(next.start)}${r.isMilestone ? '' : ` to ${formatDayMonth(next.end)}`}. Saving.`);
+    const days = (x) => {
+      const deadline = dayKey(x.end);
+      return { startDate: x.isMilestone ? deadline : dayKey(x.start), deadline };
+    };
+    // The tasks that depend on this one move along just far enough to keep their links;
+    // only those the viewer may change (the others show the clash, as before).
+    const byId = new Map(model.rows.map((x) => [x.id, x]));
+    const moves = cascadeSchedule(
+      model.rows.map((x) => ({
+        id: x.id, start: x.start, end: x.end, blockedBy: x.blockedBy,
+        dependencyLinks: x.task.dependencyLinks, status: x.rawStatus,
+      })),
+      r.id,
+      next,
+      { canMove: (x) => editable(byId.get(x.id).task) },
+    );
+    const dependents = moves.map((m) => {
+      const row = byId.get(m.id);
+      return { task: row.task, ...days({ ...m, isMilestone: row.isMilestone }) };
+    });
+    setDropped(Object.fromEntries([[r.id, next], ...moves.map((m) => [m.id, { start: m.start, end: m.end }])]));
+    const along = moves.length ? `, and ${moves.length} task${moves.length === 1 ? '' : 's'} that depend on it` : '';
+    setAnnouncement(`${r.title}: ${formatDayMonth(next.start)}${r.isMilestone ? '' : ` to ${formatDayMonth(next.end)}`}${along}. Saving.`);
     try {
-      await onReschedule(r.task, { startDate, deadline });
+      await onReschedule(r.task, days({ ...next, isMilestone: r.isMilestone }), { dependents });
     } catch {
-      setDropped(null); // refused: put it back
+      setDropped(null); // refused: put them back
     }
-  }, [onReschedule]);
+  }, [onReschedule, model, editable]);
 
   const keyedRef = useRef(null);
   keyedRef.current = keyed;

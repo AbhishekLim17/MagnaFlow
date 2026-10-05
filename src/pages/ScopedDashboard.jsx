@@ -280,7 +280,7 @@ const ScopedDashboard = ({ scope }) => {
               tasks={tasks}
               getStaffName={staffNameFor}
               canReschedule={(task) => canEditTask(user, task)}
-              onReschedule={(task, dates) => rescheduleTask(task, dates)}
+              onReschedule={rescheduleTask}
             />
           )}
         </CardContent>

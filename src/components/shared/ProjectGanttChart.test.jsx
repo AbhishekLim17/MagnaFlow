@@ -297,6 +297,7 @@ describe('ProjectGanttChart rescheduling and milestones', () => {
     expect(onReschedule).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'b' }),
       { startDate: day('2026-03-09', 2), deadline: day('2026-03-12', 2) },
+      { dependents: [] },
     );
   });
 
@@ -309,7 +310,7 @@ describe('ProjectGanttChart rescheduling and milestones', () => {
     fireEvent.pointerUp(bar('Report'), { clientX: 400 + DAY_PX * 3 });
     expect(onReschedule).toHaveBeenCalledWith(expect.anything(), {
       startDate: day('2026-03-09', 0), deadline: day('2026-03-12', 3),
-    });
+    }, { dependents: [] });
   });
 
   test('a click without movement, or a touch, does not reschedule', () => {
@@ -340,7 +341,21 @@ describe('ProjectGanttChart rescheduling and milestones', () => {
 
     await user.keyboard('{ArrowLeft}');
     await act(async () => { vi.advanceTimersByTime(1500); });
-    expect(onReschedule).toHaveBeenCalledWith(expect.anything(), { startDate: day('2026-03-09', -1), deadline: day('2026-03-12', -1) });
+    expect(onReschedule).toHaveBeenCalledWith(expect.anything(), { startDate: day('2026-03-09', -1), deadline: day('2026-03-12', -1) }, { dependents: [] });
+  });
+
+  test('moving a task pushes the tasks that depend on it along, just enough to keep their links', () => {
+    const follow = task({ id: 'c', title: 'Review', startDate: ts('2026-03-13'), deadline: ts('2026-03-14'), blockedBy: ['b'] });
+    const locked = task({ id: 'd', title: 'Locked', startDate: ts('2026-03-13'), deadline: ts('2026-03-13'), blockedBy: ['b'] });
+    const { onReschedule } = setup({ tasks: [long, report, follow, locked], canReschedule: (t) => t.id !== 'd' && t.id !== 'long' });
+    const el = bar('Report');
+    fireEvent.pointerDown(el, { clientX: 300, button: 0 });
+    fireEvent.pointerMove(el, { clientX: 300 + DAY_PX * 2 + 2 });
+    fireEvent.pointerUp(el, { clientX: 300 + DAY_PX * 2 + 2 });
+    // Report now ends on the 14th, so Review moves to the 15th-16th; Locked is not the viewer's
+    expect(onReschedule.mock.calls[0][2].dependents).toEqual([
+      { task: expect.objectContaining({ id: 'c' }), startDate: day('2026-03-13', 2), deadline: day('2026-03-14', 2) },
+    ]);
   });
 
   test('a refused change puts the bar back where it was', async () => {

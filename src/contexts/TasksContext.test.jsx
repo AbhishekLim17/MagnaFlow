@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   sendCriticalTaskAlert: vi.fn(),
   toast: vi.fn(),
   addSubtasksBulk: vi.fn(),
+  updateTask: vi.fn(),
 }));
 
 vi.mock('./AuthContext', () => ({ useAuth: () => ({ user: mocks.user, isAuthenticated: Boolean(mocks.user) }) }));
@@ -19,7 +20,7 @@ vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mocks.to
 vi.mock('@/services/taskService', () => ({
   getAllTasks: mocks.getAllTasks,
   createTask: mocks.createTask,
-  updateTask: vi.fn(),
+  updateTask: mocks.updateTask,
   deleteTask: vi.fn(),
   getTaskStatistics: mocks.getTaskStatistics,
 }));
@@ -160,5 +161,41 @@ describe('importTasks', () => {
     const before = mocks.getTaskStatistics.mock.calls.length;
     await act(async () => { await api.importTasks([{ title: 'a' }, { title: 'b' }, { title: 'c' }]); });
     expect(mocks.getTaskStatistics.mock.calls.length - before).toBe(1);
+  });
+});
+
+describe('rescheduleTask', () => {
+  test('moves the task and the dependents the Gantt worked out; one Undo puts them all back', async () => {
+    mocks.updateTask.mockImplementation(async (id, u) => ({ id, ...u }));
+    await mount({ id: 'u1', role: 'org-admin', orgId: 'o1' });
+    const task = { id: 'b', title: 'Report', startDate: '2026-03-09T00:00:00.000Z', deadline: '2026-03-12T00:00:00.000Z' };
+    const dep = { id: 'c', title: 'Review', startDate: '2026-03-13T00:00:00.000Z', deadline: '2026-03-14T00:00:00.000Z' };
+    const onChange = vi.fn();
+    await act(() => api.rescheduleTask(task, { startDate: '2026-03-11', deadline: '2026-03-14' }, {
+      onChange, dependents: [{ task: dep, startDate: '2026-03-15', deadline: '2026-03-16' }],
+    }));
+    expect(mocks.updateTask).toHaveBeenCalledWith('c', { startDate: '2026-03-15', deadline: '2026-03-16' });
+    expect(onChange).toHaveBeenCalledTimes(2);
+    const shown = mocks.toast.mock.calls.at(-1)[0];
+    expect(shown.description).toMatch(/1 task that depends on it moved along/);
+
+    mocks.updateTask.mockClear();
+    await act(() => shown.action.props.onClick());
+    expect(mocks.updateTask).toHaveBeenCalledWith('b', { startDate: '2026-03-09', deadline: '2026-03-12' });
+    expect(mocks.updateTask).toHaveBeenCalledWith('c', { startDate: '2026-03-13', deadline: '2026-03-14' });
+  });
+
+  test('a dependent that cannot be saved stays put and is not undone', async () => {
+    mocks.updateTask.mockImplementation(async (id, u) => {
+      if (id === 'c') throw Object.assign(new Error('no'), { code: 'permission-denied' });
+      return { id, ...u };
+    });
+    await mount({ id: 'u1', role: 'org-admin', orgId: 'o1' });
+    const task = { id: 'b', title: 'Report', startDate: '2026-03-09T00:00:00.000Z', deadline: '2026-03-12T00:00:00.000Z' };
+    await act(() => api.rescheduleTask(task, { startDate: '2026-03-11', deadline: '2026-03-14' }, {
+      dependents: [{ task: { id: 'c', title: 'Review' }, startDate: '2026-03-15', deadline: '2026-03-16' }],
+    }));
+    const shown = mocks.toast.mock.calls.find(([t]) => t.title === 'Rescheduled')[0];
+    expect(shown.description).not.toMatch(/moved along/);
   });
 });

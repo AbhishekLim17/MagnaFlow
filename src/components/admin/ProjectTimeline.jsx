@@ -125,7 +125,8 @@ const ProjectTimeline = () => {
               tasks={tasks}
               getStaffName={getStaffName}
               canReschedule={(task) => canEditTask(currentUser, task)}
-              onReschedule={(task, dates) => rescheduleTask(task, dates, {
+              onReschedule={(task, dates, extra) => rescheduleTask(task, dates, {
+                ...extra,
                 // this screen loads the project's tasks itself; keep that copy in step
                 onChange: (id, updated) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t))),
               })}

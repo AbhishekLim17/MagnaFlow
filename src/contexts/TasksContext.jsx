@@ -325,15 +325,29 @@ export const TasksProvider = ({ children }) => {
    * @param {{ startDate: string, deadline: string }} next "YYYY-MM-DD"
    * @param {{ onChange?: (taskId: string, dates: Object) => void }} [options]
    */
-  const rescheduleTask = async (task, next, { onChange } = {}) => {
+  const rescheduleTask = async (task, next, { onChange, dependents = [] } = {}) => {
     // The stored day of each date ("YYYY-MM-DD"; dates are kept as midnight UTC).
     const storedDay = (value) => {
       const d = toDate(value);
       return d ? d.toISOString().slice(0, 10) : '';
     };
-    const before = { startDate: storedDay(task.startDate), deadline: storedDay(task.deadline) };
+    const datesOf = (t) => ({ startDate: storedDay(t.startDate), deadline: storedDay(t.deadline) });
     const updated = await updateTask(task.id, next, { quiet: true });
     onChange?.(task.id, updated);
+    const undo = [{ id: task.id, before: datesOf(task) }];
+
+    // Tasks that depend on it, pushed along to keep their links (worked out by the Gantt).
+    // One that cannot be saved stays where it was; its link then shows as a clash.
+    for (const d of dependents) {
+      try {
+        const moved = await updateTask(d.task.id, { startDate: d.startDate, deadline: d.deadline }, { quiet: true });
+        onChange?.(d.task.id, moved);
+        undo.push({ id: d.task.id, before: datesOf(d.task) });
+      } catch {
+        // updateTask has already said what went wrong
+      }
+    }
+    const along = undo.length - 1;
 
     const span = next.startDate && next.startDate !== next.deadline
       ? `${formatDate(next.startDate)} to ${formatDate(next.deadline)}`
@@ -342,16 +356,19 @@ export const TasksProvider = ({ children }) => {
       // long enough to notice a slip of the mouse and take it back
       duration: 10000,
       title: 'Rescheduled',
-      description: `“${task.title}” now ${next.startDate && next.startDate !== next.deadline ? 'runs' : 'is due'} ${span}.`,
+      description: `“${task.title}” now ${next.startDate && next.startDate !== next.deadline ? 'runs' : 'is due'} ${span}.`
+        + (along ? ` ${along} task${along === 1 ? ' that depends' : 's that depend'} on it moved along.` : ''),
       action: (
         <ToastAction
           altText="Undo the new dates"
           onClick={async () => {
-            try {
-              const restored = await updateTask(task.id, before, { quiet: true });
-              onChange?.(task.id, restored);
-            } catch {
-              // updateTask has already said what went wrong
+            for (const { id, before } of undo) {
+              try {
+                const restored = await updateTask(id, before, { quiet: true });
+                onChange?.(id, restored);
+              } catch {
+                // updateTask has already said what went wrong
+              }
             }
           }}
         >
