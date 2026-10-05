@@ -1,0 +1,36 @@
+# Monday summary of every project's health for org admins and department heads
+# (scripts/send-weekly-digest.cjs; the same rules as the Portfolio Health page).
+
+name: Weekly Project Summary
+
+on:
+  schedule:
+    # Mondays 03:30 UTC = 09:00 IST
+    - cron: '30 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List who would get it, send nothing'
+        type: boolean
+        default: false
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install firebase-admin nodemailer --no-save
+
+      - name: Send the summary
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAGNAFLOW_07SEP25 }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: node scripts/send-weekly-digest.cjs ${{ inputs.dry_run && '--dry-run' || '' }}

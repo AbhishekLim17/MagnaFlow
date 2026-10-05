@@ -63,9 +63,15 @@ const escapeHtml = (value) =>
  * detail_N_label/value, button_text, ...) so queued payloads written by the
  * browser did not have to change shape.
  */
+// The five detail rows a queued (browser-written) email may carry, plus any `rows` a server
+// job adds (the weekly digest lists projects); the queue rules never accept `rows`.
+const detailRows = (data) => [
+  ...[1, 2, 3, 4, 5].map((n) => ({ label: data[`detail_${n}_label`], value: data[`detail_${n}_value`] })),
+  ...(Array.isArray(data.rows) ? data.rows : []),
+];
+
 function renderHtml(data) {
-  const rows = [1, 2, 3, 4, 5]
-    .map((n) => ({ label: data[`detail_${n}_label`], value: data[`detail_${n}_value`] }))
+  const rows = detailRows(data)
     .filter((row) => row.label && String(row.label).trim())
     .map(
       (row) => `
@@ -90,7 +96,7 @@ function renderHtml(data) {
         </td></tr>
         <tr><td style="padding:28px;">
           <p style="margin:0 0 6px;color:#101223;font-size:20px;font-weight:700;">${escapeHtml(data.title || '')}</p>
-          <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.55;">${escapeHtml(data.message || '')}</p>
+          <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.55;white-space:pre-line;">${escapeHtml(data.message || '')}</p>
           ${rows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>` : ''}
           ${
             data.button_link
@@ -109,8 +115,7 @@ function renderHtml(data) {
 }
 
 function renderText(data) {
-  const details = [1, 2, 3, 4, 5]
-    .map((n) => ({ label: data[`detail_${n}_label`], value: data[`detail_${n}_value`] }))
+  const details = detailRows(data)
     .filter((row) => row.label && String(row.label).trim())
     .map((row) => `${row.label}: ${row.value}`)
     .join('\n');

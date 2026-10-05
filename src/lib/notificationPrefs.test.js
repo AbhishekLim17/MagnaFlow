@@ -3,12 +3,12 @@ import { EMAIL_PREFS, withDefaults, wantsEmail } from './notificationPrefs';
 
 describe('withDefaults', () => {
   test('everything is on until someone turns it off', () => {
-    expect(withDefaults(undefined)).toEqual({ assignments: true, mentions: true, critical: true, statusChanges: true, dailyReminder: true, clientMessages: true });
-    expect(withDefaults({ mentions: false, unknown: false })).toEqual({ assignments: true, mentions: false, critical: true, statusChanges: true, dailyReminder: true, clientMessages: true });
+    expect(withDefaults(undefined)).toEqual({ assignments: true, mentions: true, critical: true, statusChanges: true, dailyReminder: true, weeklyDigest: true, clientMessages: true });
+    expect(withDefaults({ mentions: false, unknown: false })).toEqual({ assignments: true, mentions: false, critical: true, statusChanges: true, dailyReminder: true, weeklyDigest: true, clientMessages: true });
   });
 
   test('one setting per kind of email, each with a label', () => {
-    expect(EMAIL_PREFS.map((p) => p.key)).toEqual(['assignments', 'mentions', 'critical', 'statusChanges', 'dailyReminder', 'clientMessages']);
+    expect(EMAIL_PREFS.map((p) => p.key)).toEqual(['assignments', 'mentions', 'critical', 'statusChanges', 'dailyReminder', 'weeklyDigest', 'clientMessages']);
     expect(EMAIL_PREFS.every((p) => p.label)).toBe(true);
   });
 });

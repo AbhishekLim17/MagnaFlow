@@ -262,6 +262,26 @@ service cloud.firestore {
           allow update: if false;
         }
 
+        // Status updates (portfolio health): whoever runs the project posts how it is doing
+        // (on track / at risk / off track, and a short summary), as themselves at the
+        // server's time. The team reads them; clients do not. A record: never edited; the
+        // author or an org admin may remove one.
+        match /updates/{updateId} {
+          allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+          allow create: if canManageProjectMoney(orgId, projId)
+            && request.resource.data.keys().hasOnly(['health', 'summary', 'createdBy', 'createdByName', 'createdAt'])
+            && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.health in ['on_track', 'at_risk', 'off_track']
+            && request.resource.data.summary is string
+            && request.resource.data.summary.size() <= 2000
+            && request.resource.data.createdByName is string
+            && request.resource.data.createdByName.size() <= 120;
+          allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin()
+            || resource.data.get('createdBy', null) == request.auth.uid);
+          allow update: if false;
+        }
+
         match /expenses/{expId} {
           allow read: if canManageProjectMoney(orgId, projId);
           allow create: if canManageProjectMoney(orgId, projId)

@@ -1457,3 +1457,32 @@ describe('project baselines', () => {
     await assertSucceeds(deleteDoc(doc(col(asUser(MGR_A)), 'b1')));
   });
 });
+
+describe('project status updates', () => {
+  const col = (db, proj = PROJ_A) => collection(db, 'organizations', ORG_A, 'projects', proj, 'updates');
+  const update = (uid, extra = {}) => ({
+    health: 'at_risk', summary: 'Vendor is late', createdBy: uid, createdByName: 'Someone', createdAt: serverTimestamp(), ...extra,
+  });
+
+  test('whoever runs the project posts one; the team reads them; clients do not', async () => {
+    await assertSucceeds(addDoc(col(asUser(MGR_A)), update(MGR_A)));
+    await assertSucceeds(addDoc(col(asUser(HEAD_A)), update(HEAD_A, { health: 'on_track' })));
+    await assertSucceeds(getDocs(col(asUser(STAFF_A))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+    await assertFails(getDocs(col(asUser(STAFF_B))));
+  });
+
+  test('checked: who, as whom, which health, how long; never edited', async () => {
+    await assertFails(addDoc(col(asUser(STAFF_SCOPED)), update(STAFF_SCOPED)));
+    await assertFails(addDoc(col(asUser(MGR_A), PROJ_A2), update(MGR_A)));
+    await assertFails(addDoc(col(asUser(MGR_A)), update(ADMIN_A)));
+    await assertFails(addDoc(col(asUser(MGR_A)), update(MGR_A, { health: 'great' })));
+    await assertFails(addDoc(col(asUser(MGR_A)), update(MGR_A, { summary: 'x'.repeat(2001) })));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'organizations', ORG_A, 'projects', PROJ_A, 'updates', 'u1'), { ...update(MGR_A), createdAt: new Date() });
+    });
+    await assertFails(updateDoc(doc(col(asUser(MGR_A)), 'u1'), { health: 'on_track' }));
+    await assertFails(deleteDoc(doc(col(asUser(HEAD_A)), 'u1')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(MGR_A)), 'u1')));
+  });
+});

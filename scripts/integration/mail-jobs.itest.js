@@ -375,3 +375,54 @@ describe('client request emails', () => {
     expect(run.mails[0].text).toContain('Out of scope for this phase');
   });
 });
+
+describe('weekly project summary', () => {
+  test('org admins get every project, department heads their departments, worst first', async () => {
+    await clearAll();
+    const orgA = db.collection('organizations').doc('orgA');
+    await orgA.set({ name: 'Org A', status: 'active' });
+    await orgA.collection('projects').doc('pA').set({ name: 'Apollo', departmentId: 'dA' });
+    await orgA.collection('projects').doc('pB').set({ name: 'Borealis', departmentId: 'dB' });
+    await orgA.collection('projects').doc('pB').collection('updates').add({
+      health: 'on_track', summary: 'Shipped the beta\nmore detail', createdBy: 'uAdm', createdByName: 'Ada', createdAt: admin.firestore.Timestamp.now(),
+    });
+    const orgS = db.collection('organizations').doc('orgS');
+    await orgS.set({ name: 'Suspended', status: 'suspended' });
+    await orgS.collection('projects').doc('pS').set({ name: 'Hidden' });
+
+    const people = {
+      uAdm: { name: 'Ada Admin', email: 'ada@a.test', orgId: 'orgA', status: 'active', role: 'org-admin' },
+      uOff: { name: 'Off Admin', email: 'off@a.test', orgId: 'orgA', status: 'active', role: 'org-admin', notificationPrefs: { weeklyDigest: false } },
+      uGone: { name: 'Gone Admin', email: 'gone@a.test', orgId: 'orgA', status: 'inactive', role: 'org-admin' },
+      uH: { name: 'Hana Head', email: 'hana@a.test', orgId: 'orgA', status: 'active', role: 'department-head', departmentIds: ['dA'] },
+      uS: { name: 'Sam Staff', email: 'sam@a.test', orgId: 'orgA', status: 'active', role: 'staff' },
+      uSus: { name: 'Sus Admin', email: 'sus@s.test', orgId: 'orgS', status: 'active', role: 'org-admin' },
+    };
+    for (const [id, u] of Object.entries(people)) await db.collection('users').doc(id).set(u);
+    const day = (offset) => admin.firestore.Timestamp.fromDate(new Date(Date.now() + offset * 86400000));
+    await db.collection('tasks').add({ title: 'Late', orgId: 'orgA', projectId: 'pA', status: 'pending', deadline: day(-3) });
+    await db.collection('tasks').add({ title: 'Fine', orgId: 'orgA', projectId: 'pA', status: 'pending', deadline: day(10) });
+    await db.collection('tasks').add({ title: 'Done', orgId: 'orgA', projectId: 'pB', status: 'completed', deadline: day(-1) });
+    await db.collection('tasks').add({ title: 'Hidden', orgId: 'orgS', projectId: 'pS', status: 'pending', deadline: day(-5) });
+
+    const run = runScript('send-weekly-digest.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    const to = run.mails.map((m) => addressesOf(m.to)).join(' ');
+    expect(run.mails).toHaveLength(2);
+    expect(to).toContain('ada@a.test');
+    expect(to).toContain('hana@a.test');
+    for (const nobody of ['off@a.test', 'gone@a.test', 'sam@a.test', 'sus@s.test']) expect(to).not.toContain(nobody);
+
+    const forAdmin = run.mails.find((m) => addressesOf(m.to).includes('ada@a.test'));
+    expect(forAdmin.subject).toContain('Your projects this week');
+    // Apollo (1 of 2 open tasks overdue: off track) comes before Borealis (declared on track)
+    expect(forAdmin.text.indexOf('Apollo')).toBeLessThan(forAdmin.text.indexOf('Borealis'));
+    expect(forAdmin.text).toContain('Off track (suggested)');
+    expect(forAdmin.text).toContain('“Shipped the beta”');
+    expect(forAdmin.text).toContain('2 projects: 1 off track, 1 on track. 1 task overdue.');
+
+    const forHead = run.mails.find((m) => addressesOf(m.to).includes('hana@a.test'));
+    expect(forHead.text).toContain('Apollo');
+    expect(forHead.text).not.toContain('Borealis');
+  });
+});
