@@ -1553,3 +1553,42 @@ describe('push notification devices', () => {
     await assertFails(setDoc(tok(asUser(STAFF_A), STAFF_A), { ...device, extra: 1 }));
   });
 });
+
+describe('automations, channels and task events', () => {
+  const ruleDoc = (db, id = 'r1') => doc(db, 'organizations', ORG_A, 'automations', id);
+  const rule = { name: 'Done → Slack', enabled: true, trigger: 'status_changed', toStatus: 'completed', projectId: '', priority: '', action: { type: 'notify_channels' } };
+  const channels = (db) => doc(db, 'organizations', ORG_A, 'integrations', 'channels');
+  const event = (uid, extra = {}) => ({
+    orgId: ORG_A, taskId: 'taskA', type: 'status_changed', to: 'completed', by: uid, byName: 'X',
+    at: serverTimestamp(), processed: false, ...extra,
+  });
+
+  test('org admins write rules; the team reads them; clients and other orgs do not', async () => {
+    await assertSucceeds(setDoc(ruleDoc(asUser(ADMIN_A)), rule));
+    await assertFails(setDoc(ruleDoc(asUser(MGR_A), 'r2'), rule));
+    await assertFails(setDoc(ruleDoc(asUser(ADMIN_A), 'r3'), { ...rule, trigger: 'hourly' }));
+    await assertSucceeds(getDocs(collection(asUser(STAFF_A), 'organizations', ORG_A, 'automations')));
+    await assertFails(getDocs(collection(asUser(CLIENT_A), 'organizations', ORG_A, 'automations')));
+    await assertFails(getDocs(collection(asUser(STAFF_B), 'organizations', ORG_A, 'automations')));
+  });
+
+  test('channel addresses: org admins only', async () => {
+    await assertSucceeds(setDoc(channels(asUser(ADMIN_A)), { slack: 'https://hooks.slack.com/services/a/b/c', teams: '', webhook: '', webhookSecret: '' }));
+    await assertSucceeds(getDoc(channels(asUser(ADMIN_A))));
+    await assertFails(getDoc(channels(asUser(MGR_A))));
+    await assertFails(setDoc(channels(asUser(MGR_A)), { slack: '' }));
+    await assertFails(setDoc(channels(asUser(ADMIN_A)), { slack: '', extra: 'x' }));
+  });
+
+  test('task events: as yourself, on a task you can see; channel tests by org admins; read by org admins', async () => {
+    await assertSucceeds(addDoc(collection(asUser(STAFF_A), 'task_events'), event(STAFF_A)));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'task_events'), event(MGR_A)));
+    await assertFails(addDoc(collection(asUser(STAFF_B), 'task_events'), event(STAFF_B)));
+    await assertFails(addDoc(collection(asUser(CLIENT_A), 'task_events'), event(CLIENT_A)));
+    await assertFails(addDoc(collection(asUser(STAFF_A), 'task_events'), event(STAFF_A, { processed: true })));
+    await assertSucceeds(addDoc(collection(asUser(ADMIN_A), 'task_events'), event(ADMIN_A, { type: 'channel_test', taskId: '', to: '' })));
+    await assertFails(addDoc(collection(asUser(MGR_A), 'task_events'), event(MGR_A, { type: 'channel_test', taskId: '', to: '' })));
+    await assertSucceeds(getDocs(query(collection(asUser(ADMIN_A), 'task_events'), where('orgId', '==', ORG_A))));
+    await assertFails(getDocs(query(collection(asUser(MGR_A), 'task_events'), where('orgId', '==', ORG_A))));
+  });
+});

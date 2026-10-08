@@ -443,3 +443,60 @@ describe('push notifications', () => {
     expect(pushes[0].title).toBeTruthy();
   });
 });
+
+describe('automations', () => {
+  const seedAuto = async () => {
+    await clearAll();
+    for (const d of (await db.collection('task_events').get()).docs) await d.ref.delete();
+    for (const d of (await db.collection('subtasks').get()).docs) await d.ref.delete();
+    await seedBase();
+    const org = db.collection('organizations').doc('orgA');
+    await org.collection('projects').doc('pA').set({ name: 'Apollo' });
+    await org.collection('integrations').doc('channels').set({
+      slack: 'https://hooks.slack.com/services/T0/B0/x', teams: '', webhook: 'https://ops.example.com/hook', webhookSecret: 's3cret',
+    });
+    const rule = (id, data) => org.collection('automations').doc(id).set({ enabled: true, projectId: '', priority: '', toStatus: '', ...data });
+    await rule('done', { name: 'Done to Slack', trigger: 'status_changed', toStatus: 'completed', action: { type: 'notify_channels' } });
+    await rule('new', { name: 'New gets a checklist', trigger: 'task_created', action: { type: 'add_checklist', items: ['Scope', 'Estimate'] } });
+    await rule('assign', { name: 'New goes to Al', trigger: 'task_created', action: { type: 'assign_to', userId: 'uA2' } });
+    await rule('off', { name: 'Switched off', enabled: false, trigger: 'task_created', action: { type: 'set_priority', priority: 'critical' } });
+    await db.collection('tasks').doc('tDone').set({ title: 'Ship it', orgId: 'orgA', projectId: 'pA', status: 'completed', priority: 'high' });
+    await db.collection('tasks').doc('tNew').set({ title: 'Fresh', orgId: 'orgA', projectId: 'pA', status: 'pending', priority: 'medium', assignedTo: null });
+  };
+  const ev = (extra) => ({ orgId: 'orgA', by: 'uA1', byName: 'Ann A', processed: false, at: admin.firestore.Timestamp.now(), ...extra });
+
+  test('rules run on events: channels get the post, tasks get the changes, a stale event does nothing', async () => {
+    await seedAuto();
+    const done = await db.collection('task_events').add(ev({ taskId: 'tDone', type: 'status_changed', to: 'completed' }));
+    const created = await db.collection('task_events').add(ev({ taskId: 'tNew', type: 'task_created', to: '' }));
+    // claims tNew was completed, but it is pending: ignored
+    const stale = await db.collection('task_events').add(ev({ taskId: 'tNew', type: 'status_changed', to: 'completed' }));
+
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    const posts = run.stdout.split('\n').filter((l) => l.startsWith('[channel-json] ')).map((l) => JSON.parse(l.slice(15)));
+    expect(posts.map((p) => new URL(p.url).host).sort()).toEqual(['hooks.slack.com', 'ops.example.com']);
+    expect(posts.find((p) => p.url.includes('slack')).body.text).toBe('“Ship it” in Apollo is now Completed (by Ann A)');
+
+    const tNew = (await db.collection('tasks').doc('tNew').get()).data();
+    expect(tNew.assignedTo).toBe('uA2');
+    expect(tNew.priority).toBe('medium'); // the switched-off rule did nothing
+    const subs = await db.collection('subtasks').where('taskId', '==', 'tNew').get();
+    expect(subs.docs.map((d) => d.data().title).sort()).toEqual(['Estimate', 'Scope']);
+    const queuedMail = await db.collection('mail_queue').where('source', '==', 'automation').get();
+    expect(queuedMail.size).toBe(1);
+
+    expect((await done.get()).data()).toMatchObject({ processed: true });
+    expect((await created.get()).data().results.join(' ')).toMatch(/assigned to Al A/);
+    expect((await stale.get()).data().results).toEqual(['no rule applied']);
+  });
+
+  test('a channel test posts to every channel', async () => {
+    await seedAuto();
+    await db.collection('task_events').add(ev({ taskId: '', type: 'channel_test', to: '' }));
+    const run = runScript('send-queued-emails.cjs');
+    const posts = run.stdout.split('\n').filter((l) => l.startsWith('[channel-json] '));
+    expect(posts).toHaveLength(2);
+    expect(posts[0]).toContain('Test message from MagnaFlow');
+  });
+});

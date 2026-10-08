@@ -10,6 +10,8 @@ import { formatDate, toDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, subscribeTasks, computeTaskStatistics } from '@/services/taskService';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
+import { subscribeRules, recordTaskEvent } from '@/services/automationService';
+import { worthAnEvent } from '@/lib/automations';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
 import { addSubtasksBulk } from '@/services/subtaskService';
 
@@ -40,6 +42,8 @@ export const TasksProvider = ({ children }) => {
   const lastLoadedAt = useRef(0);
   // True while the live listener is delivering the list (then a one-off reload is pointless).
   const live = useRef(false);
+  // The organisation's automation rules: a change is recorded for them only if one could apply.
+  const automationRules = useRef([]);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -156,6 +160,17 @@ export const TasksProvider = ({ children }) => {
     return () => { live.current = false; safeUnsubscribe(stop); };
   }, [isAuthenticated, user, loadTasks]);
 
+  useEffect(() => {
+    automationRules.current = [];
+    if (!user?.orgId || user.role === 'client') return undefined;
+    const stop = subscribeRules(user.orgId, (rules) => { automationRules.current = rules; });
+    return () => safeUnsubscribe(stop);
+  }, [user]);
+
+  const noteForAutomations = (task, type) => {
+    if (task && worthAnEvent(automationRules.current, type, task)) recordTaskEvent(task, type, user);
+  };
+
   // Counts by status and priority, from the list in memory (they used to re-read every task).
   useEffect(() => {
     setStatistics(getTaskFiltersForUser(user) ? computeTaskStatistics(tasks) : null);
@@ -228,6 +243,7 @@ export const TasksProvider = ({ children }) => {
         description: `Task "${taskData.title}" has been created successfully.`,
       });
 
+      noteForAutomations(newTask, 'task_created');
       return newTask;
     } catch (error) {
       console.error("Error creating task:", error);
@@ -317,7 +333,9 @@ export const TasksProvider = ({ children }) => {
    */
   const updateTask = async (taskId, updates, options = {}) => {
     try {
+      const before = tasks.find((t) => t.id === taskId);
       const updatedTask = await updateTaskService(taskId, updates);
+      if (updates.status && before?.status !== updates.status) noteForAutomations(updatedTask, 'status_changed');
 
       setTasks(prev =>
         prev.map(t => t.id === taskId ? updatedTask : t)

@@ -187,6 +187,35 @@ service cloud.firestore {
           || (docId == 'seats' && isOrgMember(orgId) && !isClient() && seatBump(orgId)));
       }
 
+      // Automation rules (lib/automations). The team reads them (the app records a task change
+      // only when some rule could want it); org admins write them. The mail job runs them.
+      match /automations/{ruleId} {
+        allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+        allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
+        allow create, update: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && request.resource.data.keys().hasOnly(['name', 'enabled', 'trigger', 'toStatus', 'projectId', 'priority', 'action', 'updatedBy', 'updatedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 120
+          && request.resource.data.enabled is bool
+          && request.resource.data.trigger in ['task_created', 'status_changed']
+          && request.resource.data.action is map
+          && request.resource.data.action.get('type', '') in ['notify_channels', 'set_priority', 'assign_to', 'add_checklist'];
+      }
+
+      // Where automations post: Slack / Teams / own webhook addresses (and the webhook's
+      // signing secret). Org admins only: these addresses let anyone post into the channel.
+      match /integrations/{docId} {
+        allow read: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && docId == 'channels'
+          && request.resource.data.keys().hasOnly(['slack', 'teams', 'webhook', 'webhookSecret'])
+          && request.resource.data.get('slack', '') is string && request.resource.data.get('slack', '').size() <= 500
+          && request.resource.data.get('teams', '') is string && request.resource.data.get('teams', '').size() <= 1000
+          && request.resource.data.get('webhook', '') is string && request.resource.data.get('webhook', '').size() <= 500
+          && request.resource.data.get('webhookSecret', '') is string && request.resource.data.get('webhookSecret', '').size() <= 200;
+      }
+
       // Hourly cost rates (labour cost in budgets): a default and one per person. Pay-like
       // figures, so only the money roles read them (org admins, department heads, managers:
       // the people who already see project budgets) and only org admins set them.
@@ -623,6 +652,27 @@ service cloud.firestore {
         (isClient() && resource.data.get('requestedBy', null) == request.auth.uid
           && resource.data.get('status', null) == 'new')
         || isMasterAdmin() || isOrgAdmin(resource.data.get('orgId', null)));
+    }
+
+    // Task changes for the automations (the mail job runs the rules and checks each event
+    // against the task as it is now, so a made-up event does nothing). Written as yourself, on
+    // a task you can see, at the server's time; an org admin may also write a channel test.
+    // Read by org admins (the automation log); never edited by a browser.
+    match /task_events/{eventId} {
+      allow read: if isSignedIn() && (isOrgAdmin(resource.data.get('orgId', null)) || isMasterAdmin());
+      allow create: if isSignedIn() && !isClient()
+        && request.resource.data.keys().hasOnly(['orgId', 'taskId', 'type', 'to', 'by', 'byName', 'at', 'processed'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.processed == false
+        && request.resource.data.byName is string
+        && request.resource.data.byName.size() <= 120
+        && ((request.resource.data.type in ['task_created', 'status_changed']
+              && request.resource.data.taskId is string
+              && taskVisible(taskData(request.resource.data.taskId))
+              && request.resource.data.orgId == taskData(request.resource.data.taskId).get('orgId', null))
+            || (request.resource.data.type == 'channel_test' && isOrgAdmin(request.resource.data.orgId)));
+      allow update, delete: if false;
     }
 
     // Time logged on a task. Anyone who can see the task logs their own time on it (never

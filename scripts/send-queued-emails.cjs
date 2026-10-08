@@ -18,6 +18,7 @@ const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
 const { sendClientUpdates, sendRequestUpdates } = require('./lib/clientUpdates.cjs');
 const { sendPush } = require('./lib/push.cjs');
+const { runAutomations } = require('./lib/automations.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -59,6 +60,11 @@ async function main() {
 
   // A single bad address should not turn the whole run red; a run where nothing
   // got through should.
+  // Then the automation rules on recorded task changes (their emails go out on the next run).
+  const automationLib = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'lib', 'automations.js')).href);
+  const auto = await runAutomations({ db, admin, lib: automationLib, dryRun: DRY_RUN });
+  if (auto.events) console.log(`Automations: ${auto.events} event(s), ${auto.actions} action(s).`);
+
   const sentAll = queue.sent + conv.sent + reqs.sent;
   const failedAll = queue.failed + conv.failed + reqs.failed;
   if (!DRY_RUN && sentAll === 0 && failedAll > 0) process.exit(1);

@@ -18,6 +18,7 @@ import {
   Inbox,
   HeartPulse,
   Gauge,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -39,6 +40,7 @@ import ActivityLog from '@/components/admin/ActivityLog';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import PortfolioHealth from '@/components/admin/PortfolioHealth';
 import WorkloadPlanner from '@/components/admin/WorkloadPlanner';
+import AutomationsPage from '@/components/admin/AutomationsPage';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -54,6 +56,7 @@ const menuItems = [
   { id: 'clients', label: 'Client Portal', icon: Globe },
   { id: 'requests', label: 'Client Requests', icon: Inbox },
   { id: 'budget', label: 'Budget Tracker', icon: DollarSign },
+  { id: 'automations', label: 'Automations', icon: Zap },
   { id: 'activity', label: 'Activity Log', icon: History },
 ];
 
@@ -156,6 +159,7 @@ const AdminDashboard = () => {
         <Route path="/clients" element={<ClientsManagement />} />
         <Route path="/requests" element={<ClientRequestsInbox />} />
         <Route path="/budget" element={<BudgetTracker />} />
+        <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/activity" element={<ActivityLog />} />
       </Routes>
     </DashboardLayout>

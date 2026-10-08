@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   getAllTasks: vi.fn(),
   getTaskStatistics: vi.fn(),
   subscribe: vi.fn(),
+  rules: [],
+  recordEvent: vi.fn(),
   liveTasks: [],
   sendTaskAssignedEmail: vi.fn(),
   sendCriticalTaskAlert: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock('@/services/taskService', () => ({
   computeTaskStatistics: (tasks) => ({ total: tasks.length }),
 }));
 vi.mock('@/services/subtaskService', () => ({ addSubtasksBulk: mocks.addSubtasksBulk }));
+vi.mock('@/services/automationService', () => ({ subscribeRules: (_org, on) => { on(mocks.rules); return () => {}; }, recordTaskEvent: mocks.recordEvent }));
 vi.mock('@/services/emailService', () => ({
   sendTaskAssignedEmail: mocks.sendTaskAssignedEmail,
   sendCriticalTaskAlert: mocks.sendCriticalTaskAlert,
@@ -214,5 +217,21 @@ describe('the live task list', () => {
     await waitFor(() => expect(api.tasks).toHaveLength(2));
     expect(api.statistics).toEqual({ total: 2 });
     expect(mocks.getAllTasks).not.toHaveBeenCalled();
+  });
+});
+
+describe('automation events', () => {
+  test('a change is recorded only when some rule could apply to it', async () => {
+    mocks.rules = [{ enabled: true, trigger: 'status_changed', toStatus: 'completed', action: { type: 'notify_channels' } }];
+    mocks.updateTask.mockImplementation(async (id, u) => ({ id, orgId: 'o1', ...u }));
+    mocks.liveTasks = [{ id: 't1', status: 'in-progress', orgId: 'o1' }];
+    await mount({ id: 'u1', role: 'org-admin', orgId: 'o1' });
+    await waitFor(() => expect(api.tasks).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 0)); // rules loaded
+    await act(() => api.updateTask('t1', { status: 'review' }, { quiet: true }));
+    expect(mocks.recordEvent).not.toHaveBeenCalled();
+    await act(() => api.updateTask('t1', { status: 'completed' }, { quiet: true }));
+    expect(mocks.recordEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 't1', status: 'completed' }), 'status_changed', expect.anything());
+    mocks.rules = [];
   });
 });
