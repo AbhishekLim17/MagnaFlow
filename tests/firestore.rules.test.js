@@ -1592,3 +1592,17 @@ describe('automations, channels and task events', () => {
     await assertFails(getDocs(query(collection(asUser(MGR_A), 'task_events'), where('orgId', '==', ORG_A))));
   });
 });
+
+describe('custom task fields', () => {
+  const field = (db, id = 'f1') => doc(db, 'organizations', ORG_A, 'customFields', id);
+  const def = { name: 'Client ref', type: 'text', options: [], createdAt: new Date() };
+
+  test('org admins define them; the team reads them; clients and other orgs do not', async () => {
+    await assertSucceeds(setDoc(field(asUser(ADMIN_A)), def));
+    await assertFails(setDoc(field(asUser(MGR_A), 'f2'), def));
+    await assertFails(setDoc(field(asUser(ADMIN_A), 'f3'), { ...def, type: 'colour' }));
+    await assertSucceeds(getDocs(collection(asUser(STAFF_A), 'organizations', ORG_A, 'customFields')));
+    await assertFails(getDocs(collection(asUser(CLIENT_A), 'organizations', ORG_A, 'customFields')));
+    await assertFails(getDocs(collection(asUser(STAFF_B), 'organizations', ORG_A, 'customFields')));
+  });
+});

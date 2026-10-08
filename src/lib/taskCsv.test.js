@@ -200,3 +200,10 @@ describe('export', () => {
     expect(rows).toHaveLength(4);
   });
 });
+
+test('custom fields are exported as extra columns', () => {
+  const fields = [{ id: 'ref', name: 'Client ref' }, { id: 'size', name: 'Size' }];
+  const [header, row] = tasksToRows([{ id: 't1', title: 'A', customFields: { ref: 'PO-7' } }], { customFields: fields });
+  expect(header.slice(-2)).toEqual(['Client ref', 'Size']);
+  expect(row.slice(-2)).toEqual(['PO-7', '']);
+});

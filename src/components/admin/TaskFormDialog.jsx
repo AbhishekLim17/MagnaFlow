@@ -22,6 +22,7 @@ import { dependsOn } from '@/lib/dependencies';
 import { LINK_TYPES, MAX_LAG, normalizeLink } from '@/lib/dependencyLinks';
 import { MAX_ESTIMATE_HOURS, parseEstimate } from '@/lib/timeTracking';
 import { assignmentWarning } from '@/lib/capacity';
+import { useTasks } from '@/contexts/TasksContext';
 import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -66,6 +67,9 @@ const TaskFormDialog = ({
 }) => {
   const isAdd = mode === 'add';
   const set = (patch) => setFormData({ ...formData, ...patch });
+  // The organisation's own fields (Custom fields page); values are cleaned on save.
+  const { customFields = [] } = useTasks();
+  const setField = (fid, value) => set({ customFields: { ...(formData.customFields || {}), [fid]: value } });
   // Candidate prerequisites: never the task itself, and never a task that already
   // depends on it (directly or transitively) - that would be a loop.
   const tasksById = Object.fromEntries(tasks.map((t) => [t.id, t]));
@@ -263,6 +267,37 @@ const TaskFormDialog = ({
               return warning && <p className="mt-1 text-xs font-medium text-warning" role="status">{warning}</p>;
             })()}
           </div>
+
+          {customFields.length > 0 && (
+            <fieldset className="grid gap-4 sm:grid-cols-2">
+              <legend className="sr-only">Your organisation's fields</legend>
+              {customFields.map((f) => (
+                <div key={f.id}>
+                  <Label htmlFor={idFor(`cf-${f.id}`)}>{f.name}</Label>
+                  {f.type === 'select' ? (
+                    <select
+                      id={idFor(`cf-${f.id}`)}
+                      className={`${FIELD_CLASS} mt-1 h-10 w-full rounded-lg border px-3 text-sm`}
+                      value={formData.customFields?.[f.id] ?? ''}
+                      onChange={(e) => setField(f.id, e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : (
+                    <Input
+                      id={idFor(`cf-${f.id}`)}
+                      type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
+                      step={f.type === 'number' ? 'any' : undefined}
+                      className={FIELD_CLASS}
+                      value={formData.customFields?.[f.id] ?? ''}
+                      onChange={(e) => setField(f.id, e.target.value)}
+                    />
+                  )}
+                </div>
+              ))}
+            </fieldset>
+          )}
 
           {/* Depends On (blockedBy) multi-select */}
           {tasks.length > 0 && (

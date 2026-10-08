@@ -187,6 +187,21 @@ service cloud.firestore {
           || (docId == 'seats' && isOrgMember(orgId) && !isClient() && seatBump(orgId)));
       }
 
+      // Custom task fields (lib/customFields): the team reads the definitions (forms, task
+      // views); org admins define them. Values live on the task (customFields map).
+      match /customFields/{fieldId} {
+        allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+        allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
+        allow create, update: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && request.resource.data.keys().hasOnly(['name', 'type', 'options', 'createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 60
+          && request.resource.data.type in ['text', 'number', 'date', 'select']
+          && request.resource.data.options is list
+          && request.resource.data.options.size() <= 50;
+      }
+
       // Automation rules (lib/automations). The team reads them (the app records a task change
       // only when some rule could want it); org admins write them. The mail job runs them.
       match /automations/{ruleId} {

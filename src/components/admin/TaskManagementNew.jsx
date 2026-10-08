@@ -50,6 +50,7 @@ import KanbanBoard from '@/components/shared/KanbanBoard';
 import TaskCalendar from '@/components/shared/TaskCalendar';
 import { approvalSummary } from '@/lib/clientThread';
 import { parseEstimate } from '@/lib/timeTracking';
+import { cleanValues } from '@/lib/customFields';
 import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import {
   Tooltip,
@@ -203,7 +204,7 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
 };
 
 const TaskManagement = () => {
-  const { tasks, tasksTruncated, loading, createTask, updateTask, updateTaskStatus, deleteTask, refreshTasks } = useTasks();
+  const { tasks, tasksTruncated, loading, createTask, updateTask, updateTaskStatus, deleteTask, refreshTasks, customFields = [] } = useTasks();
   const { currentUser } = useAuth();
   const location = useLocation();
   const [staff, setStaff] = useState([]);        // assignable in this scope
@@ -341,6 +342,7 @@ const TaskManagement = () => {
       ...dates,
       milestone: Boolean(formData.milestone),
       estimateHours: parseEstimate(formData.estimateHours),
+      customFields: cleanValues(customFields, formData.customFields),
       repeat,
       repeating: Boolean(repeat),
       occurrence: 0,
@@ -449,6 +451,7 @@ const TaskManagement = () => {
       milestone: Boolean(task.milestone),
       repeat: optionFromRepeat(task.repeating !== false ? task.repeat : null),
       estimateHours: task.estimateHours ?? '',
+      customFields: task.customFields || {},
     });
     setIsEditDialogOpen(true);
   };

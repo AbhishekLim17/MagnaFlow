@@ -40,7 +40,7 @@ const TaskImportExportDialog = ({
   open, onOpenChange, people = [], projects = [], visibleTasks = [], allTasks = [], filtered = false,
   lookups = {}, defaultProjectId, loadWorkspace,
 }) => {
-  const { importTasks } = useTasks();
+  const { importTasks, customFields = [] } = useTasks();
   const fileRef = useRef(null);
   const ids = useId();
   const [tab, setTab] = useState('import');
@@ -102,7 +102,7 @@ const TaskImportExportDialog = ({
   };
 
   const exportCsv = (tasks, label) => {
-    const text = toCsv(tasksToRows(tasks, lookups));
+    const text = toCsv(tasksToRows(tasks, { ...lookups, customFields }));
     downloadText(text, safeFilename(`${label} ${today()}.csv`));
   };
 

@@ -4,7 +4,8 @@
 // deleting are for the task's creator.
 
 import React, { useState } from 'react';
-import { Calendar, User, Clock, CheckCircle, Edit, Trash2, ListChecks, Plus, Lock, Repeat } from 'lucide-react';
+import { Calendar, User, Clock, CheckCircle, Edit, Trash2, ListChecks, Plus, Lock, Repeat, Tag } from 'lucide-react';
+import { displayValue } from '@/lib/customFields';
 import SubtaskList from '../SubtaskList';
 import AddSubtaskDialog from '../AddSubtaskDialog';
 import CommentSection from '../tasks/CommentSection';
@@ -64,7 +65,7 @@ const Fact = ({ icon: Icon, label, children, sub }) => (
  */
 const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, onDelete, getUserName, currentUser }) => {
   const [showAddSubtask, setShowAddSubtask] = useState(false);
-  const { tasks } = useTasks();
+  const { tasks, customFields = [] } = useTasks();
 
   if (!task) return null;
 
@@ -186,6 +187,9 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
                 {task.repeating === false && task.nextId ? ' · next one created' : ''}
               </Fact>
             )}
+            {customFields.filter((f) => task.customFields?.[f.id] != null && task.customFields[f.id] !== '').map((f) => (
+              <Fact key={f.id} icon={Tag} label={f.name}>{displayValue(f, task.customFields[f.id], formatDate)}</Fact>
+            ))}
           </div>
 
           {/* Status */}

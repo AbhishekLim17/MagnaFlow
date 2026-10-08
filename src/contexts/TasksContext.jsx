@@ -11,6 +11,7 @@ import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, subscribeTasks, computeTaskStatistics } from '@/services/taskService';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { subscribeRules, recordTaskEvent } from '@/services/automationService';
+import { subscribeCustomFields } from '@/services/customFieldService';
 import { worthAnEvent } from '@/lib/automations';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
 import { addSubtasksBulk } from '@/services/subtaskService';
@@ -44,6 +45,8 @@ export const TasksProvider = ({ children }) => {
   const live = useRef(false);
   // The organisation's automation rules: a change is recorded for them only if one could apply.
   const automationRules = useRef([]);
+  // The organisation's custom task fields (definitions), for forms and task views.
+  const [customFields, setCustomFields] = useState([]);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -164,7 +167,8 @@ export const TasksProvider = ({ children }) => {
     automationRules.current = [];
     if (!user?.orgId || user.role === 'client') return undefined;
     const stop = subscribeRules(user.orgId, (rules) => { automationRules.current = rules; });
-    return () => safeUnsubscribe(stop);
+    const stopFields = subscribeCustomFields(user.orgId, setCustomFields);
+    return () => { safeUnsubscribe(stop); safeUnsubscribe(stopFields); setCustomFields([]); };
   }, [user]);
 
   const noteForAutomations = (task, type) => {
@@ -522,6 +526,7 @@ export const TasksProvider = ({ children }) => {
   const value = {
     tasks,
     tasksTruncated,
+    customFields,
     loading,
     statistics,
     createTask,

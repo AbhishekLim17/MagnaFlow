@@ -279,7 +279,9 @@ const PRIORITY_TEXT = { low: 'Low', medium: 'Medium', high: 'High', critical: 'C
  */
 export const tasksToRows = (tasks, lookups = {}) => {
   const byId = new Map((tasks || []).map((t) => [t.id, t]));
-  const header = [...TASK_COLUMNS.map((c) => c.header), ...EXPORT_ONLY];
+  // the organisation's own fields come last, as stored (dates are YYYY-MM-DD)
+  const extra = lookups.customFields || [];
+  const header = [...TASK_COLUMNS.map((c) => c.header), ...EXPORT_ONLY, ...extra.map((f) => f.name)];
   const rows = (tasks || []).map((t) => {
     const person = t.assignedTo ? lookups.person?.(t.assignedTo) : undefined;
     const waitingOn = (Array.isArray(t.blockedBy) ? t.blockedBy : [])
@@ -302,6 +304,7 @@ export const tasksToRows = (tasks, lookups = {}) => {
       storedDay(t.createdAt),
       storedDay(t.completedAt),
       t.id || '',
+      ...extra.map((f) => (t.customFields?.[f.id] ?? '') === '' ? '' : String(t.customFields[f.id])),
     ];
   });
   return [header, ...rows];

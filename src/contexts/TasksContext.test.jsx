@@ -33,6 +33,7 @@ vi.mock('@/services/taskService', () => ({
 }));
 vi.mock('@/services/subtaskService', () => ({ addSubtasksBulk: mocks.addSubtasksBulk }));
 vi.mock('@/services/automationService', () => ({ subscribeRules: (_org, on) => { on(mocks.rules); return () => {}; }, recordTaskEvent: mocks.recordEvent }));
+vi.mock('@/services/customFieldService', () => ({ subscribeCustomFields: (_org, on) => { on([]); return () => {}; } }));
 vi.mock('@/services/emailService', () => ({
   sendTaskAssignedEmail: mocks.sendTaskAssignedEmail,
   sendCriticalTaskAlert: mocks.sendCriticalTaskAlert,

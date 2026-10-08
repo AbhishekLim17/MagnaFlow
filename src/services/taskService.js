@@ -155,6 +155,7 @@ export const createTask = async (taskData) => {
       blockedBy,
       dependencyLinks,
       estimateHours,
+      customFields,
       milestone,
       repeat,
       occurrence,
@@ -193,6 +194,8 @@ export const createTask = async (taskData) => {
       estimateHours: Number.isFinite(Number(estimateHours)) && estimateHours !== null && estimateHours !== ''
         ? Number(estimateHours)
         : null,
+      // The organisation's own fields (lib/customFields), cleaned by the form.
+      ...(customFields && Object.keys(customFields).length ? { customFields } : {}),
       // A milestone is a key date (a sign-off, a launch) rather than a span of work.
       milestone: Boolean(milestone),
       // Repeating tasks: the schedule, and the flag the hourly job looks for (see
