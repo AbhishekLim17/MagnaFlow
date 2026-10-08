@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   createTask: vi.fn(),
   getAllTasks: vi.fn(),
   getTaskStatistics: vi.fn(),
+  subscribe: vi.fn(),
+  liveTasks: [],
   sendTaskAssignedEmail: vi.fn(),
   sendCriticalTaskAlert: vi.fn(),
   toast: vi.fn(),
@@ -23,6 +25,9 @@ vi.mock('@/services/taskService', () => ({
   updateTask: mocks.updateTask,
   deleteTask: vi.fn(),
   getTaskStatistics: mocks.getTaskStatistics,
+  // the live list: answers at once with whatever the test put in mocks.liveTasks
+  subscribeTasks: (filters, onTasks) => { mocks.subscribe(filters); onTasks(mocks.liveTasks); return () => {}; },
+  computeTaskStatistics: (tasks) => ({ total: tasks.length }),
 }));
 vi.mock('@/services/subtaskService', () => ({ addSubtasksBulk: mocks.addSubtasksBulk }));
 vi.mock('@/services/emailService', () => ({
@@ -39,12 +44,13 @@ const Grab = () => {
 const mount = async (user) => {
   mocks.user = user;
   render(<TasksProvider><Grab /></TasksProvider>);
-  await waitFor(() => expect(mocks.getAllTasks).toHaveBeenCalled());
+  await waitFor(() => expect(mocks.subscribe).toHaveBeenCalled());
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getAllTasks.mockResolvedValue([]);
+  mocks.liveTasks = [];
   mocks.getTaskStatistics.mockResolvedValue({ total: 0 });
   let n = 0;
   mocks.createTask.mockImplementation(async (t) => {
@@ -156,11 +162,11 @@ describe('importTasks', () => {
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Imported 2 of 3 tasks' }));
   });
 
-  test('statistics are refreshed once for the whole batch', async () => {
+  test('a batch never re-reads the whole list (the live list and its counts follow by themselves)', async () => {
     await mount(manager);
-    const before = mocks.getTaskStatistics.mock.calls.length;
     await act(async () => { await api.importTasks([{ title: 'a' }, { title: 'b' }, { title: 'c' }]); });
-    expect(mocks.getTaskStatistics.mock.calls.length - before).toBe(1);
+    expect(mocks.getTaskStatistics).not.toHaveBeenCalled();
+    expect(mocks.getAllTasks).not.toHaveBeenCalled();
   });
 });
 
@@ -197,5 +203,16 @@ describe('rescheduleTask', () => {
     }));
     const shown = mocks.toast.mock.calls.find(([t]) => t.title === 'Rescheduled')[0];
     expect(shown.description).not.toMatch(/moved along/);
+  });
+});
+
+describe('the live task list', () => {
+  test('subscribes with the scope of the signed-in role, and counts come from the list', async () => {
+    mocks.liveTasks = [{ id: 'a', status: 'pending' }, { id: 'b', status: 'completed' }];
+    await mount({ id: 'm1', role: 'manager', orgId: 'o1', projectIds: ['p1'] });
+    expect(mocks.subscribe).toHaveBeenCalledWith({ orgId: 'o1', projectIds: ['p1'] });
+    await waitFor(() => expect(api.tasks).toHaveLength(2));
+    expect(api.statistics).toEqual({ total: 2 });
+    expect(mocks.getAllTasks).not.toHaveBeenCalled();
   });
 });

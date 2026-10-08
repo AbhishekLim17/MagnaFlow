@@ -1539,3 +1539,17 @@ describe('time tracking and cost rates', () => {
     await assertFails(getDoc(rates(asUser(ADMIN_B))));
   });
 });
+
+describe('push notification devices', () => {
+  const tok = (db, uid, token = 'tok-1') => doc(db, 'users', uid, 'pushTokens', token);
+  const device = { createdAt: serverTimestamp(), device: 'Chrome on Android' };
+
+  test('a person registers, sees and removes only their own devices', async () => {
+    await assertSucceeds(setDoc(tok(asUser(STAFF_A), STAFF_A), device));
+    await assertSucceeds(getDoc(tok(asUser(STAFF_A), STAFF_A)));
+    await assertSucceeds(deleteDoc(tok(asUser(STAFF_A), STAFF_A)));
+    await assertFails(setDoc(tok(asUser(STAFF_A), STAFF_SCOPED), device));
+    await assertFails(getDoc(tok(asUser(ADMIN_A), STAFF_A)));
+    await assertFails(setDoc(tok(asUser(STAFF_A), STAFF_A), { ...device, extra: 1 }));
+  });
+});

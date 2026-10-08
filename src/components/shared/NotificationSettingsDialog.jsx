@@ -13,6 +13,47 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getUserById, updateUser } from '@/services/userService';
 import { EMAIL_PREFS, withDefaults } from '@/lib/notificationPrefs';
 import { reportError } from '@/lib/reportError';
+import { disablePush, enablePush, pushConfigured, pushEnabledHere, pushSupported } from '@/services/pushService';
+
+// Push notifications on this device: the same things as the emails above, as they are sent.
+const DevicePush = ({ uid }) => {
+  const [on, setOn] = useState(pushEnabledHere);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  if (!pushConfigured() || !pushSupported()) return null;
+
+  const toggle = async () => {
+    setBusy(true);
+    setNote('');
+    try {
+      if (on) {
+        await disablePush(uid);
+        setOn(false);
+      } else if (await enablePush(uid)) {
+        setOn(true);
+      } else {
+        setNote('Notifications are blocked for this site. Allow them in your browser settings, then try again.');
+      }
+    } catch (error) {
+      reportError(error, { title: "Couldn't change notifications on this device" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm">
+      <div>
+        <p className="font-medium text-foreground">Notifications on this device</p>
+        <p className="text-xs text-muted-foreground">{on ? 'On: this device also gets what is emailed to you.' : 'Get what is emailed to you as a notification here too.'}</p>
+        {note && <p className="mt-1 text-xs text-warning" role="alert">{note}</p>}
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={toggle} disabled={busy}>
+        {busy ? 'Working…' : on ? 'Turn off' : 'Turn on'}
+      </Button>
+    </div>
+  );
+};
 
 const NotificationSettingsDialog = ({ open, onOpenChange }) => {
   const { user } = useAuth();
@@ -93,6 +134,8 @@ const NotificationSettingsDialog = ({ open, onOpenChange }) => {
             You will get no email from MagnaFlow. Keep an eye on the bell instead.
           </p>
         )}
+
+        <DevicePush uid={uid} />
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

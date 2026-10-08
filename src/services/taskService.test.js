@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 
 // Capture the constraints handed to Firestore so we can assert on the query
 // that would actually be sent, without touching a real database.
-const calls = { where: [], limit: [], orderBy: [] };
+const calls = { where: [], limit: [], orderBy: [], listeners: [], stopped: 0 };
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => ({ __col: true })),
@@ -18,6 +18,8 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn((f, op, v) => { calls.where.push([f, op, v]); return { __w: [f, op, v] }; }),
   orderBy: vi.fn((f, d) => { calls.orderBy.push([f, d]); return { __o: [f, d] }; }),
   limit: vi.fn((n) => { calls.limit.push(n); return { __l: n }; }),
+  // the live list: each listener remembers its query and callback
+  onSnapshot: vi.fn((q, next) => { calls.listeners.push({ q, next }); return () => { calls.stopped += 1; }; }),
   Timestamp: { now: () => ({ __now: true }), fromDate: (d) => ({ __ts: d }) },
 }));
 
@@ -26,7 +28,7 @@ vi.mock('./emailService', () => ({ sendCriticalTaskAlert: vi.fn() }));
 vi.mock('./subtaskService', () => ({ deleteAllSubtasksForTask: vi.fn() }));
 vi.mock('./userService', () => ({ getCallerProfile: vi.fn(async () => null) }));
 
-const { getAllTasks, getTaskStatistics } = await import('./taskService');
+const { getAllTasks, getTaskStatistics, subscribeTasks } = await import('./taskService');
 const { getDocs, getDoc, doc, updateDoc, arrayRemove } = await import('firebase/firestore');
 const { updateTask, deleteTask } = await import('./taskService');
 
@@ -40,7 +42,7 @@ const valueFor = (field) => calls.where.find(([f]) => f === field)?.[2];
 const opFor = (field) => calls.where.find(([f]) => f === field)?.[1];
 
 beforeEach(() => {
-  calls.where = []; calls.limit = []; calls.orderBy = [];
+  calls.where = []; calls.limit = []; calls.orderBy = []; calls.listeners = []; calls.stopped = 0;
 });
 
 describe('getAllTasks scoping', () => {
@@ -251,5 +253,33 @@ describe('deleteTask', () => {
   test('a dependent that cannot be updated does not block the delete', async () => {
     updateDoc.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'permission-denied' }));
     await expect(deleteTask('t1', { dependentTaskIds: ['x'] })).resolves.not.toThrow();
+  });
+});
+
+describe('subscribeTasks', () => {
+  const snap = (ids) => ({ docs: ids.map((id) => ({ id, data: () => ({ title: id }) })) });
+
+  test('one listener per chunk of more than 10 projects; one merged list once every chunk answered', () => {
+    const got = [];
+    const projectIds = Array.from({ length: 12 }, (_, i) => `p${i}`);
+    const stop = subscribeTasks({ orgId: 'o1', projectIds }, (tasks) => got.push(tasks));
+    expect(calls.listeners).toHaveLength(2);
+    calls.listeners[0].next(snap(['a', 'b']));
+    expect(got).toHaveLength(0);
+    calls.listeners[1].next(snap(['b', 'c']));
+    expect(got.at(-1).map((t) => t.id).sort()).toEqual(['a', 'b', 'c']);
+    expect(got.at(-1).truncated).toBe(false);
+    calls.listeners[0].next(snap(['a']));
+    expect(got.at(-1).map((t) => t.id).sort()).toEqual(['a', 'b', 'c']);
+    stop();
+    expect(calls.stopped).toBe(2);
+  });
+
+  test('a chunk that reaches the bound is flagged', () => {
+    let last;
+    subscribeTasks({ orgId: 'o1', limit: 2 }, (tasks) => { last = tasks; });
+    calls.listeners[0].next(snap(['a', 'b']));
+    expect(last.truncated).toBe(true);
+    expect(calls.limit).toContain(2);
   });
 });

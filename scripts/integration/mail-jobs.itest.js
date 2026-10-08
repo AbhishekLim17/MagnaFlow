@@ -426,3 +426,20 @@ describe('weekly project summary', () => {
     expect(forHead.text).not.toContain('Borealis');
   });
 });
+
+describe('push notifications', () => {
+  test("a delivered email is also pushed to the recipient's devices; nobody else's", async () => {
+    await clearAll();
+    await seedBase();
+    await db.collection('users').doc('uA1').collection('pushTokens').doc('tok-a1').set({ device: 'phone' });
+    await db.collection('users').doc('uA2').collection('pushTokens').doc('tok-a2').set({ device: 'phone' });
+    await db.collection('mail_queue').add(queued({ type: 'task_assigned' }));
+
+    const run = runScript('send-queued-emails.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    const pushes = run.stdout.split('\n').filter((l) => l.startsWith('[push-json] ')).map((l) => JSON.parse(l.slice(12)));
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]).toMatchObject({ uid: 'uA1', tokens: 1, link: APP_URL });
+    expect(pushes[0].title).toBeTruthy();
+  });
+});

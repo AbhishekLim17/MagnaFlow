@@ -316,6 +316,18 @@ service cloud.firestore {
     // Org-scoped: an org-admin only sees/manages users in their OWN org (matched
     // via orgId equality â€” legacy pre-org accounts have orgId==null on both sides,
     // so old admin/staff behavior keeps working unchanged for them).
+    // A person's devices that receive push notifications (services/pushService). Only they
+    // see or change them; the mail job reads them with the Admin SDK.
+    match /users/{uid}/pushTokens/{token} {
+      allow read, delete: if authed() && request.auth.uid == uid;
+      allow create: if isSignedIn() && request.auth.uid == uid
+        && token.size() < 1000
+        && request.resource.data.keys().hasOnly(['createdAt', 'device'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.device is string
+        && request.resource.data.device.size() <= 200;
+    }
+
     match /users/{uid} {
       // Clients may only read their own user document (to restore session / get their projectIds).
       allow read: if (request.auth != null && request.auth.uid == uid)

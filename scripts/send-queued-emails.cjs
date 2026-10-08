@@ -17,6 +17,7 @@ const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
 const { sendClientUpdates, sendRequestUpdates } = require('./lib/clientUpdates.cjs');
+const { sendPush } = require('./lib/push.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -133,6 +134,8 @@ async function drainQueue(db, tenant, getTransport, wantsEmail) {
 
     try {
       await sendNotification(getTransport(), payload);
+      // and to the devices they turned push on for (best-effort)
+      await sendPush({ db, admin }, data.recipientUid, { title: payload.title, body: payload.message, link: payload.button_link });
       await doc.ref.update({
         status: 'sent',
         sentAt: admin.firestore.FieldValue.serverTimestamp(),

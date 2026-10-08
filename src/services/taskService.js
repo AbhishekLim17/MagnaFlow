@@ -12,10 +12,13 @@ import {
   arrayRemove,
   query,
   where,
+  limit as firestoreLimit,
+  onSnapshot,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { runBoundedQuery } from '@/lib/firestoreQuery';
+import { runBoundedQuery, chunk } from '@/lib/firestoreQuery';
+import { safeListen, safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { wouldCreateCycle } from '@/lib/dependencies';
 import { blocksStatus, blockerAdvice, cleanLinks, normalizeLink } from '@/lib/dependencyLinks';
 import { statusLabel } from '@/lib/taskLabels';
@@ -56,8 +59,8 @@ export const getTaskById = async (taskId) => {
  *   orgId, departmentId, departmentIds (array, matches any), projectId, projectIds (array, matches any))
  * @returns {Promise<Array>} Array of task objects
  */
-export const getAllTasks = async (filters = {}) => {
-  try {
+// The where() clauses for a task list, shared by the one-off read and the live listener.
+const taskQueryParts = (filters = {}) => {
     const constraints = [];
 
     if (filters.assignedTo) constraints.push(where('assignedTo', '==', filters.assignedTo));
@@ -79,6 +82,12 @@ export const getAllTasks = async (filters = {}) => {
       if (multi) constraints.push(where('projectId', 'in', filters.projectIds.slice(0, 10)));
       else multi = { values: filters.projectIds, build: (c) => where('projectId', 'in', c) };
     }
+    return { constraints, multi };
+};
+
+export const getAllTasks = async (filters = {}) => {
+  try {
+    const { constraints, multi } = taskQueryParts(filters);
 
     // Always bound the read. Firestore bills per document returned, and an
     // unbounded collection scan gets slower and more expensive as the data
@@ -422,11 +431,35 @@ export const updateTaskStatus = async (taskId, status) => {
  *   departmentIds, projectIds, etc). Pass {} for no scoping.
  * @returns {Promise<Object>} Task statistics
  */
-export const getTaskStatistics = async (filters = {}) => {
-  try {
-    const tasks = await getAllTasks(filters);
-    
-    const stats = {
+/**
+ * Keep a task list live: the same scoped queries as getAllTasks, as listeners, merged.
+ * Each change costs only the documents that changed, so this replaces re-reading the list.
+ * A list that reaches the bound is flagged `truncated` (it is then an arbitrary slice).
+ * @returns {() => void} stop listening
+ */
+export const subscribeTasks = (filters, onTasks, onError) => {
+  const { constraints, multi } = taskQueryParts(filters);
+  const boundedAt = filters.limit ?? DEFAULT_TASK_LIMIT;
+  const parts = multi && multi.values.length > 0 ? chunk(multi.values).map((c) => [multi.build(c)]) : [[]];
+  const seen = parts.map(() => null);
+  const emit = () => {
+    if (seen.some((s) => s === null)) return; // wait until every part has answered once
+    const byId = new Map();
+    for (const docs of seen) for (const d of docs) byId.set(d.id, { id: d.id, ...d.data() });
+    const tasks = [...byId.values()];
+    tasks.truncated = seen.some((docs) => docs.length >= boundedAt);
+    onTasks(tasks);
+  };
+  const stops = parts.map((extra, i) => safeListen(() => onSnapshot(
+    query(collection(db, TASKS_COLLECTION), ...constraints, ...extra, firestoreLimit(boundedAt)),
+    (snap) => { seen[i] = snap.docs; emit(); },
+    (error) => onError?.(error),
+  )));
+  return () => stops.forEach(safeUnsubscribe);
+};
+
+/** Counts by status and priority (pure; the live list computes them in memory). */
+export const computeTaskStatistics = (tasks) => ({
       total: tasks.length,
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in-progress').length,
@@ -439,9 +472,11 @@ export const getTaskStatistics = async (filters = {}) => {
         high: tasks.filter(t => t.priority === 'high').length,
         critical: tasks.filter(t => t.priority === 'critical').length,
       },
-    };
-    
-    return stats;
+});
+
+export const getTaskStatistics = async (filters = {}) => {
+  try {
+    return computeTaskStatistics(await getAllTasks(filters));
   } catch (error) {
     console.error('Error getting task statistics:', error);
     throw error;

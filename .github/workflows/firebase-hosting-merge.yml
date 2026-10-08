@@ -50,6 +50,8 @@ jobs:
           VITE_CC_EMAILS: ${{ vars.VITE_CC_EMAILS }}
           # google, microsoft or google,microsoft once enabled in Firebase (docs/SSO_SETUP.md); unset = off
           VITE_SIGNIN_PROVIDERS: ${{ vars.VITE_SIGNIN_PROVIDERS }}
+          # public Web Push key from Firebase console (docs/PUSH_SETUP.md); unset = no push
+          VITE_FCM_VAPID_KEY: ${{ vars.VITE_FCM_VAPID_KEY }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

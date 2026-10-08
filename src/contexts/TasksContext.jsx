@@ -8,7 +8,8 @@ import { toUserMessage } from '@/lib/errorMessages';
 import { statusLabel } from '@/lib/taskLabels';
 import { formatDate, toDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
-import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, getTaskStatistics } from '@/services/taskService';
+import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, subscribeTasks, computeTaskStatistics } from '@/services/taskService';
+import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
 import { addSubtasksBulk } from '@/services/subtaskService';
 
@@ -37,6 +38,8 @@ export const TasksProvider = ({ children }) => {
   // tasks than this list shows. See the comment on that flag in taskService.
   const [tasksTruncated, setTasksTruncated] = useState(false);
   const lastLoadedAt = useRef(0);
+  // True while the live listener is delivering the list (then a one-off reload is pointless).
+  const live = useRef(false);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -77,6 +80,7 @@ export const TasksProvider = ({ children }) => {
     // provider already holds. Any actual change (create/update/delete, subtask
     // completion, a different user) forces a reload, so this can't serve stale
     // data after a mutation.
+    if (live.current) return; // the listener already keeps the list current
     if (!force && Date.now() - lastLoadedAt.current < TASKS_STALE_AFTER_MS) {
       return;
     }
@@ -89,7 +93,6 @@ export const TasksProvider = ({ children }) => {
       if (!filters) {
         // master-admin: no org-scoped task list.
         setTasks([]);
-        setStatistics(null);
         setTasksTruncated(false);
         setLoading(false);
         lastLoadedAt.current = Date.now();
@@ -100,9 +103,6 @@ export const TasksProvider = ({ children }) => {
       setTasks(tasksData);
       setTasksTruncated(Boolean(tasksData.truncated));
       console.log("✅ Tasks loaded:", tasksData.length);
-
-      const stats = await getTaskStatistics(filters);
-      setStatistics(stats);
       lastLoadedAt.current = Date.now();
     } catch (error) {
       console.error("❌ Error loading tasks:", error);
@@ -119,18 +119,47 @@ export const TasksProvider = ({ children }) => {
   // Load tasks when the signed-in user changes. Always forced: a different user
   // has a different scope, so freshness of the previous user's data is
   // irrelevant — and serving it would be a data leak between accounts.
+  //
+  // Live: the list follows the database (onSnapshot on the same scoped queries), so changes
+  // made by anyone else appear without a reload, and each change costs only the documents
+  // that changed. If the listener fails, one ordinary read is done instead.
   useEffect(() => {
-    if (isAuthenticated && user) {
-      lastLoadedAt.current = 0;
-      loadTasks({ force: true });
-    } else {
+    live.current = false;
+    lastLoadedAt.current = 0;
+    if (!isAuthenticated || !user) {
       setTasks([]);
-      setStatistics(null);
       setTasksTruncated(false);
       setLoading(false);
-      lastLoadedAt.current = 0;
+      return undefined;
     }
+    const filters = getTaskFiltersForUser(user);
+    if (!filters) {
+      loadTasks({ force: true }); // master-admin: no task list
+      return undefined;
+    }
+    setLoading(true);
+    const stop = subscribeTasks(
+      filters,
+      (list) => {
+        live.current = true;
+        lastLoadedAt.current = Date.now();
+        setTasks(list);
+        setTasksTruncated(Boolean(list.truncated));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Live task list stopped:', error?.code || error);
+        live.current = false;
+        loadTasks({ force: true });
+      },
+    );
+    return () => { live.current = false; safeUnsubscribe(stop); };
   }, [isAuthenticated, user, loadTasks]);
+
+  // Counts by status and priority, from the list in memory (they used to re-read every task).
+  useEffect(() => {
+    setStatistics(getTaskFiltersForUser(user) ? computeTaskStatistics(tasks) : null);
+  }, [tasks, user]);
 
   // Listen for task status updates (from subtask completion)
   useEffect(() => {
@@ -440,16 +469,8 @@ export const TasksProvider = ({ children }) => {
   /**
    * Refresh statistics
    */
-  const refreshStatistics = async () => {
-    try {
-      const filters = getTaskFiltersForUser(user);
-      if (!filters) return;
-      const stats = await getTaskStatistics(filters);
-      setStatistics(stats);
-    } catch (error) {
-      console.error("❌ Error refreshing statistics:", error);
-    }
-  };
+  // Kept for callers: statistics now follow the task list by themselves.
+  const refreshStatistics = async () => {};
 
   /**
    * Get tasks by filter

@@ -16,6 +16,7 @@
  * Then the document is marked `notified: true` (only the Admin SDK may change it).
  */
 const { APP_URL, EMAIL_RE } = require('./tenant.cjs');
+const { sendPush } = require('./push.cjs');
 
 const MAX_DOCS_PER_RUN = 100;
 const MAX_ATTEMPTS = 3;
@@ -159,15 +160,16 @@ const projectLoader = (db) => {
  * Send one document's mails, then record the outcome on it. A send that fails is retried on
  * the next run (those already told may hear twice; better than not at all), up to MAX_ATTEMPTS.
  */
-async function deliver({ doc, data, mails, orgId, admin, transport, send, wantsEmail, dryRun, log, totals }) {
+async function deliver({ db, doc, data, mails, orgId, admin, transport, send, wantsEmail, dryRun, log, totals }) {
   let sentHere = 0;
   let failedHere = 0;
-  for (const { mail, prefs } of mails) {
+  for (const { mail, prefs, uid } of mails) {
     if (!wantsEmail(prefs, mail.type)) { totals.skipped += 1; continue; }
     if (dryRun) { console.log(`  would send to ${mail.to_email} — ${mail.title}`); continue; }
     try {
       await send(transport, mail);
       sentHere += 1;
+      await sendPush({ db, admin }, uid, { title: mail.title, body: mail.message, link: mail.button_link });
       await log(mail, orgId, 'sent');
     } catch (error) {
       failedHere += 1;
@@ -217,7 +219,7 @@ async function sendClientUpdates(deps) {
       continue;
     }
     const name = (await project(task.orgId, task.projectId))?.name || '';
-    const mails = (await recipientsFor(db, tenant, m, task)).map((r) => ({ mail: buildMail(m, task, name, r), prefs: r.prefs }));
+    const mails = (await recipientsFor(db, tenant, m, task)).map((r) => ({ mail: buildMail(m, task, name, r), prefs: r.prefs, uid: r.uid }));
     await deliver({ ...deps, doc, data: m, mails, orgId: task.orgId, dryRun, log, totals });
   }
   return totals;
@@ -250,7 +252,7 @@ async function sendRequestUpdates(deps) {
       const client = await tenant.resolveRecipient(r.requestedBy, r.orgId);
       recipients = client ? [{ uid: r.requestedBy, ...client }] : [];
     }
-    const mails = recipients.map((x) => ({ mail: buildRequestMail(r, p.name, x), prefs: x.prefs }));
+    const mails = recipients.map((x) => ({ mail: buildRequestMail(r, p.name, x), prefs: x.prefs, uid: x.uid }));
     await deliver({ ...deps, doc, data: r, mails, orgId: r.orgId, dryRun, log, totals });
   }
   return totals;
