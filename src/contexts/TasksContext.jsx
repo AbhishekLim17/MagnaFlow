@@ -61,6 +61,7 @@ export const TasksProvider = ({ children }) => {
     if (!u) return null;
     switch (u.role) {
       case 'master-admin':
+      case 'finance': // budgets only (Finance dashboard)
         return null;
       case 'org-admin':
       case 'admin':

@@ -12,6 +12,8 @@ export const ROLES = {
   // Accounts are created by org-admins in the Client Portal tab and are
   // linked to one or more projects via the standard projectIds array.
   CLIENT: 'client',
+  // Sees every project's money (budgets, expenses, labour cost); runs no tasks.
+  FINANCE: 'finance',
 };
 
 // Legacy alias: pre-existing accounts created before this model was introduced

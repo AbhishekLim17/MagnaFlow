@@ -383,16 +383,19 @@ const BudgetTracker = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setBudgetDialogOpen(true)}
-            disabled={!selectedProject}
-            id="btn-set-budget"
-          >
-            <PiggyBank className="w-4 h-4 mr-2" />
-            {selectedProject?.budget > 0 ? 'Edit Budget' : 'Set Budget'}
-          </Button>
+          {/* budgets are set by org admins; Finance reads them */}
+          {user?.role !== 'finance' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBudgetDialogOpen(true)}
+              disabled={!selectedProject}
+              id="btn-set-budget"
+            >
+              <PiggyBank className="w-4 h-4 mr-2" />
+              {selectedProject?.budget > 0 ? 'Edit Budget' : 'Set Budget'}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

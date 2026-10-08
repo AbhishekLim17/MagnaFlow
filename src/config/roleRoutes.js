@@ -13,6 +13,7 @@ export const ROLE_HOME_ROUTE = {
   staff: '/staff',
   // Client portal — read-only, project-scoped dashboard for external stakeholders.
   client: '/client',
+  finance: '/finance',
 };
 
 // Roles allowed into each dashboard route.
@@ -22,6 +23,7 @@ export const DEPARTMENT_HEAD_ROLES = ['department-head'];
 export const MANAGER_ROLES = ['manager'];
 export const STAFF_ROLES = ['staff'];
 export const CLIENT_ROLES = ['client'];
+export const FINANCE_ROLES = ['finance'];
 
 /**
  * Returns the home route for a given role, falling back to /staff.

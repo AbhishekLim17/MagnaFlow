@@ -24,6 +24,7 @@ export const ROLE_LABELS = {
   manager: 'Project manager',
   staff: 'Team member',
   client: 'Client',
+  finance: 'Finance',
 };
 
 const humanize = (value) => {

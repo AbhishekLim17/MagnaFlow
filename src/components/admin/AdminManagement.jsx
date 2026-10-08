@@ -27,6 +27,7 @@ import { formatDate } from '@/lib/format';
 const ROLE_LABELS = {
   'department-head': 'Department Head',
   manager: 'Manager',
+  finance: 'Finance',
 };
 
 // Org-admins manage the two mid-tier roles here. They cannot create other
@@ -123,6 +124,7 @@ const AdminDialog = ({ open, onOpenChange, onSubmit, initialData = null, departm
                   <SelectContent>
                     <SelectItem value="department-head">Department Head</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="finance">Finance (every project's budget, no tasks)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -286,11 +288,12 @@ const AdminManagement = () => {
     try {
       setLoading(true);
       const orgId = currentUser?.orgId;
-      const [deptHeads, managers] = await Promise.all([
+      const [deptHeads, managers, finance] = await Promise.all([
         getAllUsers({ role: 'department-head', ...(orgId && { orgId }) }),
         getAllUsers({ role: 'manager', ...(orgId && { orgId }) }),
+        getAllUsers({ role: 'finance', ...(orgId && { orgId }) }),
       ]);
-      setAdmins([...deptHeads, ...managers]);
+      setAdmins([...deptHeads, ...managers, ...finance]);
     } catch (error) {
       reportError(error, { title: "Error loading accounts" });
     } finally {
@@ -305,7 +308,8 @@ const AdminManagement = () => {
         toast({ title: "Select a department", variant: "destructive" });
         return;
       }
-      if (!isDeptHead && !formData.projectId) {
+      const isFinance = formData.role === 'finance';
+      if (!isDeptHead && !isFinance && !formData.projectId) {
         toast({ title: "Select a project", variant: "destructive" });
         return;
       }
@@ -320,7 +324,7 @@ const AdminManagement = () => {
         orgId: currentUser?.orgId,
         ...(isDeptHead
           ? { departmentIds: [formData.departmentId] }
-          : { projectIds: [formData.projectId] }),
+          : isFinance ? {} : { projectIds: [formData.projectId] }),
       });
 
       toast({

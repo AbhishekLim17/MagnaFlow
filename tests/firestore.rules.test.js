@@ -1606,3 +1606,39 @@ describe('custom task fields', () => {
     await assertFails(getDocs(collection(asUser(STAFF_B), 'organizations', ORG_A, 'customFields')));
   });
 });
+
+describe('the Finance role', () => {
+  const FIN = 'finA';
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users', FIN), { role: 'finance', orgId: ORG_A, departmentIds: [], projectIds: [], email: 'f@x.com', status: 'active' });
+      await setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A2, 'finance', 'budget'), { budget: 5000 });
+      await setDoc(doc(db, 'time_entries', 'te1'), { orgId: ORG_A, projectId: PROJ_A2, taskId: 'taskA', userId: STAFF_A, minutes: 60, date: '2026-10-01', note: '', userName: 'S' });
+      await setDoc(doc(db, 'organizations', ORG_B, 'projects', 'projB', 'finance', 'budget'), { budget: 1 });
+    });
+  });
+
+  test("sees every project's money in their own organisation, and nothing elsewhere", async () => {
+    const db = asUser(FIN);
+    await assertSucceeds(getDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A2, 'finance', 'budget')));
+    await assertSucceeds(getDocs(collection(db, 'organizations', ORG_A, 'projects', PROJ_A, 'expenses')));
+    await assertSucceeds(getDocs(query(collection(db, 'time_entries'), where('orgId', '==', ORG_A), where('projectId', '==', PROJ_A2))));
+    await assertSucceeds(getDoc(doc(db, 'organizations', ORG_A, 'finance', 'rates')));
+    await assertFails(getDoc(doc(db, 'organizations', ORG_B, 'projects', 'projB', 'finance', 'budget')));
+  });
+
+  test('records expenses, but cannot change budgets, rates or tasks', async () => {
+    const db = asUser(FIN);
+    await assertSucceeds(addDoc(collection(db, 'organizations', ORG_A, 'projects', PROJ_A2, 'expenses'), { amount: 10, description: 'Taxi', addedBy: FIN }));
+    await assertFails(setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A2, 'finance', 'budget'), { budget: 1 }));
+    await assertFails(setDoc(doc(db, 'organizations', ORG_A, 'finance', 'rates'), { defaultRate: 1, people: {} }));
+    await assertFails(updateDoc(doc(db, 'tasks', 'taskA'), { title: 'Renamed' }));
+    await assertFails(getDoc(doc(db, 'tasks', 'taskA')));
+  });
+
+  test('an org admin creates a Finance account in their own organisation', async () => {
+    await assertSucceeds(setDoc(doc(asUser(ADMIN_A), 'users', 'newFin'), { role: 'finance', orgId: ORG_A, email: 'nf@x.com', status: 'active' }));
+    await assertFails(setDoc(doc(asUser(MGR_A), 'users', 'newFin2'), { role: 'finance', orgId: ORG_A, email: 'nf2@x.com', status: 'active', projectIds: [PROJ_A] }));
+  });
+});

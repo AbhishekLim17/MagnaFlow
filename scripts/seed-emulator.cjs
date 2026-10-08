@@ -75,6 +75,11 @@ const PEOPLE = [
     role: 'staff', designation: 'Accounts Executive',
     orgId: ORG_ID, departmentIds: [DEPT_ACCOUNTS], projectIds: [PROJ_ATLAS],
   },
+  {
+    uid: 'u-finance', email: 'finance@demo.test', name: 'Farah Finance',
+    role: 'finance', designation: 'Finance',
+    orgId: ORG_ID, departmentIds: [], projectIds: [],
+  },
 ];
 
 const day = (offset) => {

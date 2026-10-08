@@ -47,6 +47,9 @@ service cloud.firestore {
     function isManager() { return authed() && myRole() == 'manager'; }
     // Client: external stakeholder, read-only, scoped to their assigned projects.
     function isClient() { return authed() && myRole() == 'client'; }
+    // Finance: sees every project's money in their organisation (budgets, expenses, logged
+    // time, cost rates) and records expenses; runs no tasks.
+    function isFinance() { return authed() && myRole() == 'finance'; }
 
     // ---- Task-scoped helpers ------------------------------------------------
     function taskData(taskId) {
@@ -84,6 +87,10 @@ service cloud.firestore {
       return (request.resource.data.get('departmentId', null) == resource.data.get('departmentId', null)
               && request.resource.data.get('projectId', null) == resource.data.get('projectId', null))
         || inScope(orgId, request.resource.data.get('departmentId', null), request.resource.data.get('projectId', null));
+    }
+    // Reading project money (and recording expenses): whoever runs the project, or Finance.
+    function canSeeProjectMoney(orgId, projId) {
+      return canManageProjectMoney(orgId, projId) || (isSignedIn() && isFinance() && isOrgMember(orgId));
     }
     function canManageProjectMoney(orgId, projId) {
       return isSignedIn() && (isMasterAdmin()
@@ -236,7 +243,7 @@ service cloud.firestore {
       // the people who already see project budgets) and only org admins set them.
       match /finance/{docId} {
         allow read: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin()
-          || ((isManager() || isDeptHead()) && isOrgMember(orgId)));
+          || ((isManager() || isDeptHead() || isFinance()) && isOrgMember(orgId)));
         allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
           && docId == 'rates'
           && request.resource.data.keys().hasOnly(['defaultRate', 'people'])
@@ -297,7 +304,7 @@ service cloud.firestore {
         // no access.
         // Budget figures (moved off the project document, which all members can read).
         match /finance/{docId} {
-          allow read: if canManageProjectMoney(orgId, projId);
+          allow read: if canSeeProjectMoney(orgId, projId);
           allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
         }
 
@@ -342,8 +349,8 @@ service cloud.firestore {
         }
 
         match /expenses/{expId} {
-          allow read: if canManageProjectMoney(orgId, projId);
-          allow create: if canManageProjectMoney(orgId, projId)
+          allow read: if canSeeProjectMoney(orgId, projId);
+          allow create: if canSeeProjectMoney(orgId, projId)
             && request.resource.data.addedBy == request.auth.uid
             && request.resource.data.amount is number
             && request.resource.data.amount >= 0
@@ -351,7 +358,7 @@ service cloud.firestore {
           allow update: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
           allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin()
             || (resource.data.get('addedBy', null) == request.auth.uid
-                && canManageProjectMoney(orgId, projId)));
+                && canSeeProjectMoney(orgId, projId)));
         }
       }
     }
@@ -389,7 +396,7 @@ service cloud.firestore {
       // Department-heads/managers may create staff scoped to their own department/project.
       allow create: if isSignedIn() && (isMasterAdmin()
         || (isOrgAdmin(request.resource.data.get('orgId', null))
-            && request.resource.data.role in ['department-head', 'manager', 'staff', 'client'])
+            && request.resource.data.role in ['department-head', 'manager', 'staff', 'client', 'finance'])
         || (isDeptHead() && isOrgMember(request.resource.data.get('orgId', null))
             && request.resource.data.role == 'staff'
             && request.resource.data.get('departmentIds', []).hasAny(myDeptIds()))
@@ -423,8 +430,8 @@ service cloud.firestore {
       allow update: if isSignedIn() && (isMasterAdmin()
         || (isOrgAdmin(resource.data.get('orgId', null))
             && request.resource.data.get('orgId', null) == resource.data.get('orgId', null)
-            && resource.data.role in ['department-head', 'manager', 'staff', 'client']
-            && request.resource.data.role in ['department-head', 'manager', 'staff', 'client'])
+            && resource.data.role in ['department-head', 'manager', 'staff', 'client', 'finance']
+            && request.resource.data.role in ['department-head', 'manager', 'staff', 'client', 'finance'])
         // A head or manager may edit staff inside their own scope. The role is
         // pinned to 'staff' on BOTH sides, so this can never be used to promote
         // anyone â€” including themselves â€” and the target must still be in their
@@ -698,7 +705,7 @@ service cloud.firestore {
         resource.data.get('userId', null) == request.auth.uid
         || taskVisible(taskData(resource.data.get('taskId', null)))
         || (resource.data.get('projectId', null) != null
-            && canManageProjectMoney(resource.data.get('orgId', null), resource.data.get('projectId', null))));
+            && canSeeProjectMoney(resource.data.get('orgId', null), resource.data.get('projectId', null))));
       allow create: if isSignedIn() && !isClient()
         && request.resource.data.keys().hasOnly(['orgId', 'projectId', 'taskId', 'userId', 'userName', 'minutes', 'date', 'note', 'createdAt'])
         && request.resource.data.userId == request.auth.uid

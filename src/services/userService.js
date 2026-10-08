@@ -208,7 +208,8 @@ export const getAssignableUsers = async (self) => {
   } else if (caller.role === 'manager') {
     if (caller.projectIds?.length) people = await getAllUsers({ role: 'staff', projectIds: caller.projectIds });
   } else {
-    people = (await getAllUsers({})).filter((u) => u.role !== 'client');
+    // clients and Finance do not take tasks
+    people = (await getAllUsers({})).filter((u) => u.role !== 'client' && u.role !== 'finance');
   }
 
   if (self?.id && !people.some((p) => p.id === self.id)) {
@@ -252,7 +253,7 @@ export const assertMayCreate = (caller, { role, orgId, departmentIds, projectIds
     allowed = true;
   } else if (caller?.role === 'org-admin' || caller?.role === 'admin') {
     allowed = (orgId ?? null) === (caller.orgId ?? null) &&
-      ['department-head', 'manager', 'staff', 'client'].includes(target);
+      ['department-head', 'manager', 'staff', 'client', 'finance'].includes(target);
   } else if (caller?.role === 'department-head') {
     allowed = target === 'staff' && (orgId ?? null) === (caller.orgId ?? null) &&
       overlaps(departmentIds, caller.departmentIds);

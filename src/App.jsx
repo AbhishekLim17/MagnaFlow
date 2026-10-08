@@ -19,6 +19,7 @@ import {
   MANAGER_ROLES,
   STAFF_ROLES,
   CLIENT_ROLES,
+  FINANCE_ROLES,
 } from "@/config/roleRoutes";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
@@ -35,6 +36,7 @@ const MasterAdminDashboard = lazy(
 );
 const ScopedDashboard = lazy(() => import("@/pages/ScopedDashboard"));
 const ClientPortal = lazy(() => import("@/pages/ClientPortal"));
+const FinanceDashboard = lazy(() => import("@/pages/FinanceDashboard"));
 
 const FullPageLoader = () => (
   <LoadingSpinner size="large" className="min-h-screen" />
@@ -116,6 +118,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={MANAGER_ROLES}>
               <ScopedDashboard scope="project" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/finance/*"
+          element={
+            <ProtectedRoute allowedRoles={FINANCE_ROLES}>
+              <FinanceDashboard />
             </ProtectedRoute>
           }
         />
