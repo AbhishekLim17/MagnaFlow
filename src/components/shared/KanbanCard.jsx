@@ -10,6 +10,8 @@ import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import { formatDateShort } from '@/lib/format';
 import { isOverdueTask } from '@/lib/taskState';
+import { useStages } from '@/contexts/TasksContext';
+import { stageOf } from '@/lib/stages';
 
 const PRIORITY_STYLES = {
   critical: { bg: 'bg-destructive-soft border-destructive/40 text-destructive', dot: 'bg-destructive', label: 'Critical' },
@@ -48,6 +50,7 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
   };
 
   const priority = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+  const stage = stageOf(task, useStages());
   const overdue = isOverdueTask(task);
   const subtaskProgress = subtaskCounts.total > 0
     ? Math.round((subtaskCounts.completed / subtaskCounts.total) * 100)
@@ -129,6 +132,11 @@ const KanbanCard = ({ task, staffMap = {}, onCardClick, isDragging = false }) =>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium ${priority.bg}`}>
               {priority.label}
             </span>
+            {stage && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border text-[10px] font-medium text-foreground">
+                {stage.name}
+              </span>
+            )}
             {assigneeName && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <User className="w-3 h-3" />

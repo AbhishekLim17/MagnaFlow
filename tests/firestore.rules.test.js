@@ -1898,3 +1898,15 @@ describe('email-to-task keys', () => {
     await assertFails(setDoc(key(asUser(ADMIN_A), 'abcdefghijkl9999'), data(ADMIN_A, { projectId: 'nope' })));
   });
 });
+
+describe('workflow stages', () => {
+  const ref = (db) => doc(db, 'organizations', ORG_A, 'workflow', 'stages');
+  test('org admins define the stages; the team reads them; an assignee may set a stage with the status', async () => {
+    await assertSucceeds(setDoc(ref(asUser(ADMIN_A)), { stages: [{ id: 'qa', name: 'QA', category: 'review' }] }));
+    await assertFails(setDoc(ref(asUser(MGR_A)), { stages: [] }));
+    await assertSucceeds(getDoc(ref(asUser(STAFF_A))));
+    await assertFails(getDoc(ref(asUser(CLIENT_A))));
+    await assertSucceeds(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { status: 'review', stage: 'qa', updatedAt: 1 }));
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { stage: 'qa', title: 'x' }));
+  });
+});

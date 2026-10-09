@@ -12,10 +12,10 @@ import CommentSection from '../tasks/CommentSection';
 import ClientConversation from '../tasks/ClientConversation';
 import TaskTime from '../tasks/TaskTime';
 import WatchButton from '../tasks/WatchButton';
+import StatusSelect from '@/components/shared/StatusSelect';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useTasks } from '@/contexts/TasksContext';
 import { formatDate, formatDateLong } from '@/lib/format';
@@ -200,17 +200,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
           {onStatusChange && (
             <div className="space-y-2">
               <Label htmlFor="task-status">Status</Label>
-              <Select value={task.status} onValueChange={handleStatusChange}>
-                <SelectTrigger id="task-status" className="bg-muted">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In progress</SelectItem>
-                  <SelectItem value="review">In review</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+              <StatusSelect task={task} onChange={handleStatusChange} id="task-status" className="bg-muted" />
               <p className="text-xs text-muted-foreground mt-1">
                 Update this to show how the work is going.
               </p>

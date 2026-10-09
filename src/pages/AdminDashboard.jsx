@@ -50,6 +50,7 @@ import PortfolioHealth from '@/components/admin/PortfolioHealth';
 import WorkloadPlanner from '@/components/admin/WorkloadPlanner';
 import AutomationsPage from '@/components/admin/AutomationsPage';
 import CustomFieldsPage from '@/components/admin/CustomFieldsPage';
+import WorkflowStagesCard from '@/components/admin/WorkflowStagesCard';
 import TimesheetsPage from '@/components/admin/TimesheetsPage';
 import InvoicesPage from '@/components/admin/InvoicesPage';
 import LeavePage from '@/components/shared/LeavePage';
@@ -190,7 +191,7 @@ const AdminDashboard = () => {
         <Route path="/clients" element={<ClientsManagement />} />
         <Route path="/requests" element={<ClientRequestsInbox />} />
         <Route path="/budget" element={<BudgetTracker />} />
-        <Route path="/fields" element={<CustomFieldsPage />} />
+        <Route path="/fields" element={<div className="space-y-6"><CustomFieldsPage /><WorkflowStagesCard /></div>} />
         <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/activity" element={<ActivityLog />} />
       </Routes>

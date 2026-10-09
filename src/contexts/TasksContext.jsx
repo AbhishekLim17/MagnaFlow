@@ -5,13 +5,15 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { toUserMessage } from '@/lib/errorMessages';
-import { statusLabel } from '@/lib/taskLabels';
 import { formatDate, toDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, subscribeTasks, computeTaskStatistics } from '@/services/taskService';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { subscribeRules, recordTaskEvent } from '@/services/automationService';
 import { subscribeCustomFields } from '@/services/customFieldService';
+import { subscribeStages } from '@/services/stageService';
+import { parseOption, stageOf } from '@/lib/stages';
+import { statusLabel } from '@/lib/taskLabels';
 import { worthAnEvent } from '@/lib/automations';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
 import { addSubtasksBulk } from '@/services/subtaskService';
@@ -35,6 +37,9 @@ export const useTasks = () => {
 // document) for no new information.
 const TASKS_STALE_AFTER_MS = 30_000;
 
+/** The organisation's workflow stages (lib/stages); [] outside the provider. */
+export const useStages = () => useContext(TasksContext)?.stages || [];
+
 export const TasksProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +54,8 @@ export const TasksProvider = ({ children }) => {
   const automationRules = useRef([]);
   // The organisation's custom task fields (definitions), for forms and task views.
   const [customFields, setCustomFields] = useState([]);
+  // The organisation's stages inside the statuses (lib/stages).
+  const [stages, setStages] = useState([]);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -171,7 +178,8 @@ export const TasksProvider = ({ children }) => {
     if (!user?.orgId || user.role === 'client') return undefined;
     const stop = subscribeRules(user.orgId, (rules) => { automationRules.current = rules; });
     const stopFields = subscribeCustomFields(user.orgId, setCustomFields);
-    return () => { safeUnsubscribe(stop); safeUnsubscribe(stopFields); setCustomFields([]); };
+    const stopStages = subscribeStages(user.orgId, setStages);
+    return () => { safeUnsubscribe(stop); safeUnsubscribe(stopFields); safeUnsubscribe(stopStages); setCustomFields([]); setStages([]); };
   }, [user]);
 
   // A status change, told to the task's watchers (in the bell). Never fails the change.
@@ -491,15 +499,19 @@ export const TasksProvider = ({ children }) => {
   /**
    * Update task status
    */
-  const updateTaskStatus = async (taskId, status) => {
+  const updateTaskStatus = async (taskId, value) => {
+    // "status", or "status::stageId" from a status picker with the organisation's stages
+    const { status, stage } = parseOption(value);
     const task = tasks.find((t) => t.id === taskId);
     const title = task?.title;
     const rolls = task?.repeating && (status === 'completed' || status === 'cancelled');
-    return updateTask(taskId, { status }, {
+    const at = stageOf({ status, stage }, stages);
+    const label = statusLabel(status).toLowerCase() + (at ? ` (${at.name})` : '');
+    return updateTask(taskId, { status, stage }, {
       successTitle: 'Status updated',
       successDescription: (title
-        ? `“${title}” is now ${statusLabel(status).toLowerCase()}.`
-        : `Status changed to ${statusLabel(status).toLowerCase()}.`)
+        ? `“${title}” is now ${label}.`
+        : `Status changed to ${label}.`)
         + (rolls ? ' It repeats: the next one will appear within the hour.' : ''),
     });
   };
@@ -631,6 +643,7 @@ export const TasksProvider = ({ children }) => {
     tasks,
     tasksTruncated,
     customFields,
+    stages,
     loading,
     statistics,
     createTask,

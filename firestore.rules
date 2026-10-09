@@ -298,6 +298,16 @@ service cloud.firestore {
         allow delete: if isSignedIn() && (isOrgAdmin(orgId) || (isDeptHead() && isOrgMember(orgId)));
       }
 
+      // Workflow stages (lib/stages): one document; the team reads it, org admins write it.
+      match /workflow/{docId} {
+        allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && docId == 'stages'
+          && request.resource.data.keys().hasOnly(['stages'])
+          && request.resource.data.stages is list
+          && request.resource.data.stages.size() <= 30;
+      }
+
       match /customFields/{fieldId} {
         allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
         allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());
@@ -701,7 +711,7 @@ service cloud.firestore {
                     || resource.data.get('createdBy', null) == request.auth.uid))
             || (resource.data.get('assignedTo', null) == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['status', 'completedAt', 'updatedAt']))
+                     .hasOnly(['status', 'stage', 'completedAt', 'updatedAt']))
             // Watching: anyone on the team who can see the task may add or remove
             // THEMSELVES (and nobody else) from its watchers. Kept in this rule, after a
             // cheap field check, so isSignedIn() is not evaluated twice (1000-step cap).

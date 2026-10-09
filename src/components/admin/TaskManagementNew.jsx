@@ -35,6 +35,7 @@ import TaskImportExportDialog from '@/components/admin/TaskImportExportDialog';
 import TemplatesDialog from '@/components/admin/TemplatesDialog';
 import BulkActionsBar from '@/components/admin/BulkActionsBar';
 import SavedViews from '@/components/admin/SavedViews';
+import StatusSelect from '@/components/shared/StatusSelect';
 import { optionFromRepeat, repeatFromOption, describeRepeat } from '@/lib/recurrence';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import { useCommentCount } from '@/hooks/useCommentCount';
@@ -108,23 +109,12 @@ const AdminTaskCard = ({ task, index, selected, onToggleSelect, onEdit, onDelete
               <Badge className={`${getPriorityBadge(task.priority)} border`}>
                 {priorityLabel(task.priority)}
               </Badge>
-              <Select
-                value={task.status}
-                onValueChange={(v) => onStatusChange?.(task.id, v)}
-              >
-                <SelectTrigger
-                  aria-label={`Status of ${task.title}`}
-                  className={`h-9 sm:h-7 text-xs px-2 min-w-[110px] ${getStatusBadge(task.status)} border`}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In progress</SelectItem>
-                  <SelectItem value="review">In review</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+              <StatusSelect
+                task={task}
+                onChange={(v) => onStatusChange?.(task.id, v)}
+                ariaLabel={`Status of ${task.title}`}
+                className={`h-9 sm:h-7 text-xs px-2 min-w-[110px] ${getStatusBadge(task.status)} border`}
+              />
             </div>
           </div>
           

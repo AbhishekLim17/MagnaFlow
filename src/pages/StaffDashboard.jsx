@@ -25,6 +25,7 @@ import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import LeavePage from '@/components/shared/LeavePage';
+import StatusSelect from '@/components/shared/StatusSelect';
 import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
 import GoalsPage from '@/components/shared/GoalsPage';
@@ -145,21 +146,13 @@ const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
               </TooltipProvider>
             </div>
             
-            <Select
-              value={task.status}
-              onValueChange={(value) => onStatusChange(task.id, value)}
+            <StatusSelect
+              task={task}
+              onChange={(value) => onStatusChange(task.id, value)}
               onClick={(e) => e.stopPropagation()}
-            >
-              <SelectTrigger className={`w-[140px] ${getStatusBadge(task.status)} border`} aria-label={`Status of ${task.title}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="review">In Review</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
+              className={`w-[160px] ${getStatusBadge(task.status)} border`}
+              ariaLabel={`Status of ${task.title}`}
+            />
           </div>
         </div>
       </Card>
