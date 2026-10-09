@@ -427,6 +427,37 @@ describe('weekly project summary', () => {
   });
 });
 
+describe('monthly report', () => {
+  test("org admins get last month's numbers; quiet, suspended and opted-out get nothing", async () => {
+    await clearAll();
+    const orgA = db.collection('organizations').doc('orgA');
+    await orgA.set({ name: 'Org A', status: 'active' });
+    await orgA.collection('projects').doc('pA').set({ name: 'Apollo' });
+    await db.collection('organizations').doc('orgQ').set({ name: 'Quiet', status: 'active' });
+    const people = {
+      uAdm: { name: 'Ada Admin', email: 'ada@a.test', orgId: 'orgA', status: 'active', role: 'org-admin' },
+      uOff: { name: 'Off Admin', email: 'off@a.test', orgId: 'orgA', status: 'active', role: 'org-admin', notificationPrefs: { monthlyReport: false } },
+      uS: { name: 'Sam Staff', email: 'sam@a.test', orgId: 'orgA', status: 'active', role: 'staff' },
+      uQ: { name: 'Quinn', email: 'q@q.test', orgId: 'orgQ', status: 'active', role: 'org-admin' },
+    };
+    for (const [id, u] of Object.entries(people)) await db.collection('users').doc(id).set(u);
+    const now = new Date();
+    const lastMonth = (day) => admin.firestore.Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() - 1, day, 12));
+    await db.collection('tasks').add({ title: 'Done', orgId: 'orgA', projectId: 'pA', assignedTo: 'uS', status: 'completed',
+      createdAt: lastMonth(2), deadline: lastMonth(20), completedAt: lastMonth(10) });
+    const ymd = (d) => d.toISOString().slice(0, 10);
+    await db.collection('time_entries').add({ orgId: 'orgA', date: ymd(new Date(now.getFullYear(), now.getMonth() - 1, 5, 12)), minutes: 120 });
+
+    const run = runScript('send-monthly-report.cjs');
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    expect(run.mails).toHaveLength(1);
+    expect(addressesOf(run.mails[0].to)).toContain('ada@a.test');
+    expect(run.mails[0].text).toContain('your team finished 1 task (100% on time) and started 1.');
+    expect(run.mails[0].text).toContain('Sam Staff: 1');
+    expect(run.mails[0].text).toContain('2h');
+  });
+});
+
 describe('push notifications', () => {
   test("a delivered email is also pushed to the recipient's devices; nobody else's", async () => {
     await clearAll();

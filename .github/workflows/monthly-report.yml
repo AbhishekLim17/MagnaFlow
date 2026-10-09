@@ -1,0 +1,35 @@
+# Last month's numbers for every org admin, on the 1st (scripts/send-monthly-report.cjs).
+
+name: Monthly Report
+
+on:
+  schedule:
+    # the 1st of every month, 03:45 UTC = 09:15 IST
+    - cron: '45 3 1 * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List who would get it, send nothing'
+        type: boolean
+        default: false
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install firebase-admin nodemailer --no-save
+
+      - name: Send the report
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAGNAFLOW_07SEP25 }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: node scripts/send-monthly-report.cjs ${{ inputs.dry_run && '--dry-run' || '' }}

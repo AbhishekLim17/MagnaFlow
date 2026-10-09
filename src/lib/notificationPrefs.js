@@ -12,6 +12,7 @@ export const EMAIL_PREFS = [
   { key: 'statusChanges', label: 'A task I am involved in changes status', help: '' },
   { key: 'dailyReminder', label: 'Morning reminder of my critical tasks', help: 'Every day at 8:00 AM IST, while any of your critical tasks are open.' },
   { key: 'weeklyDigest', label: "Monday summary of my projects' health", help: 'For org admins and department heads.' },
+  { key: 'monthlyReport', label: "Last month's numbers, on the 1st", help: 'For org admins.' },
   { key: 'clientMessages', label: 'A client writes, signs off a milestone or sends a request', help: 'Messages and sign-offs on tasks you created or are assigned; requests on projects you run.' },
 ];
 
@@ -28,6 +29,7 @@ const PREF_FOR_TYPE = {
   client_changes_requested: 'clientMessages',
   client_request: 'clientMessages',
   weekly_digest: 'weeklyDigest',
+  monthly_report: 'monthlyReport',
 };
 
 /** Every preference, with "on" filled in for any that were never set. */
