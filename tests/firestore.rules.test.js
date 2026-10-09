@@ -1674,3 +1674,59 @@ describe('watching a task', () => {
     }));
   });
 });
+
+describe('timesheets and invoices', () => {
+  const FIN = 'finA';
+  const sheet = (db, userId, extra = {}) => setDoc(doc(db, 'organizations', ORG_A, 'projects', PROJ_A, 'timesheets', `${userId}_2026-10-05`), {
+    userId, userName: 'Someone', weekStart: '2026-10-05', minutes: 600, status: 'approved', note: '',
+    decidedBy: extra.decidedBy, decidedByName: 'Boss', decidedAt: serverTimestamp(), ...extra,
+  });
+  const invoice = (extra = {}) => ({
+    number: 'INV-2026-0001', projectId: PROJ_A, projectName: 'P', clientName: 'Acme', from: '2026-10-01', to: '2026-10-31',
+    currency: 'INR', lines: [], taxPercent: 18, subtotal: 0, tax: 0, total: 0, status: 'issued', notes: '', paidAt: null,
+    createdByName: 'X', createdAt: serverTimestamp(), ...extra,
+  });
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', FIN), { role: 'finance', orgId: ORG_A, departmentIds: [], projectIds: [], email: 'f@x.com', status: 'active' });
+    });
+  });
+
+  test("the project's manager approves a team member's week, as themselves", async () => {
+    await assertSucceeds(sheet(asUser(MGR_A), STAFF_SCOPED, { decidedBy: MGR_A }));
+    await assertFails(sheet(asUser(MGR_A), STAFF_SCOPED, { decidedBy: ADMIN_A }));
+    await assertFails(sheet(asUser(MGR_A), STAFF_SCOPED, { decidedBy: MGR_A, status: 'maybe' }));
+  });
+  test('but not their own week; an org admin may', async () => {
+    await assertFails(sheet(asUser(MGR_A), MGR_A, { decidedBy: MGR_A }));
+    await assertSucceeds(sheet(asUser(ADMIN_A), ADMIN_A, { decidedBy: ADMIN_A }));
+  });
+  test('staff cannot approve, but can read their own week; Finance reads them all', async () => {
+    await assertFails(sheet(asUser(STAFF_SCOPED), STAFF_A, { decidedBy: STAFF_SCOPED }));
+    await assertSucceeds(sheet(asUser(MGR_A), STAFF_SCOPED, { decidedBy: MGR_A }));
+    const path = ['organizations', ORG_A, 'projects', PROJ_A, 'timesheets', `${STAFF_SCOPED}_2026-10-05`];
+    await assertSucceeds(getDoc(doc(asUser(STAFF_SCOPED), ...path)));
+    await assertSucceeds(getDoc(doc(asUser(FIN), ...path)));
+    await assertFails(getDoc(doc(asUser(STAFF_A), ...path)));
+  });
+  test('the document id must match the person and week', async () => {
+    await assertFails(setDoc(doc(asUser(MGR_A), 'organizations', ORG_A, 'projects', PROJ_A, 'timesheets', 'wrong_id'), {
+      userId: STAFF_SCOPED, userName: 'S', weekStart: '2026-10-05', minutes: 1, status: 'approved', note: '',
+      decidedBy: MGR_A, decidedByName: 'M', decidedAt: serverTimestamp(),
+    }));
+  });
+
+  test('org admins and Finance issue invoices and mark them paid; nobody deletes one', async () => {
+    const col = (db) => collection(db, 'organizations', ORG_A, 'invoices');
+    await assertSucceeds(setDoc(doc(col(asUser(FIN)), 'i1'), invoice({ createdBy: FIN })));
+    await assertSucceeds(updateDoc(doc(col(asUser(ADMIN_A)), 'i1'), { status: 'paid', paidAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(FIN)), 'i1'), { total: 1 }));
+    await assertFails(deleteDoc(doc(col(asUser(ADMIN_A)), 'i1')));
+    await assertFails(setDoc(doc(col(asUser(FIN)), 'i2'), invoice({ createdBy: ADMIN_A })));
+  });
+  test('managers, staff and other organisations cannot see or issue invoices', async () => {
+    await assertFails(setDoc(doc(asUser(MGR_A), 'organizations', ORG_A, 'invoices', 'i3'), invoice({ createdBy: MGR_A })));
+    await assertFails(getDocs(collection(asUser(MGR_A), 'organizations', ORG_A, 'invoices')));
+    await assertFails(getDocs(collection(asUser(ADMIN_B), 'organizations', ORG_A, 'invoices')));
+  });
+});

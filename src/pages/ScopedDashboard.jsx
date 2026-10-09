@@ -24,6 +24,7 @@ import {
   Inbox,
   HeartPulse,
   Gauge,
+  CalendarClock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +45,7 @@ import { EmptyState, LoadingState } from '@/components/shared/States';
 import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import { canEditTask } from '@/lib/taskPermissions';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
+import TimesheetsPage from '@/components/admin/TimesheetsPage';
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
@@ -260,6 +262,7 @@ const ScopedDashboard = ({ scope }) => {
     { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
     { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
     { id: 'workload', label: 'Workload', icon: Gauge },
+    { id: 'timesheets', label: 'Timesheets', icon: CalendarClock },
     { id: 'requests', label: 'Client Requests', icon: Inbox },
   ];
 
@@ -397,6 +400,7 @@ const ScopedDashboard = ({ scope }) => {
           <Route path="/portfolio" element={<PortfolioHealth />} />
           <Route path="/workload" element={<WorkloadPlanner />} />
           <Route path="/requests" element={<ClientRequestsInbox />} />
+          <Route path="/timesheets" element={<TimesheetsPage />} />
         </Routes>
       </motion.div>
 

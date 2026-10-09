@@ -127,7 +127,7 @@ export const ganttPdfLayout = (tasks, { today = new Date(), baseline = null } = 
 
 // The built-in PDF fonts cover Western European text; anything else would come out as junk.
 // ponytail: non-Latin titles become "?"; embed a Unicode font if customers need them.
-const pdfText = (s) => String(s ?? '').replace(/[^\x20-\x7E -ÿ–—‘’“”…₹]/g, '?');
+export const pdfText = (s) => String(s ?? '').replace(/[^\x20-\x7E -ÿ–—‘’“”…₹]/g, '?');
 
 const fit = (doc, text, maxW) => {
   const t = pdfText(text);

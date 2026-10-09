@@ -20,6 +20,8 @@ import {
   Gauge,
   Zap,
   ListPlus,
+  CalendarClock,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -43,6 +45,8 @@ import PortfolioHealth from '@/components/admin/PortfolioHealth';
 import WorkloadPlanner from '@/components/admin/WorkloadPlanner';
 import AutomationsPage from '@/components/admin/AutomationsPage';
 import CustomFieldsPage from '@/components/admin/CustomFieldsPage';
+import TimesheetsPage from '@/components/admin/TimesheetsPage';
+import InvoicesPage from '@/components/admin/InvoicesPage';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -54,10 +58,12 @@ const menuItems = [
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
   { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
   { id: 'workload', label: 'Workload', icon: Gauge },
+  { id: 'timesheets', label: 'Timesheets', icon: CalendarClock },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'clients', label: 'Client Portal', icon: Globe },
   { id: 'requests', label: 'Client Requests', icon: Inbox },
   { id: 'budget', label: 'Budget Tracker', icon: DollarSign },
+  { id: 'invoices', label: 'Invoices', icon: FileText },
   { id: 'fields', label: 'Task Fields', icon: ListPlus },
   { id: 'automations', label: 'Automations', icon: Zap },
   { id: 'activity', label: 'Activity Log', icon: History },
@@ -158,6 +164,8 @@ const AdminDashboard = () => {
         <Route path="/timeline" element={<ProjectTimeline />} />
         <Route path="/portfolio" element={<PortfolioHealth />} />
         <Route path="/workload" element={<WorkloadPlanner />} />
+        <Route path="/timesheets" element={<TimesheetsPage />} />
+        <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />
         <Route path="/requests" element={<ClientRequestsInbox />} />

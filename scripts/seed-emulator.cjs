@@ -207,6 +207,17 @@ async function seed() {
     orgId: ORG_ID, departmentId: DEPT_ENG, projectId: PROJ_APOLLO,
     startDate: day(2), deadline: day(2), createdAt: day(-6),
   });
+  // Time logged on the milestone over the last week, for Timesheets and Invoices.
+  const ymd = (offset) => day(offset).toDate().toISOString().slice(0, 10);
+  for (const [userId, userName, offset, minutes] of [
+    ['u-staff1', 'Sana Staff', 0, 240], ['u-staff1', 'Sana Staff', -1, 360], ['u-staff1', 'Sana Staff', -8, 300],
+    ['u-staff2', 'Vikram Iyer', 0, 120], ['u-staff2', 'Vikram Iyer', -2, 480],
+  ]) {
+    await db.collection('time_entries').add({
+      orgId: ORG_ID, projectId: PROJ_APOLLO, taskId: signOff.id, userId, userName, minutes,
+      date: ymd(offset), note: 'Design review prep', createdAt: day(offset),
+    });
+  }
   await db.collection('client_messages').add({
     orgId: ORG_ID, projectId: PROJ_APOLLO, taskId: signOff.id,
     authorId: 'u-manager', authorName: 'Rohit Manager', fromClient: false, kind: 'message',

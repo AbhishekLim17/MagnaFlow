@@ -153,7 +153,7 @@ const DashboardLayout = ({
           )}
         </div>
 
-        <nav className={`flex flex-1 flex-col gap-1 pt-4 ${isRailExpanded ? 'px-3' : 'items-center'}`}>
+        <nav className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pt-4 pb-2 ${isRailExpanded ? 'px-3' : 'items-center'}`}>
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
