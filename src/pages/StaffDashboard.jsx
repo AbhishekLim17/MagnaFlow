@@ -25,17 +25,17 @@ import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import LeavePage from '@/components/shared/LeavePage';
-
-const STAFF_MENU = [
-  { id: 'dashboard', label: 'My Tasks', icon: CheckSquare },
-  { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
-];
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
 import { filterAndSortTasks, SORT_OPTIONS } from '@/lib/taskFilters';
 import { useCommentCount } from '@/hooks/useCommentCount';
 import { useSubtaskCount } from '@/hooks/useSubtaskCount';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+const STAFF_MENU = [
+  { id: 'dashboard', label: 'My Tasks', icon: CheckSquare },
+  { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
+];
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
