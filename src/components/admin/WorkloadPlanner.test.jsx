@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
   people: vi.fn(),
   update: vi.fn(),
   toast: vi.fn(),
+  holidays: vi.fn(),
+  leave: vi.fn(),
 }));
+vi.mock('@/services/leaveService', () => ({ getHolidays: mocks.holidays, listLeave: mocks.leave }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: mocks.me }) }));
 vi.mock('@/contexts/TasksContext', () => ({ useTasks: () => ({ tasks: mocks.tasks }) }));
 vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
@@ -36,6 +39,8 @@ beforeEach(() => {
     { id: 'admin', name: 'Arjun', role: 'org-admin' },
   ]);
   mocks.update.mockResolvedValue({});
+  mocks.holidays.mockResolvedValue([]);
+  mocks.leave.mockResolvedValue([]);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -50,6 +55,16 @@ describe('WorkloadPlanner', () => {
     expect(rowFor('Vikram')).toHaveTextContent('10h');
     expect(rowFor('Vikram')).toHaveTextContent('1 task'); // the unestimated one
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Week of 5 Oct');
+  });
+
+  test('holidays and leave take days out of the week', async () => {
+    mocks.holidays.mockResolvedValue([{ date: '2026-10-09', name: 'Festival' }]);
+    mocks.leave.mockResolvedValue([{ userId: 'vik', from: '2026-10-06', to: '2026-10-08' }]);
+    render(<WorkloadPlanner />);
+    // Vikram: 20h a week, 4 of 5 weekdays away this week -> 4h, and 10h of work is over it
+    await waitFor(() => expect(rowFor('Vikram')).toHaveTextContent('of 4h'));
+    expect(rowFor('Vikram')).toHaveTextContent('10h, over capacity (4h)');
+    expect(rowFor('Sana')).toHaveTextContent('of 32h');
   });
 
   test('an admin sets a capacity; nobody sets their own', async () => {

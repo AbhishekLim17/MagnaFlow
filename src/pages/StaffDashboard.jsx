@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
+import { Palmtree, CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,12 @@ import TaskCalendar from '@/components/shared/TaskCalendar';
 import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
+import LeavePage from '@/components/shared/LeavePage';
+
+const STAFF_MENU = [
+  { id: 'dashboard', label: 'My Tasks', icon: CheckSquare },
+  { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
+];
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
 import { filterAndSortTasks, SORT_OPTIONS } from '@/lib/taskFilters';
@@ -158,6 +164,7 @@ const StaffDashboard = () => {
   const { user, currentUser } = useAuth();
   const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks, rescheduleTask } = useTasks();
   const { toast } = useToast();
+  const [tab, setTab] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -257,11 +264,12 @@ const StaffDashboard = () => {
   return (
     <DashboardLayout
       subtitle="Staff Panel"
-      menuItems={[{ id: 'dashboard', label: 'My Tasks', icon: CheckSquare }]}
-      activeTab="dashboard"
-      onTabChange={() => {}}
-      title="My Tasks"
+      menuItems={STAFF_MENU}
+      activeTab={tab}
+      onTabChange={setTab}
+      title={STAFF_MENU.find((m) => m.id === tab).label}
     >
+      {tab === 'leave' ? <LeavePage /> : (
       <div className="space-y-6">
         {/* The header already greets the user by name. */}
         <p className="text-sm text-muted-foreground">Manage your tasks and track your progress</p>
@@ -425,6 +433,7 @@ const StaffDashboard = () => {
           </div>
         </Card>
       </div>
+      )}
 
       {/* Dialogs */}
       <AddTaskDialog

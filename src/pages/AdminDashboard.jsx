@@ -22,6 +22,7 @@ import {
   ListPlus,
   CalendarClock,
   FileText,
+  Palmtree,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -47,6 +48,7 @@ import AutomationsPage from '@/components/admin/AutomationsPage';
 import CustomFieldsPage from '@/components/admin/CustomFieldsPage';
 import TimesheetsPage from '@/components/admin/TimesheetsPage';
 import InvoicesPage from '@/components/admin/InvoicesPage';
+import LeavePage from '@/components/shared/LeavePage';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -59,6 +61,7 @@ const menuItems = [
   { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
   { id: 'workload', label: 'Workload', icon: Gauge },
   { id: 'timesheets', label: 'Timesheets', icon: CalendarClock },
+  { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'clients', label: 'Client Portal', icon: Globe },
   { id: 'requests', label: 'Client Requests', icon: Inbox },
@@ -165,6 +168,7 @@ const AdminDashboard = () => {
         <Route path="/portfolio" element={<PortfolioHealth />} />
         <Route path="/workload" element={<WorkloadPlanner />} />
         <Route path="/timesheets" element={<TimesheetsPage />} />
+        <Route path="/leave" element={<LeavePage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />

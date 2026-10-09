@@ -25,6 +25,7 @@ import {
   HeartPulse,
   Gauge,
   CalendarClock,
+  Palmtree,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +47,7 @@ import ProjectGanttChart from '@/components/shared/ProjectGanttChart';
 import { canEditTask } from '@/lib/taskPermissions';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import TimesheetsPage from '@/components/admin/TimesheetsPage';
+import LeavePage from '@/components/shared/LeavePage';
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
@@ -263,6 +265,7 @@ const ScopedDashboard = ({ scope }) => {
     { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
     { id: 'workload', label: 'Workload', icon: Gauge },
     { id: 'timesheets', label: 'Timesheets', icon: CalendarClock },
+    { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
     { id: 'requests', label: 'Client Requests', icon: Inbox },
   ];
 
@@ -401,6 +404,7 @@ const ScopedDashboard = ({ scope }) => {
           <Route path="/workload" element={<WorkloadPlanner />} />
           <Route path="/requests" element={<ClientRequestsInbox />} />
           <Route path="/timesheets" element={<TimesheetsPage />} />
+          <Route path="/leave" element={<LeavePage />} />
         </Routes>
       </motion.div>
 

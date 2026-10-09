@@ -1730,3 +1730,39 @@ describe('timesheets and invoices', () => {
     await assertFails(getDocs(collection(asUser(ADMIN_B), 'organizations', ORG_A, 'invoices')));
   });
 });
+
+describe('leave and public holidays', () => {
+  const leave = (userId, createdBy, extra = {}) => ({
+    userId, userName: 'X', from: '2026-10-12', to: '2026-10-14', note: '', createdBy, createdAt: serverTimestamp(), ...extra,
+  });
+  const col = (db) => collection(db, 'organizations', ORG_A, 'leave');
+
+  test('anyone on the team records their own leave, and the team can see it', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(STAFF_A)), 'l1'), leave(STAFF_A, STAFF_A)));
+    await assertSucceeds(getDocs(query(col(asUser(STAFF_SCOPED)), where('to', '>=', '2026-10-01'))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+    await assertFails(getDocs(col(asUser(STAFF_B))));
+  });
+  test("a person cannot record someone else's leave; their manager or an org admin can", async () => {
+    await assertFails(setDoc(doc(col(asUser(STAFF_A)), 'l2'), leave(STAFF_SCOPED, STAFF_A)));
+    await assertSucceeds(setDoc(doc(col(asUser(MGR_A)), 'l3'), leave(STAFF_SCOPED, MGR_A)));
+    await assertSucceeds(setDoc(doc(col(asUser(HEAD_A)), 'l4'), leave(STAFF_SCOPED, HEAD_A)));
+    await assertFails(setDoc(doc(col(asUser(MGR_A)), 'l5'), leave(STAFF_A, MGR_A))); // not in their project
+    await assertSucceeds(setDoc(doc(col(asUser(ADMIN_A)), 'l6'), leave(STAFF_A, ADMIN_A)));
+  });
+  test('the range must make sense and leave is never edited', async () => {
+    await assertFails(setDoc(doc(col(asUser(STAFF_A)), 'l7'), leave(STAFF_A, STAFF_A, { from: '2026-10-20', to: '2026-10-10' })));
+    await assertFails(setDoc(doc(col(asUser(STAFF_A)), 'l8'), leave(STAFF_A, STAFF_A, { from: 'soon' })));
+    await assertSucceeds(setDoc(doc(col(asUser(STAFF_A)), 'l9'), leave(STAFF_A, STAFF_A)));
+    await assertFails(updateDoc(doc(col(asUser(STAFF_A)), 'l9'), { to: '2026-12-31' }));
+    await assertFails(deleteDoc(doc(col(asUser(STAFF_SCOPED)), 'l9')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(STAFF_A)), 'l9')));
+  });
+  test('only org admins keep the holiday list', async () => {
+    const ref = (db) => doc(db, 'organizations', ORG_A, 'holidays', 'list');
+    await assertSucceeds(setDoc(ref(asUser(ADMIN_A)), { days: [{ date: '2026-10-20', name: 'Diwali' }] }));
+    await assertFails(setDoc(ref(asUser(MGR_A)), { days: [] }));
+    await assertSucceeds(getDoc(ref(asUser(STAFF_A))));
+    await assertFails(setDoc(doc(asUser(ADMIN_A), 'organizations', ORG_A, 'holidays', 'other'), { days: [] }));
+  });
+});

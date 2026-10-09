@@ -10,7 +10,9 @@ import { useTasks } from '@/contexts/TasksContext';
 import { useToast } from '@/components/ui/use-toast';
 import { getAssignableUsers, updateUser } from '@/services/userService';
 import { capacityOf, loadLevel, unestimatedCount, weeklyLoad, WEEKS_SHOWN } from '@/lib/capacity';
-import { formatDayMonth } from '@/lib/format';
+import { formatDayMonth, toInputDate } from '@/lib/format';
+import { daysOff, weekCapacity } from '@/lib/leave';
+import { getHolidays, listLeave } from '@/services/leaveService';
 import { reportError } from '@/lib/reportError';
 
 const ORG_ADMIN = new Set(['org-admin', 'admin', 'master-admin']);
@@ -56,6 +58,14 @@ const WorkloadPlanner = () => {
   const { tasks } = useTasks();
   const { toast } = useToast();
   const [people, setPeople] = useState([]);
+  // Holidays and leave take days out of a week's capacity (lib/leave). Best-effort.
+  const [away, setAway] = useState({ holidays: [], leave: [] });
+  useEffect(() => {
+    if (!currentUser?.orgId) return;
+    Promise.all([getHolidays(currentUser.orgId), listLeave(currentUser.orgId, toInputDate())])
+      .then(([holidays, leave]) => setAway({ holidays, leave }))
+      .catch((error) => console.error('Could not load leave and holidays:', error));
+  }, [currentUser?.orgId]);
 
   useEffect(() => {
     getAssignableUsers(currentUser)
@@ -65,9 +75,18 @@ const WorkloadPlanner = () => {
 
   const { weeks, load } = useMemo(() => weeklyLoad(tasks), [tasks]);
   const rows = useMemo(() => people
-    .map((p) => ({ person: p, hours: load.get(p.id) || Array(WEEKS_SHOWN).fill(0), capacity: capacityOf(p), unestimated: unestimatedCount(tasks, p.id) }))
-    .sort((a, b) => Math.max(...b.hours.map((h) => h / (b.capacity || 1))) - Math.max(...a.hours.map((h) => h / (a.capacity || 1)))), [people, load, tasks]);
-  const overloaded = rows.filter((r) => r.hours.some((h) => loadLevel(h, r.capacity) === 'over')).length;
+    .map((p) => {
+      const off = daysOff(away.holidays, away.leave, p.id);
+      return {
+        person: p,
+        hours: load.get(p.id) || Array(WEEKS_SHOWN).fill(0),
+        capacity: capacityOf(p),
+        weekly: weeks.map((w) => weekCapacity(capacityOf(p), w, off)),
+        unestimated: unestimatedCount(tasks, p.id),
+      };
+    })
+    .sort((a, b) => Math.max(...b.hours.map((h, i) => h / (b.weekly[i] || 1))) - Math.max(...a.hours.map((h, i) => h / (a.weekly[i] || 1)))), [people, load, tasks, weeks, away]);
+  const overloaded = rows.filter((r) => r.hours.some((h, i) => loadLevel(h, r.weekly[i]) === 'over')).length;
 
   const saveCapacity = async (person, hours) => {
     try {
@@ -88,7 +107,7 @@ const WorkloadPlanner = () => {
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Estimated hours of open work per person and week (each task&apos;s estimate spread over its weekdays), against
-          their weekly capacity. Tasks without an estimate are counted separately: the load leaves them out.
+          their weekly capacity, less holidays and leave. Tasks without an estimate are counted separately: the load leaves them out.
         </p>
         <p className={`text-sm font-medium ${overloaded ? 'text-destructive' : 'text-success'}`} role="status">
           {overloaded
@@ -109,7 +128,7 @@ const WorkloadPlanner = () => {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ person, hours, capacity, unestimated }) => (
+              {rows.map(({ person, hours, capacity, weekly, unestimated }) => (
                 <tr key={person.id} className="border-b border-border last:border-0">
                   <th scope="row" className="py-2 pr-3 text-left font-medium text-foreground">{person.name || person.email}</th>
                   <td className="py-2 pr-3">
@@ -118,13 +137,16 @@ const WorkloadPlanner = () => {
                       : <span>{capacity}h</span>}
                   </td>
                   {hours.map((h, i) => {
-                    const level = loadLevel(h, capacity);
+                    const level = loadLevel(h, weekly[i]);
                     return (
                       <td key={weeks[i].toISOString()} className="py-2 pr-2 text-right">
                         <span className={`inline-block min-w-[3.5rem] rounded-md px-1.5 py-0.5 font-mono ${CELL[level]}`}>
                           {h ? `${h}h` : '—'}
-                          {LEVEL_WORDS[level] && <span className="sr-only">, {LEVEL_WORDS[level]} ({capacity}h)</span>}
+                          {LEVEL_WORDS[level] && <span className="sr-only">, {LEVEL_WORDS[level]} ({weekly[i]}h)</span>}
                         </span>
+                        {weekly[i] !== capacity && (
+                          <span className="block text-xs text-muted-foreground" title="Less holidays and leave">of {weekly[i]}h</span>
+                        )}
                       </td>
                     );
                   })}
