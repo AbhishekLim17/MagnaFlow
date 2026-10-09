@@ -1799,3 +1799,26 @@ describe('RAID log', () => {
     await assertSucceeds(deleteDoc(doc(col(asUser(HEAD_A)), 'r9')));
   });
 });
+
+describe('project pages', () => {
+  const col = (db) => collection(db, 'organizations', ORG_A, 'projects', PROJ_A, 'pages');
+  const page = (uid, extra = {}) => ({
+    title: 'Kickoff', body: '- [ ] Book the venue', createdBy: uid, createdAt: serverTimestamp(),
+    updatedBy: uid, updatedByName: 'X', updatedAt: serverTimestamp(), ...extra,
+  });
+
+  test('anyone on the project writes pages; the team reads; clients do not', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(STAFF_SCOPED)), 'p1'), page(STAFF_SCOPED)));
+    await assertFails(setDoc(doc(col(asUser(STAFF_A)), 'p2'), page(STAFF_A)));
+    await assertSucceeds(getDocs(col(asUser(STAFF_A))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+  });
+  test('each save is signed by the editor; the author cannot be rewritten', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(STAFF_SCOPED)), 'p3'), page(STAFF_SCOPED)));
+    await assertSucceeds(updateDoc(doc(col(asUser(MGR_A)), 'p3'), { body: 'edited', updatedBy: MGR_A, updatedByName: 'M', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(MGR_A)), 'p3'), { body: 'edited', updatedBy: STAFF_SCOPED, updatedByName: 'M', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(MGR_A)), 'p3'), { createdBy: MGR_A, updatedBy: MGR_A, updatedByName: 'M', updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(col(asUser(STAFF_A)), 'p3')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(STAFF_SCOPED)), 'p3')));
+  });
+});

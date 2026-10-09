@@ -458,6 +458,30 @@ service cloud.firestore {
             || canManageProjectMoney(orgId, projId);
         }
 
+        // Project pages (lib/wiki): the team reads them; anyone on the project writes, signing
+        // each save with their uid and the server's time; the author or whoever runs the
+        // project deletes one.
+        match /pages/{pageId} {
+          allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+          allow create, update: if isSignedIn() && !isClient()
+            && (isProjectMember(orgId, projId) || canManageProjectMoney(orgId, projId))
+            && request.resource.data.keys().hasOnly(['title', 'body', 'createdBy', 'createdAt', 'updatedBy', 'updatedByName', 'updatedAt'])
+            && request.resource.data.title is string
+            && request.resource.data.title.size() > 0
+            && request.resource.data.title.size() <= 120
+            && request.resource.data.body is string
+            && request.resource.data.body.size() <= 50000
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.updatedByName is string
+            && request.resource.data.updatedByName.size() <= 120
+            && request.resource.data.updatedAt == request.time
+            && (resource == null
+                ? request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time
+                : request.resource.data.createdBy == resource.data.createdBy && request.resource.data.createdAt == resource.data.createdAt);
+          allow delete: if (resource.data.get('createdBy', null) == request.auth.uid && isSignedIn())
+            || canManageProjectMoney(orgId, projId);
+        }
+
         match /updates/{updateId} {
           allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
           allow create: if canManageProjectMoney(orgId, projId)
