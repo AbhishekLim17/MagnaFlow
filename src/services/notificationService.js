@@ -90,6 +90,32 @@ export const createNotificationsForMentions = async (mentionedUserIds, commentId
   }
 };
 
+/**
+ * Tell a task's watchers (in the bell) that its status changed or someone commented.
+ * @param {string[]} recipients uids (see lib/watchers watcherRecipients)
+ * @param {{ type: 'watch_status'|'watch_comment', taskId: string, taskTitle?: string,
+ *           status?: string, excerpt?: string, actorUid: string, actorName?: string }} what
+ */
+export const notifyWatchers = async (recipients, what) => {
+  if (!recipients.length) return;
+  const batch = writeBatch(db);
+  recipients.forEach((userId) => {
+    batch.set(doc(collection(db, 'comment_notifications')), {
+      userId,
+      type: what.type,
+      taskId: what.taskId,
+      taskTitle: what.taskTitle ? String(what.taskTitle).slice(0, 200) : null,
+      status: what.status || null,
+      excerpt: what.excerpt ? String(what.excerpt).slice(0, 160) : null,
+      mentionedBy: what.actorUid,
+      mentionedByName: what.actorName || null,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  });
+  await batch.commit();
+};
+
 // Mark notification as read
 export const markAsRead = async (notificationId) => {
   try {

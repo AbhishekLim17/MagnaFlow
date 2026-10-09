@@ -33,6 +33,8 @@ import { getAssignableUsers, getAllUsers } from '@/services/userService';
 import { getProjects, getDepartments, getOrganizationById } from '@/services/organizationService';
 import TaskImportExportDialog from '@/components/admin/TaskImportExportDialog';
 import TemplatesDialog from '@/components/admin/TemplatesDialog';
+import BulkActionsBar from '@/components/admin/BulkActionsBar';
+import SavedViews from '@/components/admin/SavedViews';
 import { optionFromRepeat, repeatFromOption, describeRepeat } from '@/lib/recurrence';
 import { useDesignations } from '@/contexts/DesignationsContext';
 import { useCommentCount } from '@/hooks/useCommentCount';
@@ -60,7 +62,7 @@ import {
 } from '@/components/ui/tooltip';
 
 // Admin Task Card with Comment Button
-const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatusChange, getStaffName, getPriorityBadge, getStatusBadge, formatDate }) => {
+const AdminTaskCard = ({ task, index, selected, onToggleSelect, onEdit, onDelete, onCommentClick, onStatusChange, getStaffName, getPriorityBadge, getStatusBadge, formatDate }) => {
   const commentCount = useCommentCount(task.id);
   const subtaskCounts = useSubtaskCount(task.id);
   const deadline = describeDeadline(task);
@@ -74,6 +76,15 @@ const AdminTaskCard = ({ task, index, onEdit, onDelete, onCommentClick, onStatus
       <Card className="hover:border-border transition-all duration-300">
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
+            {onToggleSelect && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect(task.id)}
+                aria-label={`Select ${task.title}`}
+                className="mr-3 mt-1.5 h-5 w-5 shrink-0 cursor-pointer accent-primary"
+              />
+            )}
             <div className="flex-1">
               <h2 className="font-semibold text-lg mb-2">{task.title}</h2>
               <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
@@ -230,6 +241,10 @@ const TaskManagement = () => {
     try { localStorage.setItem('taskViewMode', mode); } catch { /* remembering is a nicety */ }
   };
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  // Bulk edit: ids ticked in the list view.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const toggleSelect = (id) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const [taskToDelete, setTaskToDelete] = useState(null);
 
   // Form state
@@ -531,6 +546,14 @@ const TaskManagement = () => {
     [tasks, filters, staff, currentUser?.uid]
   );
   const filterCount = activeFilterCount(filters);
+  // A ticked task that drops out of the list (filtered away, deleted) is no longer selected.
+  const visibleIds = useMemo(() => filteredTasks.map((t) => t.id), [filteredTasks]);
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) => visibleIds.includes(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [visibleIds]);
 
   const isOrgAdmin = role === 'org-admin' || role === 'admin';
   const exportLookups = useMemo(() => ({
@@ -686,8 +709,9 @@ const TaskManagement = () => {
             </SelectContent>
           </Select>
         </div>
-        {projects.length > 0 && (
-          <div className="mt-3 max-w-xs">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        {projects.length > 0 ? (
+          <div className="w-full max-w-xs">
             <Select value={filters.project} onValueChange={(v) => setFilters({ project: v })}>
               <SelectTrigger className="w-full bg-muted" aria-label="Filter by project">
                 <SelectValue placeholder="Project" />
@@ -701,7 +725,16 @@ const TaskManagement = () => {
               </SelectContent>
             </Select>
           </div>
-        )}
+        ) : <span />}
+          <SavedViews
+            search={writeFilters(new URLSearchParams(), filters).toString()}
+            mode={viewMode}
+            onApply={(view) => {
+              setSearchParams(new URLSearchParams(view.search), { replace: true });
+              if (view.mode) switchView(view.mode);
+            }}
+          />
+        </div>
         {!loading && tasks.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground" aria-live="polite">
             <span>
@@ -742,6 +775,16 @@ const TaskManagement = () => {
         <TaskCalendar tasks={filteredTasks} onTaskClick={setTaskForComments} />
       )}
 
+      {viewMode === 'list' && (
+        <BulkActionsBar
+          selectedIds={selectedIds}
+          visibleIds={visibleIds}
+          onSelectAll={() => setSelectedIds(visibleIds)}
+          onClear={() => setSelectedIds([])}
+          people={staff}
+        />
+      )}
+
       {/* Tasks List */}
       {viewMode === 'list' && (
       <Card>
@@ -769,6 +812,8 @@ const TaskManagement = () => {
                   key={task.id}
                   task={task}
                   index={index}
+                  selected={selectedIds.includes(task.id)}
+                  onToggleSelect={toggleSelect}
                   onEdit={openEditDialog}
                   onDelete={openDeleteDialog}
                   onCommentClick={setTaskForComments}

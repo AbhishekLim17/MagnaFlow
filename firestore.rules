@@ -505,6 +505,15 @@ service cloud.firestore {
             || (resource.data.get('assignedTo', null) == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
                      .hasOnly(['status', 'completedAt', 'updatedAt']))
+            // Watching: anyone on the team who can see the task may add or remove
+            // THEMSELVES (and nobody else) from its watchers. Kept in this rule, after a
+            // cheap field check, so isSignedIn() is not evaluated twice (1000-step cap).
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watchers'])
+                && request.resource.data.watchers is list
+                && request.resource.data.watchers.size() <= 50
+                && request.resource.data.watchers.toSet().difference(resource.data.get('watchers', []).toSet()).hasOnly([request.auth.uid])
+                && resource.data.get('watchers', []).toSet().difference(request.resource.data.watchers.toSet()).hasOnly([request.auth.uid])
+                && taskVisible(resource.data))
           )
         )
       );

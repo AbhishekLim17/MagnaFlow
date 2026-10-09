@@ -4,6 +4,7 @@
 import { 
   collection, 
   doc, 
+  arrayUnion,
   getDoc,
   getDocs,
   addDoc,
@@ -500,3 +501,7 @@ export const getTasksCreatedBy = async (userId) => {
   }
 };
 
+
+/** Start or stop watching a task (only your own uid; see the tasks rule). */
+export const setWatching = (taskId, uid, on) =>
+  updateDoc(doc(db, TASKS_COLLECTION, taskId), { watchers: on ? arrayUnion(uid) : arrayRemove(uid) });

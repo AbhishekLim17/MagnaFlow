@@ -4,7 +4,8 @@ import { sendMentionEmail } from '../../services/emailService';
 import {
   resolveMentions, mergePeople, getMentionQuery, suggestPeople, applyMention,
 } from '../../lib/mentions';
-import { createNotificationsForMentions } from '../../services/notificationService';
+import { createNotificationsForMentions, notifyWatchers } from '../../services/notificationService';
+import { watcherRecipients } from '@/lib/watchers';
 import { getAllUsers } from '../../services/userService';
 import { useToast } from '@/components/ui/use-toast';
 import { toUserMessage } from '@/lib/errorMessages';
@@ -19,7 +20,7 @@ const MAX_LENGTH = 5000;
  * Textarea for posting new comments. Typing "@" opens a list of people to mention
  * (arrow keys + Enter, or click). Ctrl/Cmd+Enter posts.
  */
-const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail, people = [] }) => {
+const CommentInput = ({ taskId, taskTitle, watchers, userId, userName, userEmail, people = [] }) => {
   const { toast } = useToast();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -115,6 +116,12 @@ const CommentInput = ({ taskId, taskTitle, userId, userName, userEmail, people =
       const mentionedUserIds = mentioned.map((p) => p.id);
 
       newComment = await createComment(taskId, userId, userName, userEmail, text, mentionedUserIds);
+
+      // Watchers hear about it too (people mentioned already get their own notice).
+      notifyWatchers(watcherRecipients({ watchers }, userId, mentionedUserIds), {
+        type: 'watch_comment', taskId, taskTitle, excerpt: text.replace(/s+/g, ' ').trim(),
+        actorUid: userId, actorName: userName,
+      }).catch((watchError) => console.error('Could not tell the watchers:', watchError));
 
       // Tell the people who were mentioned. The comment is already posted, so a failure
       // here must not look like the comment failed - but it must not be silent either.

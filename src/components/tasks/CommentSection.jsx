@@ -10,7 +10,7 @@ import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
  * CommentSection Component
  * Main container for task comments and attachments
  */
-const CommentSection = ({ taskId, taskTitle }) => {
+const CommentSection = ({ taskId, taskTitle, watchers }) => {
   const { currentUser } = useAuth();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +92,7 @@ const CommentSection = ({ taskId, taskTitle }) => {
       <CommentInput
         taskId={taskId}
         taskTitle={taskTitle}
+        watchers={watchers}
         userId={currentUser.uid}
         userName={currentUser.displayName || currentUser.email}
         userEmail={currentUser.email}

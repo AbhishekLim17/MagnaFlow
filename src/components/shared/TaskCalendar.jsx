@@ -5,7 +5,9 @@
 // decides how). Days with more tasks than fit show "+N more", which lists the whole day.
 
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { tasksToIcs } from '@/lib/ics';
+import { downloadBlob } from '@/lib/csv';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -106,6 +108,20 @@ const TaskCalendar = ({ tasks = [], onTaskClick, initialMonth }) => {
           </Button>
           <Button type="button" variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Next month">
             <ChevronRight aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title="Download these deadlines for Google Calendar, Outlook or Apple Calendar"
+            onClick={() => downloadBlob(
+              new Blob([tasksToIcs(tasks, { appUrl: window.location.origin + window.location.pathname })], { type: 'text/calendar;charset=utf-8' }),
+              'magnaflow-deadlines.ics',
+            )}
+          >
+            <CalendarPlus aria-hidden="true" />
+            <span className="hidden sm:inline">Add to calendar</span>
+            <span className="sr-only sm:hidden">Add deadlines to your calendar</span>
           </Button>
         </div>
       </div>

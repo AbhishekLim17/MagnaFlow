@@ -11,6 +11,7 @@ import AddSubtaskDialog from '../AddSubtaskDialog';
 import CommentSection from '../tasks/CommentSection';
 import ClientConversation from '../tasks/ClientConversation';
 import TaskTime from '../tasks/TaskTime';
+import WatchButton from '../tasks/WatchButton';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -124,6 +125,9 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
               </Badge>
               {overdue && (
                 <Badge className="bg-destructive-soft text-destructive border border-destructive/30">Overdue</Badge>
+              )}
+              {currentUser?.role !== 'client' && !isMine && (
+                <span className="ml-auto"><WatchButton key={task.id} task={task} uid={currentUser?.uid} /></span>
               )}
             </div>
           </div>
@@ -281,7 +285,7 @@ const TaskDetailsDialog = ({ task, open, onOpenChange, onStatusChange, onEdit, o
 
           {/* Comments */}
           <div className="pt-6 border-t border-border">
-            <CommentSection taskId={task.id} taskTitle={task.title} />
+            <CommentSection taskId={task.id} taskTitle={task.title} watchers={task.watchers} />
           </div>
         </div>
       </DialogContent>

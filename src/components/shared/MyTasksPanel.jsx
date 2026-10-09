@@ -1,24 +1,17 @@
-// The tasks assigned to whoever is looking at the screen.
-//
-// Admins, department heads and managers get work assigned to them like anyone
-// else, but their dashboards only ever showed the org/department/project
-// rollup — so their own tasks were visible to everyone except them. This is
-// the same panel on all three, rather than three near-identical copies.
+// "My Work": the viewer's own tasks grouped by when they are due, plus work they handed
+// out that is waiting for their review and tasks they watch (lib/myWork). Shown on every
+// dashboard that has tasks; clicking a row opens the task where you are (?task=).
 
 import React from 'react';
-import { CheckSquare } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Inbox } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/States';
-import { isOverdueTask } from '@/lib/taskState';
-import { formatDate as formatDay } from '@/lib/format';
-
-const STATUS_VARIANT = {
-  completed: 'success',
-  'in-progress': 'default',
-  pending: 'secondary',
-  cancelled: 'outline',
-};
+import { formatDate } from '@/lib/format';
+import { priorityLabel, statusLabel } from '@/lib/taskLabels';
+import { groupMyWork } from '@/lib/myWork';
+import { taskLink } from '@/lib/taskLink';
 
 const PRIORITY_VARIANT = {
   critical: 'destructive',
@@ -27,68 +20,67 @@ const PRIORITY_VARIANT = {
   low: 'outline',
 };
 
-const toDate = (value) => {
-  if (!value) return null;
-  return value.toDate ? value.toDate() : new Date(value);
-};
-
-const formatDeadline = (value) => formatDay(value, 'No deadline');
-
-const isOverdue = (task) => isOverdueTask(task);
-
 /**
  * @param {Object[]} tasks   every task the viewer can see
  * @param {string}   userId  the viewer's uid
  * @param {string}   [title]
  */
-const MyTasksPanel = ({ tasks = [], userId, title = 'Assigned to me' }) => {
-  const mine = React.useMemo(() => {
-    if (!userId) return [];
-    return tasks
-      .filter((t) => t.assignedTo === userId && t.status !== 'cancelled')
-      // Soonest deadline first; anything undated sinks to the bottom.
-      .sort((a, b) => {
-        const da = toDate(a.deadline)?.getTime() ?? Infinity;
-        const db = toDate(b.deadline)?.getTime() ?? Infinity;
-        return da - db;
-      });
-  }, [tasks, userId]);
+const MyTasksPanel = ({ tasks = [], userId, title = 'My Work' }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const groups = React.useMemo(() => groupMyWork(tasks, userId), [tasks, userId]);
+  const total = groups.reduce((n, g) => n + g.tasks.length, 0);
 
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
-          <CheckSquare className="h-5 w-5 text-primary" /> {title}
+          <Inbox className="h-5 w-5 text-primary" aria-hidden="true" /> {title}
         </CardTitle>
-        {mine.length > 0 && (
-          <Badge variant="secondary">{mine.length}</Badge>
-        )}
+        {total > 0 && <Badge variant="secondary">{total}</Badge>}
       </CardHeader>
       <CardContent>
-        {mine.length === 0 ? (
+        {total === 0 ? (
           <EmptyState
-            icon={CheckSquare}
-            title="Nothing assigned to you"
-            hint="Tasks assigned to you will appear here."
+            icon={Inbox}
+            title="Nothing waiting for you"
+            hint="Tasks assigned to you, work to review and tasks you watch will appear here."
           />
         ) : (
-          <ul className="divide-y divide-border">
-            {mine.map((task) => (
-              <li key={task.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{task.title}</p>
-                  <p className={`text-xs ${isOverdue(task) ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>
-                    {isOverdue(task) ? 'Overdue — ' : ''}
-                    {formatDeadline(task.deadline)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant={PRIORITY_VARIANT[task.priority] || 'outline'}>{task.priority}</Badge>
-                  <Badge variant={STATUS_VARIANT[task.status] || 'outline'}>{task.status}</Badge>
-                </div>
-              </li>
+          <div className="space-y-5">
+            {groups.map((group) => (
+              <section key={group.key} aria-labelledby={`mywork-${group.key}`}>
+                <h3
+                  id={`mywork-${group.key}`}
+                  className={`mb-1 text-xs font-semibold uppercase tracking-wide ${
+                    group.key === 'overdue' ? 'text-destructive' : 'text-muted-foreground'
+                  }`}
+                >
+                  {group.label} · {group.tasks.length}
+                </h3>
+                <ul className="divide-y divide-border">
+                  {group.tasks.map((task) => (
+                    <li key={task.id}>
+                      <button
+                        type="button"
+                        onClick={() => navigate(taskLink(location.pathname, task.id))}
+                        className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg px-2 py-3 text-left hover:bg-muted"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-foreground">{task.title}</span>
+                          <span className="block text-xs text-muted-foreground">{formatDate(task.deadline, 'No deadline')}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <Badge variant={PRIORITY_VARIANT[task.priority] || 'outline'}>{priorityLabel(task.priority)}</Badge>
+                          <Badge variant="outline">{statusLabel(task.status)}</Badge>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </CardContent>
     </Card>

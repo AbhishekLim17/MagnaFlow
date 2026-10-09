@@ -23,6 +23,7 @@ import KanbanBoard from '@/components/shared/KanbanBoard';
 import TaskCalendar from '@/components/shared/TaskCalendar';
 import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import StatCard from '@/components/shared/StatCard';
+import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
 import { filterAndSortTasks, SORT_OPTIONS } from '@/lib/taskFilters';
@@ -280,6 +281,8 @@ const StaffDashboard = () => {
             />
           ))}
         </div>
+
+        {!loading && <MyTasksPanel tasks={tasks} userId={user?.id || currentUser?.uid} />}
 
         {/* Everyone above staff could see how their work sits on a timeline;
             the people doing it could not. Same component, their tasks only. */}

@@ -8,7 +8,9 @@ vi.mock('../../services/commentService', () => ({ createComment: (...a) => creat
 const createNotificationsForMentions = vi.fn();
 vi.mock('../../services/notificationService', () => ({
   createNotificationsForMentions: (...a) => createNotificationsForMentions(...a),
+  notifyWatchers: (...a) => notifyWatchers(...a),
 }));
+const notifyWatchers = vi.fn();
 const sendMentionEmail = vi.fn();
 vi.mock('../../services/emailService', () => ({ sendMentionEmail: (...a) => sendMentionEmail(...a) }));
 vi.mock('../../services/userService', () => ({ getAllUsers: vi.fn().mockRejectedValue(new Error('denied')) }));
@@ -23,9 +25,9 @@ const people = [
   { id: 'u4', name: 'Bo Zhang' },
 ];
 
-const setup = () => {
+const setup = (props = {}) => {
   const user = userEvent.setup();
-  render(<CommentInput taskId="t1" taskTitle="Ship it" userId="u1" userName="Me" userEmail="me@x.co" people={people} />);
+  render(<CommentInput {...props} taskId="t1" taskTitle="Ship it" userId="u1" userName="Me" userEmail="me@x.co" people={people} />);
   return { user, box: screen.getByRole('textbox') };
 };
 
@@ -33,6 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   createComment.mockResolvedValue({ id: 'c1' });
   createNotificationsForMentions.mockResolvedValue([]);
+  notifyWatchers.mockResolvedValue();
   sendMentionEmail.mockResolvedValue({ success: true });
 });
 
@@ -105,6 +108,15 @@ describe('posting', () => {
     await waitFor(() => expect(sendMentionEmail).toHaveBeenCalledWith(expect.objectContaining({ toUid: 'u2', taskId: 't1' })));
     expect(createNotificationsForMentions.mock.calls[0][5]).toMatchObject({ taskTitle: 'Ship it' });
     await waitFor(() => expect(box).toHaveValue(''));
+  });
+
+  test('tells the watchers, but not the writer or anyone already mentioned', async () => {
+    const { user, box } = setup({ watchers: ['u1', 'u2', 'u3'] });
+    await user.type(box, 'thanks @AnnLee');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await waitFor(() => expect(notifyWatchers).toHaveBeenCalled());
+    expect(notifyWatchers.mock.calls[0][0]).toEqual(['u3']);
+    expect(notifyWatchers.mock.calls[0][1]).toMatchObject({ type: 'watch_comment', taskId: 't1', actorUid: 'u1' });
   });
 
   test('an empty comment says so and keeps the cursor in the box', async () => {

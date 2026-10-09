@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { reportError } from '@/lib/reportError';
 import NotificationBell from '@/components/shared/NotificationBell';
 import TaskDeepLink from '@/components/shared/TaskDeepLink';
+import CommandPalette from '@/components/shared/CommandPalette';
 import { usePageTitle } from '@/lib/usePageTitle';
 import ChangePasswordDialog from '@/components/shared/ChangePasswordDialog';
 import Brandmark from '@/components/shared/Brandmark';
@@ -335,6 +336,7 @@ const DashboardLayout = ({
 
             <div className="flex shrink-0 items-center gap-2">
               {headerActions}
+              <CommandPalette pages={menuItems} onPage={handleNavigate} />
               <Button
                 variant="ghost"
                 size="icon"

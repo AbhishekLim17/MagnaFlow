@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, collection, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, serverTimestamp, Timestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { beforeAll, afterAll, beforeEach, describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1640,5 +1640,37 @@ describe('the Finance role', () => {
   test('an org admin creates a Finance account in their own organisation', async () => {
     await assertSucceeds(setDoc(doc(asUser(ADMIN_A), 'users', 'newFin'), { role: 'finance', orgId: ORG_A, email: 'nf@x.com', status: 'active' }));
     await assertFails(setDoc(doc(asUser(MGR_A), 'users', 'newFin2'), { role: 'finance', orgId: ORG_A, email: 'nf2@x.com', status: 'active', projectIds: [PROJ_A] }));
+  });
+});
+
+describe('watching a task', () => {
+  const t = (db) => doc(db, 'tasks', 'taskA');
+
+  test('a teammate who can see the task may watch and unwatch it', async () => {
+    const db = asUser(STAFF_SCOPED);
+    await assertSucceeds(updateDoc(t(db), { watchers: arrayUnion(STAFF_SCOPED) }));
+    await assertSucceeds(updateDoc(t(db), { watchers: arrayRemove(STAFF_SCOPED) }));
+  });
+  test('but only themselves, never someone else', async () => {
+    await assertFails(updateDoc(t(asUser(STAFF_SCOPED)), { watchers: arrayUnion(MGR_A) }));
+    await assertSucceeds(updateDoc(t(asUser(MGR_A)), { watchers: arrayUnion(MGR_A) }));
+    await assertFails(updateDoc(t(asUser(STAFF_SCOPED)), { watchers: arrayRemove(MGR_A) }));
+    await assertFails(updateDoc(t(asUser(STAFF_SCOPED)), { watchers: [STAFF_SCOPED] }));
+  });
+  test('and watching changes nothing else on the task', async () => {
+    await assertFails(updateDoc(t(asUser(STAFF_SCOPED)), { watchers: arrayUnion(STAFF_SCOPED), title: 'sneaky' }));
+  });
+  test('someone who cannot see the task, or a client, cannot watch it', async () => {
+    await assertFails(updateDoc(t(asUser(STAFF_B)), { watchers: arrayUnion(STAFF_B) }));
+    await assertFails(updateDoc(t(asUser(CLIENT_A)), { watchers: arrayUnion(CLIENT_A) }));
+  });
+  test('watchers hear about changes in the bell', async () => {
+    await assertSucceeds(setDoc(doc(asUser(STAFF_A), 'comment_notifications', 'w1'), {
+      userId: STAFF_SCOPED, type: 'watch_status', taskId: 'taskA', taskTitle: 'x', status: 'review',
+      excerpt: null, mentionedBy: STAFF_A, mentionedByName: 'A', read: false, createdAt: 1,
+    }));
+    await assertFails(setDoc(doc(asUser(STAFF_A), 'comment_notifications', 'w2'), {
+      userId: STAFF_B, type: 'watch_status', taskId: 'taskA', mentionedBy: STAFF_A, read: false,
+    }));
   });
 });

@@ -15,6 +15,8 @@ import { subscribeCustomFields } from '@/services/customFieldService';
 import { worthAnEvent } from '@/lib/automations';
 import { sendTaskAssignedEmail, sendCriticalTaskAlert } from '@/services/emailService';
 import { addSubtasksBulk } from '@/services/subtaskService';
+import { notifyWatchers } from '@/services/notificationService';
+import { watcherRecipients } from '@/lib/watchers';
 
 const TasksContext = createContext();
 
@@ -171,6 +173,16 @@ export const TasksProvider = ({ children }) => {
     const stopFields = subscribeCustomFields(user.orgId, setCustomFields);
     return () => { safeUnsubscribe(stop); safeUnsubscribe(stopFields); setCustomFields([]); };
   }, [user]);
+
+  // A status change, told to the task's watchers (in the bell). Never fails the change.
+  const tellWatchers = (task) => {
+    const recipients = watcherRecipients(task, user?.id);
+    if (!recipients.length) return;
+    notifyWatchers(recipients, {
+      type: 'watch_status', taskId: task.id, taskTitle: task.title, status: task.status,
+      actorUid: user.id, actorName: user.name,
+    }).catch((error) => console.error('Could not tell the watchers:', error));
+  };
 
   const noteForAutomations = (task, type) => {
     if (task && worthAnEvent(automationRules.current, type, task)) recordTaskEvent(task, type, user);
@@ -340,7 +352,10 @@ export const TasksProvider = ({ children }) => {
     try {
       const before = tasks.find((t) => t.id === taskId);
       const updatedTask = await updateTaskService(taskId, updates);
-      if (updates.status && before?.status !== updates.status) noteForAutomations(updatedTask, 'status_changed');
+      if (updates.status && before?.status !== updates.status) {
+        noteForAutomations(updatedTask, 'status_changed');
+        tellWatchers(updatedTask);
+      }
 
       setTasks(prev =>
         prev.map(t => t.id === taskId ? updatedTask : t)
@@ -490,6 +505,94 @@ export const TasksProvider = ({ children }) => {
   };
 
   /**
+   * One change to many tasks (bulk edit): status, priority, assignee and/or deadline.
+   * One toast for the lot, with an Undo that puts each task back as it was. A task the
+   * caller may not change (or that is blocked) is skipped and counted, not fatal.
+   * @returns {Promise<{ done: number, failed: number }>}
+   */
+  const bulkUpdateTasks = async (taskIds, patch) => {
+    const keys = Object.keys(patch);
+    const storedDay = (value) => {
+      const d = toDate(value);
+      return d ? d.toISOString().slice(0, 10) : '';
+    };
+    const undo = [];
+    let failed = 0;
+    for (const id of taskIds) {
+      const before = tasks.find((t) => t.id === id);
+      try {
+        const updated = await updateTaskService(id, patch);
+        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+        if (patch.status && before?.status !== patch.status) {
+          noteForAutomations(updated, 'status_changed');
+          tellWatchers(updated);
+        }
+        if (patch.assignedTo && before?.assignedTo !== patch.assignedTo) await notifyAssignee(updated, id);
+        undo.push({
+          id,
+          before: Object.fromEntries(keys.map((k) => [k, k === 'deadline' ? storedDay(before?.[k]) : (before?.[k] ?? null)])),
+        });
+      } catch (error) {
+        console.error('Bulk update skipped a task:', id, error);
+        failed += 1;
+      }
+    }
+    const done = undo.length;
+    toast({
+      duration: 10000,
+      title: failed ? `Updated ${done} of ${taskIds.length} tasks` : `Updated ${done} task${done === 1 ? '' : 's'}`,
+      description: failed ? `${failed} could not be changed (outside your scope, or blocked by a dependency).` : undefined,
+      variant: done ? undefined : 'destructive',
+      action: done ? (
+        <ToastAction
+          altText="Undo the bulk change"
+          onClick={async () => {
+            for (const { id, before } of undo) {
+              try {
+                const restored = await updateTaskService(id, before);
+                setTasks((prev) => prev.map((t) => (t.id === id ? restored : t)));
+              } catch (error) {
+                console.error('Could not undo for task', id, error);
+              }
+            }
+          }}
+        >
+          Undo
+        </ToastAction>
+      ) : undefined,
+    });
+    return { done, failed };
+  };
+
+  /** Delete many tasks with one toast. Dependents of each are detached, as in deleteTask. */
+  const bulkDeleteTasks = async (taskIds) => {
+    const gone = new Set();
+    for (const id of taskIds) {
+      try {
+        const dependentTaskIds = tasks
+          .filter((t) => !gone.has(t.id) && !taskIds.includes(t.id) && Array.isArray(t.blockedBy) && t.blockedBy.includes(id))
+          .map((t) => t.id);
+        await deleteTaskService(id, { dependentTaskIds });
+        gone.add(id);
+      } catch (error) {
+        console.error('Bulk delete skipped a task:', id, error);
+      }
+    }
+    setTasks((prev) => prev
+      .filter((t) => !gone.has(t.id))
+      .map((t) => (Array.isArray(t.blockedBy) && t.blockedBy.some((b) => gone.has(b))
+        ? { ...t, blockedBy: t.blockedBy.filter((b) => !gone.has(b)) }
+        : t)));
+    const failed = taskIds.length - gone.size;
+    toast({
+      title: failed ? `Deleted ${gone.size} of ${taskIds.length} tasks` : `Deleted ${gone.size} task${gone.size === 1 ? '' : 's'}`,
+      description: failed ? `${failed} could not be deleted (outside your scope).` : undefined,
+      variant: gone.size ? undefined : 'destructive',
+    });
+    return { done: gone.size, failed };
+  };
+
+  /**
    * Refresh statistics
    */
   // Kept for callers: statistics now follow the task list by themselves.
@@ -537,6 +640,8 @@ export const TasksProvider = ({ children }) => {
     rescheduleTask,
     deleteTask,
     updateTaskStatus,
+    bulkUpdateTasks,
+    bulkDeleteTasks,
     // Cheap no-op when the data is still fresh — safe to call on every mount.
     refreshTasks: loadTasks,
     // Bypasses the freshness window; use after an external change.

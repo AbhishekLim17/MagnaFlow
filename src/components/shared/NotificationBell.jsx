@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToUnreadNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
-import { AlertTriangle, Bell, CheckCircle2, Mail, MessageSquare, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle2, Eye, Mail, MessageSquare, Users, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -10,9 +10,11 @@ import { formatRelative } from '@/lib/format';
 import { taskLink } from '@/lib/taskLink';
 import NotificationSettingsDialog from './NotificationSettingsDialog';
 import { clientNotificationText } from '@/lib/clientThread';
+import { watchNotificationText } from '@/lib/watchers';
 
 // What a client did (see lib/clientThread); anything else is an @mention.
-const ICON_FOR = { client_message: Users, client_approved: CheckCircle2, client_changes_requested: AlertTriangle };
+const ICON_FOR = { client_message: Users, client_approved: CheckCircle2, client_changes_requested: AlertTriangle, watch_status: Eye, watch_comment: Eye };
+const noticeText = (n) => clientNotificationText(n) || watchNotificationText(n);
 
 /**
  * NotificationBell Component
@@ -196,8 +198,8 @@ const NotificationBell = () => {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          {clientNotificationText(notification) ? (
-                            <p className="text-sm text-foreground">{clientNotificationText(notification)}</p>
+                          {noticeText(notification) ? (
+                            <p className="text-sm text-foreground">{noticeText(notification)}</p>
                           ) : (
                             <p className="text-sm text-foreground">
                               <span className="font-semibold">{notification.mentionedByName || 'Someone'}</span>
