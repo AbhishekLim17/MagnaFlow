@@ -1822,3 +1822,32 @@ describe('project pages', () => {
     await assertSucceeds(deleteDoc(doc(col(asUser(STAFF_SCOPED)), 'p3')));
   });
 });
+
+describe('goals and key results', () => {
+  const col = (db) => collection(db, 'organizations', ORG_A, 'goals');
+  const goal = (createdBy, extra = {}) => ({
+    title: 'Five new clients', description: '', ownerId: STAFF_A, ownerName: 'S', startDate: '2026-01-01', dueDate: '2026-12-31',
+    projectIds: [PROJ_A], keyResults: [{ title: 'Signed', start: 0, target: 5, current: 1, unit: '' }],
+    createdBy, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...extra,
+  });
+
+  test('org admins and department heads set goals; the team reads them; clients do not', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(ADMIN_A)), 'g1'), goal(ADMIN_A)));
+    await assertSucceeds(setDoc(doc(col(asUser(HEAD_A)), 'g2'), goal(HEAD_A)));
+    await assertFails(setDoc(doc(col(asUser(MGR_A)), 'g3'), goal(MGR_A)));
+    await assertFails(setDoc(doc(col(asUser(STAFF_A)), 'g4'), goal(STAFF_A)));
+    await assertSucceeds(getDocs(col(asUser(STAFF_SCOPED))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+    await assertFails(getDocs(col(asUser(ADMIN_B))));
+  });
+  test('the owner checks in, but cannot change anything else', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(ADMIN_A)), 'g5'), goal(ADMIN_A)));
+    const krs = [{ title: 'Signed', start: 0, target: 5, current: 3, unit: '' }];
+    await assertSucceeds(updateDoc(doc(col(asUser(STAFF_A)), 'g5'), { keyResults: krs, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(STAFF_A)), 'g5'), { title: 'Mine now', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(STAFF_A)), 'g5'), { keyResults: [], updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(STAFF_SCOPED)), 'g5'), { keyResults: krs, updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(col(asUser(STAFF_A)), 'g5')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(ADMIN_A)), 'g5')));
+  });
+});

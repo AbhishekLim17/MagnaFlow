@@ -25,6 +25,7 @@ import {
   Palmtree,
   ShieldAlert,
   BookOpen,
+  Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -53,6 +54,7 @@ import InvoicesPage from '@/components/admin/InvoicesPage';
 import LeavePage from '@/components/shared/LeavePage';
 import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
+import GoalsPage from '@/components/shared/GoalsPage';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -63,6 +65,7 @@ const menuItems = [
   { id: 'tasks', label: 'Task Management', icon: CheckSquare },
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
   { id: 'pages', label: 'Project Pages', icon: BookOpen },
+  { id: 'goals', label: 'Goals', icon: Target },
   { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
   { id: 'risks', label: 'Risks & Issues', icon: ShieldAlert },
   { id: 'workload', label: 'Workload', icon: Gauge },
@@ -177,6 +180,7 @@ const AdminDashboard = () => {
         <Route path="/leave" element={<LeavePage />} />
         <Route path="/risks" element={<RaidPage />} />
         <Route path="/pages" element={<WikiPage />} />
+        <Route path="/goals" element={<GoalsPage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />

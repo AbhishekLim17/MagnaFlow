@@ -89,6 +89,16 @@ service cloud.firestore {
         || inScope(orgId, request.resource.data.get('departmentId', null), request.resource.data.get('projectId', null));
     }
     // Reading project money (and recording expenses): whoever runs the project, or Finance.
+    function goalFieldsValid(d) {
+      return d.keys().hasOnly(['title', 'description', 'ownerId', 'ownerName', 'startDate', 'dueDate', 'projectIds',
+               'keyResults', 'createdBy', 'createdAt', 'updatedAt'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 160
+        && d.description is string && d.description.size() <= 2000
+        && d.ownerName is string && d.ownerName.size() <= 120
+        && d.projectIds is list && d.projectIds.size() <= 20
+        && d.keyResults is list && d.keyResults.size() <= 10
+        && d.updatedAt == request.time;
+    }
     function raidFieldsValid(d) {
       return d.type in ['risk', 'issue', 'assumption', 'decision']
         && d.impact in ['high', 'medium', 'low']
@@ -268,6 +278,24 @@ service cloud.firestore {
           || resource.data.get('createdBy', null) == request.auth.uid
           || isOrgAdmin(orgId) || isMasterAdmin());
         allow update: if false;
+      }
+
+      // Goals and key results (lib/goals). The team reads them; org admins and department
+      // heads set them; a goal's owner checks in (moves the key results' current values).
+      match /goals/{goalId} {
+        allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+        allow create: if isSignedIn() && (isOrgAdmin(orgId) || (isDeptHead() && isOrgMember(orgId)))
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && goalFieldsValid(request.resource.data);
+        allow update: if isSignedIn()
+          && ((isOrgAdmin(orgId) || (isDeptHead() && isOrgMember(orgId)))
+              || (resource.data.get('ownerId', null) == request.auth.uid
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['keyResults', 'updatedAt'])
+                  && request.resource.data.keyResults.size() == resource.data.keyResults.size()))
+          && request.resource.data.createdBy == resource.data.createdBy
+          && goalFieldsValid(request.resource.data);
+        allow delete: if isSignedIn() && (isOrgAdmin(orgId) || (isDeptHead() && isOrgMember(orgId)));
       }
 
       match /customFields/{fieldId} {

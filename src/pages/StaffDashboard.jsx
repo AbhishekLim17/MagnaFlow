@@ -27,6 +27,7 @@ import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import LeavePage from '@/components/shared/LeavePage';
 import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
+import GoalsPage from '@/components/shared/GoalsPage';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
 import { filterAndSortTasks, SORT_OPTIONS } from '@/lib/taskFilters';
@@ -36,12 +37,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const STAFF_MENU = [
   { id: 'dashboard', label: 'My Tasks', icon: CheckSquare },
+  { id: 'goals', label: 'Goals', icon: Target },
   { id: 'pages', label: 'Project Pages', icon: BookOpen },
   { id: 'risks', label: 'Risks & Issues', icon: ShieldAlert },
   { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
 ];
 // The other pages of the staff dashboard (the task list is the first).
-const STAFF_PAGES = { leave: LeavePage, risks: RaidPage, pages: WikiPage };
+const STAFF_PAGES = { leave: LeavePage, risks: RaidPage, pages: WikiPage, goals: GoalsPage };
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
