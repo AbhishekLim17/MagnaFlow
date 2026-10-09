@@ -45,7 +45,7 @@ describe('NotificationSettingsDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(mocks.updateUser).toHaveBeenCalledWith('me', {
-      notificationPrefs: { assignments: true, mentions: false, critical: true, statusChanges: true, dailyReminder: false, weeklyDigest: true, clientMessages: true },
+      notificationPrefs: { assignments: true, mentions: false, critical: true, statusChanges: true, dailyReminder: false, weeklyDigest: true, monthlyReport: true, clientMessages: true },
     }));
     expect(mocks.toast).toHaveBeenCalledWith({ title: 'Email settings saved' });
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -54,7 +54,7 @@ describe('NotificationSettingsDialog', () => {
   test('says so when every email is off', async () => {
     mocks.getUserById.mockResolvedValue({
       id: 'me',
-      notificationPrefs: { assignments: false, mentions: false, critical: false, statusChanges: false, dailyReminder: false, weeklyDigest: false, clientMessages: false },
+      notificationPrefs: { assignments: false, mentions: false, critical: false, statusChanges: false, dailyReminder: false, weeklyDigest: false, monthlyReport: false, clientMessages: false },
     });
     setup();
     expect(await screen.findByText(/no email from MagnaFlow/i)).toBeInTheDocument();
