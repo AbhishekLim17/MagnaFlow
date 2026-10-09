@@ -510,6 +510,25 @@ service cloud.firestore {
             || canManageProjectMoney(orgId, projId);
         }
 
+        // Sprints (lib/sprints): the team reads them; whoever runs the project plans, starts,
+        // completes and removes them. Tasks join a sprint through their own sprintId.
+        match /sprints/{sprintId} {
+          allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+          allow create: if canManageProjectMoney(orgId, projId)
+            && request.resource.data.keys().hasOnly(['name', 'goal', 'startDate', 'endDate', 'status', 'completedPoints', 'createdBy', 'createdAt'])
+            && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+            && request.resource.data.goal is string && request.resource.data.goal.size() <= 500
+            && request.resource.data.startDate is string && request.resource.data.endDate is string
+            && request.resource.data.startDate <= request.resource.data.endDate
+            && request.resource.data.status == 'planned'
+            && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdAt == request.time;
+          allow update: if canManageProjectMoney(orgId, projId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedPoints'])
+            && request.resource.data.status in ['planned', 'active', 'closed'];
+          allow delete: if canManageProjectMoney(orgId, projId);
+        }
+
         match /updates/{updateId} {
           allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
           allow create: if canManageProjectMoney(orgId, projId)

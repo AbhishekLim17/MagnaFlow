@@ -22,6 +22,7 @@ import { dependsOn } from '@/lib/dependencies';
 import { LINK_TYPES, MAX_LAG, normalizeLink } from '@/lib/dependencyLinks';
 import { MAX_ESTIMATE_HOURS, parseEstimate } from '@/lib/timeTracking';
 import { assignmentWarning } from '@/lib/capacity';
+import { MAX_POINTS } from '@/lib/sprints';
 import { useTasks } from '@/contexts/TasksContext';
 import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
@@ -266,6 +267,21 @@ const TaskFormDialog = ({
               }, staff.find((m) => m.id === formData.assignedTo));
               return warning && <p className="mt-1 text-xs font-medium text-warning" role="status">{warning}</p>;
             })()}
+          </div>
+
+          <div>
+            <Label htmlFor={idFor('points')}>Story points <span className="text-muted-foreground text-xs font-normal">(optional, for sprints)</span></Label>
+            <Input
+              id={idFor('points')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={MAX_POINTS}
+              step={1}
+              className={FIELD_CLASS}
+              value={formData.storyPoints ?? ''}
+              onChange={(e) => set({ storyPoints: e.target.value })}
+            />
           </div>
 
           {customFields.length > 0 && (

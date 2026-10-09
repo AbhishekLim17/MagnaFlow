@@ -52,6 +52,7 @@ import KanbanBoard from '@/components/shared/KanbanBoard';
 import TaskCalendar from '@/components/shared/TaskCalendar';
 import { approvalSummary } from '@/lib/clientThread';
 import { parseEstimate } from '@/lib/timeTracking';
+import { parsePoints } from '@/lib/sprints';
 import { cleanValues } from '@/lib/customFields';
 import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import {
@@ -357,6 +358,7 @@ const TaskManagement = () => {
       ...dates,
       milestone: Boolean(formData.milestone),
       estimateHours: parseEstimate(formData.estimateHours),
+      storyPoints: parsePoints(formData.storyPoints),
       customFields: cleanValues(customFields, formData.customFields),
       repeat,
       repeating: Boolean(repeat),
@@ -466,6 +468,7 @@ const TaskManagement = () => {
       milestone: Boolean(task.milestone),
       repeat: optionFromRepeat(task.repeating !== false ? task.repeat : null),
       estimateHours: task.estimateHours ?? '',
+      storyPoints: task.storyPoints ?? '',
       customFields: task.customFields || {},
     });
     setIsEditDialogOpen(true);

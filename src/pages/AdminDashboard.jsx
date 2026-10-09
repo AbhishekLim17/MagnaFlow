@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   BookOpen,
   Target,
+  Flag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -55,6 +56,7 @@ import LeavePage from '@/components/shared/LeavePage';
 import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
 import GoalsPage from '@/components/shared/GoalsPage';
+import SprintsPage from '@/components/admin/SprintsPage';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -64,6 +66,7 @@ const menuItems = [
   { id: 'designations', label: 'Designations', icon: Briefcase },
   { id: 'tasks', label: 'Task Management', icon: CheckSquare },
   { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
+  { id: 'sprints', label: 'Sprints', icon: Flag },
   { id: 'pages', label: 'Project Pages', icon: BookOpen },
   { id: 'goals', label: 'Goals', icon: Target },
   { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
@@ -181,6 +184,7 @@ const AdminDashboard = () => {
         <Route path="/risks" element={<RaidPage />} />
         <Route path="/pages" element={<WikiPage />} />
         <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/sprints" element={<SprintsPage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/reports" element={<PerformanceReports />} />
         <Route path="/clients" element={<ClientsManagement />} />

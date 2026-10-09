@@ -1851,3 +1851,27 @@ describe('goals and key results', () => {
     await assertSucceeds(deleteDoc(doc(col(asUser(ADMIN_A)), 'g5')));
   });
 });
+
+describe('sprints', () => {
+  const col = (db) => collection(db, 'organizations', ORG_A, 'projects', PROJ_A, 'sprints');
+  const sprint = (uid, extra = {}) => ({
+    name: 'Sprint 1', goal: '', startDate: '2026-10-05', endDate: '2026-10-16', status: 'planned', completedPoints: null,
+    createdBy: uid, createdAt: serverTimestamp(), ...extra,
+  });
+  test('whoever runs the project plans, starts and completes sprints; the team reads them', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(MGR_A)), 's1'), sprint(MGR_A)));
+    await assertSucceeds(updateDoc(doc(col(asUser(MGR_A)), 's1'), { status: 'active' }));
+    await assertSucceeds(updateDoc(doc(col(asUser(HEAD_A)), 's1'), { status: 'closed', completedPoints: 13 }));
+    await assertFails(updateDoc(doc(col(asUser(MGR_A)), 's1'), { name: 'Renamed' }));
+    await assertSucceeds(getDocs(col(asUser(STAFF_SCOPED))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+  });
+  test('team members cannot plan sprints; a sprint starts planned with sane dates', async () => {
+    await assertFails(setDoc(doc(col(asUser(STAFF_SCOPED)), 's2'), sprint(STAFF_SCOPED)));
+    await assertFails(setDoc(doc(col(asUser(MGR_A)), 's3'), sprint(MGR_A, { status: 'active' })));
+    await assertFails(setDoc(doc(col(asUser(MGR_A)), 's4'), sprint(MGR_A, { startDate: '2026-10-20', endDate: '2026-10-05' })));
+    await assertSucceeds(setDoc(doc(col(asUser(MGR_A)), 's5'), sprint(MGR_A)));
+    await assertFails(deleteDoc(doc(col(asUser(STAFF_SCOPED)), 's5')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(MGR_A)), 's5')));
+  });
+});
