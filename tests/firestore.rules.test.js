@@ -1875,3 +1875,26 @@ describe('sprints', () => {
     await assertSucceeds(deleteDoc(doc(col(asUser(MGR_A)), 's5')));
   });
 });
+
+describe('email-to-task keys', () => {
+  const key = (db, id) => doc(db, 'inbound_keys', id);
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'organizations', ORG_A, 'projects', PROJ_A), { name: 'P', departmentId: DEPT_A });
+    });
+  });
+  const data = (uid, extra = {}) => ({ orgId: ORG_A, projectId: PROJ_A, createdBy: uid, createdAt: serverTimestamp(), ...extra });
+
+  test('an org admin turns a project address on and off; nobody reads the keys', async () => {
+    await assertSucceeds(setDoc(key(asUser(ADMIN_A), 'abcdefghijkl1234'), data(ADMIN_A)));
+    await assertFails(getDoc(key(asUser(ADMIN_A), 'abcdefghijkl1234')));
+    await assertFails(deleteDoc(key(asUser(ADMIN_B), 'abcdefghijkl1234')));
+    await assertSucceeds(deleteDoc(key(asUser(ADMIN_A), 'abcdefghijkl1234')));
+  });
+  test('only for a real project of their own organisation, with a long random key', async () => {
+    await assertFails(setDoc(key(asUser(MGR_A), 'abcdefghijkl5678'), data(MGR_A)));
+    await assertFails(setDoc(key(asUser(ADMIN_B), 'abcdefghijkl5678'), data(ADMIN_B)));
+    await assertFails(setDoc(key(asUser(ADMIN_A), 'short'), data(ADMIN_A)));
+    await assertFails(setDoc(key(asUser(ADMIN_A), 'abcdefghijkl9999'), data(ADMIN_A, { projectId: 'nope' })));
+  });
+});

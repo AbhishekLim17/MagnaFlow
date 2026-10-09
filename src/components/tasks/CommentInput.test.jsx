@@ -116,7 +116,7 @@ describe('posting', () => {
     await user.keyboard('{Control>}{Enter}{/Control}');
     await waitFor(() => expect(notifyWatchers).toHaveBeenCalled());
     expect(notifyWatchers.mock.calls[0][0]).toEqual(['u3']);
-    expect(notifyWatchers.mock.calls[0][1]).toMatchObject({ type: 'watch_comment', taskId: 't1', actorUid: 'u1' });
+    expect(notifyWatchers.mock.calls[0][1]).toMatchObject({ type: 'watch_comment', taskId: 't1', actorUid: 'u1', excerpt: 'thanks @AnnLee' });
   });
 
   test('an empty comment says so and keeps the cursor in the box', async () => {

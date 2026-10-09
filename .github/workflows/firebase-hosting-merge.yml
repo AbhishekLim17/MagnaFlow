@@ -52,6 +52,7 @@ jobs:
           VITE_SIGNIN_PROVIDERS: ${{ vars.VITE_SIGNIN_PROVIDERS }}
           # public Web Push key from Firebase console (docs/PUSH_SETUP.md); unset = no push
           VITE_FCM_VAPID_KEY: ${{ vars.VITE_FCM_VAPID_KEY }}
+          VITE_INBOUND_MAILBOX: ${{ vars.VITE_INBOUND_MAILBOX }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

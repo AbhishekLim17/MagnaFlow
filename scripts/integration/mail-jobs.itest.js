@@ -30,10 +30,10 @@ admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT });
 const db = admin.firestore();
 db.settings({ ignoreUndefinedProperties: true });
 
-const runScript = (script) => {
+const runScript = (script, env = {}) => {
   const res = spawnSync(process.execPath, [path.join(ROOT, 'scripts', script)], {
     cwd: ROOT,
-    env: { ...process.env, MAIL_TRANSPORT: 'json' },
+    env: { ...process.env, MAIL_TRANSPORT: 'json', ...env },
     encoding: 'utf8',
   });
   const mails = (res.stdout || '')
@@ -46,7 +46,7 @@ const runScript = (script) => {
 const addressesOf = (field) => JSON.stringify(field ?? '');
 
 const clearAll = async () => {
-  for (const name of ['mail_queue', 'email_logs', 'tasks', 'users', 'organizations']) {
+  for (const name of ['mail_queue', 'email_logs', 'tasks', 'users', 'organizations', 'inbound_keys']) {
     const snap = await db.collection(name).get();
     await Promise.all(snap.docs.map((d) => db.recursiveDelete(d.ref)));
   }
@@ -455,6 +455,46 @@ describe('monthly report', () => {
     expect(run.mails[0].text).toContain('your team finished 1 task (100% on time) and started 1.');
     expect(run.mails[0].text).toContain('Sam Staff: 1');
     expect(run.mails[0].text).toContain('2h');
+  });
+});
+
+describe('email-to-task', () => {
+  test("a member's authenticated email becomes a task in the project; anything else is turned away", async () => {
+    await clearAll();
+    await db.collection('organizations').doc('orgA').set({ name: 'Org A', status: 'active' });
+    await db.collection('organizations').doc('orgA').collection('projects').doc('pA').set({ name: 'Apollo', departmentId: 'dA', inboxKey: 'apollokey123456' });
+    await db.collection('inbound_keys').doc('apollokey123456').set({ orgId: 'orgA', projectId: 'pA' });
+    await db.collection('users').doc('uM').set({ name: 'Mia Member', email: 'mia@a.test', orgId: 'orgA', status: 'active', role: 'staff', projectIds: ['pA'] });
+    await db.collection('users').doc('uO').set({ name: 'Oscar Outsider', email: 'oscar@a.test', orgId: 'orgA', status: 'active', role: 'staff', projectIds: ['pZ'] });
+    const fs = require('fs');
+    const os = require('os');
+    const file = path.join(os.tmpdir(), `inbound-${Date.now()}.json`);
+    const box = 'magnaflow@gmail.com';
+    const msg = (id, extra) => ({ id, messageId: `<${id}@a.test>`, to: [`magnaflow+apollokey123456@gmail.com`], from: 'mia@a.test',
+      subject: 'Fwd: Checkout fails on Safari', text: 'Steps attached.\nOn Mon, Ann wrote:\n> old', authResults: 'mx.google.com; dkim=pass; spf=pass', ...extra });
+    fs.writeFileSync(file, JSON.stringify([
+      msg('m1'),
+      msg('m2', { authResults: 'spf=fail; dkim=none' }),
+      msg('m3', { from: 'oscar@a.test' }),
+      msg('m4', { to: ['magnaflow+nosuchkey00000@gmail.com'] }),
+      msg('m5', { from: 'stranger@x.test' }),
+    ]));
+    const env = { INBOUND_JSON: file, GMAIL_USER: box };
+    const run = runScript('send-queued-emails.cjs', env);
+    expect(run.status, run.stderr + run.stdout).toBe(0);
+    const tasks = (await db.collection('tasks').get()).docs.map((d) => d.data());
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({ title: 'Checkout fails on Safari', description: 'Steps attached.', assignedTo: 'uM', createdBy: 'uM', orgId: 'orgA', projectId: 'pA', departmentId: 'dA', source: 'email' });
+    expect(run.stdout).toContain('Email-to-task: 5 message(s), 1 task(s) created, 4 rejected.');
+    for (const id of ['m1', 'm2', 'm3', 'm4', 'm5']) expect(run.stdout).toContain(`[inbound-json] seen ${id}`);
+    const confirm = run.mails.find((m) => addressesOf(m.to).includes('mia@a.test'));
+    expect(confirm.subject).toContain('Checkout fails on Safari');
+
+    // read again (say marking it seen failed): still one task
+    const again = runScript('send-queued-emails.cjs', env);
+    expect(again.status, again.stderr + again.stdout).toBe(0);
+    expect((await db.collection('tasks').get()).size).toBe(1);
+    fs.unlinkSync(file);
   });
 });
 

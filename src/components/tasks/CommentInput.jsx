@@ -119,7 +119,7 @@ const CommentInput = ({ taskId, taskTitle, watchers, userId, userName, userEmail
 
       // Watchers hear about it too (people mentioned already get their own notice).
       notifyWatchers(watcherRecipients({ watchers }, userId, mentionedUserIds), {
-        type: 'watch_comment', taskId, taskTitle, excerpt: text.replace(/s+/g, ' ').trim(),
+        type: 'watch_comment', taskId, taskTitle, excerpt: text.replace(/\s+/g, ' ').trim(),
         actorUid: userId, actorName: userName,
       }).catch((watchError) => console.error('Could not tell the watchers:', watchError));
 

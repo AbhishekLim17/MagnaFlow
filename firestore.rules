@@ -975,6 +975,19 @@ service cloud.firestore {
                                             taskData(request.resource.data.taskId).get('assignedTo', null)];
     }
 
+    // Email-to-task keys (services/inboundService, scripts/lib/inbound.cjs): an org admin
+    // turns a project's address on or off. Nobody reads them from a browser; the job does.
+    match /inbound_keys/{key} {
+      allow read, update: if false;
+      allow create: if isSignedIn() && isOrgAdmin(request.resource.data.get('orgId', null))
+        && key.matches('^[a-z0-9]{12,40}$')
+        && request.resource.data.keys().hasOnly(['orgId', 'projectId', 'createdBy', 'createdAt'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)/projects/$(request.resource.data.projectId));
+      allow delete: if isSignedIn() && isOrgAdmin(resource.data.get('orgId', null));
+    }
+
     // Org usage stats â€” master-admin only
     match /org_usage_stats/{orgId} {
       allow read, write: if isSignedIn() && isMasterAdmin();

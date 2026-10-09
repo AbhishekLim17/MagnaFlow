@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { reportError } from '@/lib/reportError';
+import ProjectEmailIn from '@/components/admin/ProjectEmailIn';
 import { CURRENCIES, DEFAULT_CURRENCY, formatMoney } from '@/lib/money';
 import {
   getDepartments,
@@ -217,6 +218,12 @@ const DepartmentsProjectsManagement = () => {
                         Budget: {formatMoney(proj.budget, proj.currency)}
                       </p>
                     )}
+                    <ProjectEmailIn
+                      project={proj}
+                      orgId={user?.orgId}
+                      currentUser={user}
+                      onChange={(inboxKey) => setProjects((list) => list.map((p) => (p.id === proj.id ? { ...p, inboxKey } : p)))}
+                    />
                   </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive-soft"
                     aria-label={`Delete project ${proj.name}`}

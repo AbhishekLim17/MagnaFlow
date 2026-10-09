@@ -15,10 +15,11 @@ const { pathToFileURL } = require('url');
 const admin = require('firebase-admin');
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
-const { createTenantLookup, safeButtonLink } = require('./lib/tenant.cjs');
+const { createTenantLookup, safeButtonLink, APP_URL } = require('./lib/tenant.cjs');
 const { sendClientUpdates, sendRequestUpdates } = require('./lib/clientUpdates.cjs');
 const { sendPush } = require('./lib/push.cjs');
 const { runAutomations } = require('./lib/automations.cjs');
+const { runInbound, openImap } = require('./lib/inbound.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -65,9 +66,53 @@ async function main() {
   const auto = await runAutomations({ db, admin, lib: automationLib, dryRun: DRY_RUN });
   if (auto.events) console.log(`Automations: ${auto.events} event(s), ${auto.actions} action(s).`);
 
+  // Email-to-task: unread mail to a project's plus address becomes a task (lib/inbound).
+  await inbound(db, getTransport);
+
   const sentAll = queue.sent + conv.sent + reqs.sent;
   const failedAll = queue.failed + conv.failed + reqs.failed;
   if (!DRY_RUN && sentAll === 0 && failedAll > 0) process.exit(1);
+}
+
+async function inbound(db, getTransport) {
+  const json = process.env.INBOUND_JSON; // tests: a file of messages instead of the mailbox
+  if (process.env.INBOUND_EMAIL !== 'on' && !json) return;
+  const mailbox = process.env.GMAIL_USER || 'magnaflow@gmail.com';
+  let source;
+  if (json) {
+    const fs = require('fs');
+    source = {
+      messages: JSON.parse(fs.readFileSync(json, 'utf8')),
+      markSeen: async (mail) => console.log(`[inbound-json] seen ${mail.id}`),
+      close: async () => {},
+    };
+  } else {
+    source = await openImap(mailbox, String(process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, ''));
+  }
+  try {
+    const counts = await runInbound({
+      db, admin, mailbox, dryRun: DRY_RUN,
+      messages: source.messages,
+      markSeen: source.markSeen,
+      confirm: (mail, user, task, project) => sendNotification(getTransport(), {
+        type: 'inbound_task_created',
+        to_email: user.email,
+        to_name: user.name || user.email,
+        cc_email: '',
+        notification_type: 'Task created from your email',
+        notification_icon: '📥',
+        title: task.title,
+        message: `Your email became a task in ${project.name || 'the project'}, assigned to you.`,
+        rows: [{ label: 'Project', value: project.name || '' }, { label: 'Task', value: task.title }],
+        button_text: 'Open the task',
+        button_link: `${APP_URL}?task=${encodeURIComponent(task.id)}`,
+        footer_text: "You sent this to the project's email address.",
+      }),
+    });
+    if (counts.messages) console.log(`Email-to-task: ${counts.messages} message(s), ${counts.created} task(s) created, ${counts.rejected} rejected.`);
+  } finally {
+    await source.close();
+  }
 }
 
 async function drainQueue(db, tenant, getTransport, wantsEmail) {

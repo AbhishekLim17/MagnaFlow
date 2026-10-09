@@ -36,11 +36,14 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install firebase-admin nodemailer --no-save
+        # imapflow + mailparser read the mailbox for email-to-task (only when INBOUND_EMAIL is on)
+        run: npm install firebase-admin nodemailer imapflow mailparser --no-save
 
       - name: Drain the queue
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAGNAFLOW_07SEP25 }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          # repository variable: 'on' to turn email-to-task on (docs/EMAIL_TO_TASK.md)
+          INBOUND_EMAIL: ${{ vars.INBOUND_EMAIL }}
         run: node scripts/send-queued-emails.cjs ${{ inputs.dry_run && '--dry-run' || '' }}

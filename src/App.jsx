@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
@@ -64,6 +65,8 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 function AppRoutes() {
   const { isAuthenticated, user, loading, sessionProblem } = useAuth();
+  // Redirects keep the query, so a link like /?task=<id> (from an email) survives signing in.
+  const { search } = useLocation();
 
   // Don't render routes until the auth state is known.
   if (loading) {
@@ -83,7 +86,7 @@ function AppRoutes() {
           path="/login"
           element={
             isAuthenticated ? (
-              <Navigate to={getHomeRoute(user.role)} replace />
+              <Navigate to={{ pathname: getHomeRoute(user.role), search }} replace />
             ) : (
               <LoginPage />
             )
@@ -149,7 +152,7 @@ function AppRoutes() {
           path="/"
           element={
             <Navigate
-              to={isAuthenticated ? getHomeRoute(user.role) : "/login"}
+              to={{ pathname: isAuthenticated ? getHomeRoute(user.role) : "/login", search }}
               replace
             />
           }
@@ -159,7 +162,7 @@ function AppRoutes() {
           path="*"
           element={
             <Navigate
-              to={isAuthenticated ? getHomeRoute(user.role) : "/login"}
+              to={{ pathname: isAuthenticated ? getHomeRoute(user.role) : "/login", search }}
               replace
             />
           }
