@@ -26,6 +26,7 @@ import {
   Gauge,
   CalendarClock,
   Palmtree,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,6 +49,7 @@ import { canEditTask } from '@/lib/taskPermissions';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import TimesheetsPage from '@/components/admin/TimesheetsPage';
 import LeavePage from '@/components/shared/LeavePage';
+import RaidPage from '@/components/admin/RaidPage';
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
@@ -263,6 +265,7 @@ const ScopedDashboard = ({ scope }) => {
     { id: 'staff', label: `${cfg.noun} Staff`, icon: Users },
     { id: 'timeline', label: 'Project Timeline', icon: GanttChartSquare },
     { id: 'portfolio', label: 'Portfolio Health', icon: HeartPulse },
+    { id: 'risks', label: 'Risks & Issues', icon: ShieldAlert },
     { id: 'workload', label: 'Workload', icon: Gauge },
     { id: 'timesheets', label: 'Timesheets', icon: CalendarClock },
     { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
@@ -405,6 +408,7 @@ const ScopedDashboard = ({ scope }) => {
           <Route path="/requests" element={<ClientRequestsInbox />} />
           <Route path="/timesheets" element={<TimesheetsPage />} />
           <Route path="/leave" element={<LeavePage />} />
+          <Route path="/risks" element={<RaidPage />} />
         </Routes>
       </motion.div>
 

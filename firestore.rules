@@ -89,6 +89,15 @@ service cloud.firestore {
         || inScope(orgId, request.resource.data.get('departmentId', null), request.resource.data.get('projectId', null));
     }
     // Reading project money (and recording expenses): whoever runs the project, or Finance.
+    function raidFieldsValid(d) {
+      return d.type in ['risk', 'issue', 'assumption', 'decision']
+        && d.impact in ['high', 'medium', 'low']
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 160
+        && d.detail is string && d.detail.size() <= 2000
+        && d.ownerName is string && d.ownerName.size() <= 120
+        && (d.dueDate == null || (d.dueDate is string && d.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && d.updatedAt == request.time;
+    }
     // A head or manager whose department or project the person (a staff member) belongs to.
     function leadsPerson(orgId, uid) {
       return (isDeptHead() || isManager())
@@ -422,6 +431,31 @@ service cloud.firestore {
             && request.resource.data.decidedAt == request.time
             && (request.resource.data.userId != request.auth.uid || isOrgAdmin(orgId) || isMasterAdmin());
           allow delete: if canManageProjectMoney(orgId, projId);
+        }
+
+        // RAID log (lib/raid): the team reads it; anyone on the project raises an entry, as
+        // themselves at the server's time; whoever runs the project, or the entry's author,
+        // edits, closes or removes it.
+        match /raid/{entryId} {
+          allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
+          allow create: if isSignedIn() && !isClient()
+            && (isProjectMember(orgId, projId) || canManageProjectMoney(orgId, projId))
+            && request.resource.data.keys().hasOnly(['type', 'title', 'detail', 'impact', 'ownerId', 'ownerName', 'dueDate',
+                 'status', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'])
+            && request.resource.data.status == 'open'
+            && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.createdByName is string
+            && request.resource.data.createdByName.size() <= 120
+            && raidFieldsValid(request.resource.data);
+          allow update: if (resource.data.get('createdBy', null) == request.auth.uid && isSignedIn() && !isClient()
+                || canManageProjectMoney(orgId, projId))
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['type', 'title', 'detail', 'impact', 'ownerId', 'ownerName', 'dueDate', 'status', 'updatedAt'])
+            && request.resource.data.status in ['open', 'closed']
+            && raidFieldsValid(request.resource.data);
+          allow delete: if (resource.data.get('createdBy', null) == request.auth.uid && isSignedIn())
+            || canManageProjectMoney(orgId, projId);
         }
 
         match /updates/{updateId} {

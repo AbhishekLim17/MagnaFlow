@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Palmtree, CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
+import { ShieldAlert, Palmtree, CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import ViewToggle, { savedView } from '@/components/shared/ViewToggle';
 import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import LeavePage from '@/components/shared/LeavePage';
+import RaidPage from '@/components/admin/RaidPage';
 import { useConfirm } from '@/components/shared/ConfirmDialog';
 import { formatDate } from '@/lib/format';
 import { filterAndSortTasks, SORT_OPTIONS } from '@/lib/taskFilters';
@@ -34,8 +35,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const STAFF_MENU = [
   { id: 'dashboard', label: 'My Tasks', icon: CheckSquare },
+  { id: 'risks', label: 'Risks & Issues', icon: ShieldAlert },
   { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
 ];
+// The other pages of the staff dashboard (the task list is the first).
+const STAFF_PAGES = { leave: LeavePage, risks: RaidPage };
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
@@ -269,7 +273,7 @@ const StaffDashboard = () => {
       onTabChange={setTab}
       title={STAFF_MENU.find((m) => m.id === tab).label}
     >
-      {tab === 'leave' ? <LeavePage /> : (
+      {STAFF_PAGES[tab] ? React.createElement(STAFF_PAGES[tab]) : (
       <div className="space-y-6">
         {/* The header already greets the user by name. */}
         <p className="text-sm text-muted-foreground">Manage your tasks and track your progress</p>

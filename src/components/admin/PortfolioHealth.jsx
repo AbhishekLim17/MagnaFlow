@@ -16,6 +16,8 @@ import { getProjects } from '@/services/organizationService';
 import { latestUpdates, listUpdates, postUpdate } from '@/services/projectUpdateService';
 import { HEALTH, HEALTH_KEYS, MAX_SUMMARY, projectHealth, projectMetrics, sortByHealth } from '@/lib/portfolio';
 import { runsProject } from '@/lib/taskPermissions';
+import { attentionLine, raidAttention } from '@/lib/raid';
+import { listRaid } from '@/services/raidService';
 import { formatDate, formatRelative } from '@/lib/format';
 import { reportError } from '@/lib/reportError';
 
@@ -125,6 +127,7 @@ const PortfolioHealth = () => {
   const orgId = currentUser?.orgId;
   const [projects, setProjects] = useState([]);
   const [latest, setLatest] = useState({});
+  const [raid, setRaid] = useState({});
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(null);
   const [history, setHistory] = useState(null);
@@ -136,6 +139,9 @@ const PortfolioHealth = () => {
       const mine = (await getProjects(orgId)).filter((p) => runsProject(currentUser, p));
       setProjects(mine);
       setLatest(await latestUpdates(orgId, mine.map((p) => p.id)));
+      // Open risks and issues per project (RAID log): in the background, best-effort.
+      Promise.all(mine.map((p) => listRaid(orgId, p.id, { openOnly: true }).catch(() => [])))
+        .then((open) => setRaid(Object.fromEntries(mine.map((p, i) => [p.id, raidAttention(open[i])]))));
     } catch (error) {
       reportError(error, { title: "Couldn't load the portfolio" });
     } finally {
@@ -191,6 +197,9 @@ const PortfolioHealth = () => {
                         {m.dueSoon ? ` · ${m.dueSoon} due this week` : ''}
                         {m.nextMilestone ? ` · next milestone ${m.nextMilestone.title}, ${formatDate(new Date(m.nextMilestone.deadline))}` : ''}
                       </p>
+                      {raid[p.id] && attentionLine(raid[p.id]) && (
+                        <p className="mt-1 text-xs font-semibold text-destructive">{attentionLine(raid[p.id])}</p>
+                      )}
                     </div>
                     <HealthPill health={p.health} />
                   </div>

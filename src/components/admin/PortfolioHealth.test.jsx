@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   post: vi.fn(),
   toast: vi.fn(),
+  raid: vi.fn(),
 }));
+vi.mock('@/services/raidService', () => ({ listRaid: mocks.raid }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: mocks.user }) }));
 vi.mock('@/contexts/TasksContext', () => ({ useTasks: () => ({ tasks: mocks.tasks, tasksTruncated: false }) }));
 vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
@@ -37,6 +39,9 @@ beforeEach(() => {
     { id: 'c', projectId: 'p2', status: 'pending', deadline: past },
     { id: 'd', projectId: 'p2', status: 'pending', deadline: future },
   ];
+  mocks.raid.mockImplementation(async (org, projectId) => (projectId === 'p2'
+    ? [{ type: 'risk', impact: 'high', status: 'open' }, { type: 'issue', impact: 'low', status: 'open' }]
+    : []));
   mocks.latest.mockResolvedValue({ p1: { health: 'on_track', summary: 'All good', createdByName: 'Mo', createdAt: new Date() }, p2: null });
   mocks.list.mockResolvedValue([]);
   mocks.post.mockImplementation(async (_o, _p, u) => ({ ...u, createdByName: 'Mo', createdAt: new Date() }));
@@ -54,6 +59,9 @@ describe('PortfolioHealth', () => {
     expect(itemFor('Apollo')).toHaveTextContent('On track');
     expect(itemFor('Apollo')).toHaveTextContent('All good');
     expect(within(itemFor('Apollo')).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+    // the RAID log: an open high-impact risk shows on its project
+    await waitFor(() => expect(itemFor('Atlas')).toHaveTextContent('1 high-impact risk or issue open'));
+    expect(itemFor('Apollo')).not.toHaveTextContent('high-impact');
   });
 
   test('posting an update needs a summary, then becomes the project status', async () => {

@@ -42,3 +42,7 @@ export const runsProject = (user, project) => {
   if (user.role === 'department-head') return Boolean(project.departmentId) && (user.departmentIds || []).includes(project.departmentId);
   return false;
 };
+
+/** The projects a person works in: the ones they run, plus the ones they are a member of. */
+export const projectsInScope = (user, projects = []) =>
+  projects.filter((p) => runsProject(user, p) || (user?.projectIds || []).includes(p.id));

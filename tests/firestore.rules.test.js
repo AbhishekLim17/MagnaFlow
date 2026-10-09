@@ -1766,3 +1766,36 @@ describe('leave and public holidays', () => {
     await assertFails(setDoc(doc(asUser(ADMIN_A), 'organizations', ORG_A, 'holidays', 'other'), { days: [] }));
   });
 });
+
+describe('RAID log', () => {
+  const col = (db) => collection(db, 'organizations', ORG_A, 'projects', PROJ_A, 'raid');
+  const entry = (createdBy, extra = {}) => ({
+    type: 'risk', title: 'Vendor may slip', detail: '', impact: 'high', ownerId: null, ownerName: '', dueDate: null,
+    status: 'open', createdBy, createdByName: 'X', createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...extra,
+  });
+
+  test('anyone on the project raises an entry; the team reads; clients and outsiders do not', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(STAFF_SCOPED)), 'r1'), entry(STAFF_SCOPED)));
+    await assertFails(setDoc(doc(col(asUser(STAFF_A)), 'r2'), entry(STAFF_A))); // not on the project
+    await assertFails(setDoc(doc(col(asUser(CLIENT_A)), 'r3'), entry(CLIENT_A)));
+    await assertSucceeds(getDocs(col(asUser(STAFF_A))));
+    await assertFails(getDocs(col(asUser(CLIENT_A))));
+    await assertFails(getDocs(col(asUser(STAFF_B))));
+  });
+  test('an entry is raised open, as yourself, with sensible fields', async () => {
+    await assertFails(setDoc(doc(col(asUser(STAFF_SCOPED)), 'r4'), entry(MGR_A)));
+    await assertFails(setDoc(doc(col(asUser(STAFF_SCOPED)), 'r5'), entry(STAFF_SCOPED, { status: 'closed' })));
+    await assertFails(setDoc(doc(col(asUser(STAFF_SCOPED)), 'r6'), entry(STAFF_SCOPED, { impact: 'catastrophic' })));
+    await assertFails(setDoc(doc(col(asUser(STAFF_SCOPED)), 'r7'), entry(STAFF_SCOPED, { title: '' })));
+  });
+  test('the author or whoever runs the project edits, closes and deletes', async () => {
+    await assertSucceeds(setDoc(doc(col(asUser(STAFF_SCOPED)), 'r8'), entry(STAFF_SCOPED)));
+    await assertSucceeds(updateDoc(doc(col(asUser(STAFF_SCOPED)), 'r8'), { status: 'closed', updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(col(asUser(MGR_A)), 'r8'), { impact: 'low', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(col(asUser(MGR_A)), 'r8'), { createdBy: MGR_A, updatedAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(col(asUser(MGR_A)), 'r9'), entry(MGR_A)));
+    await assertFails(updateDoc(doc(col(asUser(STAFF_SCOPED)), 'r9'), { status: 'closed', updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(col(asUser(STAFF_SCOPED)), 'r9')));
+    await assertSucceeds(deleteDoc(doc(col(asUser(HEAD_A)), 'r9')));
+  });
+});
