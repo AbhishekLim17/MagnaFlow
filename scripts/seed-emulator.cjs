@@ -116,10 +116,12 @@ async function reset() {
     'users', 'tasks', 'organizations', 'designations',
     'audit_logs', 'error_logs', 'subtasks', 'task_comments',
     'client_messages', 'client_requests', 'comment_notifications',
+    'time_entries', 'task_events', 'mail_queue', 'inbound_keys',
   ];
   for (const name of collections) {
     const snap = await db.collection(name).get();
-    await Promise.all(snap.docs.map((d) => d.ref.delete()));
+    // recursively: an organisation's projects, sprints, goals… go with it
+    await Promise.all(snap.docs.map((d) => db.recursiveDelete(d.ref)));
   }
   const users = await auth.listUsers(1000);
   await Promise.all(users.users.map((u) => auth.deleteUser(u.uid)));
@@ -243,6 +245,116 @@ async function seed() {
       });
     }
   }
+
+  console.log('Creating the showcase (every optional feature, with content)…');
+  // The demo organisation has every feature switched on (a real one starts with essentials),
+  // and enough in each to look alive: the Features page screenshots are taken from this.
+  const apollo = orgRef.collection('projects').doc(PROJ_APOLLO);
+  const atlas = orgRef.collection('projects').doc(PROJ_ATLAS);
+  const ymdOf = (offset) => day(offset).toDate().toISOString().slice(0, 10);
+  const now = admin.firestore.Timestamp.now();
+  const { OPTIONAL } = await import('../src/lib/features.js');
+  await orgRef.collection('features').doc('settings').set({ enabled: OPTIONAL, updatedBy: 'u-orgadmin', updatedAt: now });
+  await orgRef.collection('workflow').doc('stages').set({ stages: [
+    { id: 'qa', name: 'QA', category: 'review' },
+    { id: 'client-check', name: 'Client check', category: 'review' },
+  ] });
+  await orgRef.collection('customFields').doc('cf-client-ref').set({ name: 'Client reference', type: 'text', options: [], createdAt: now });
+  await orgRef.collection('finance').doc('rates').set({ defaultRate: 1200, people: { 'u-staff1': 1400 } });
+  await orgRef.collection('holidays').doc('list').set({ days: [
+    { date: ymdOf(5), name: 'Founders’ Day' }, { date: ymdOf(26), name: 'Diwali holiday' }, { date: ymdOf(70), name: 'Christmas' },
+  ] });
+  await orgRef.collection('leave').doc('lv1').set({ userId: 'u-staff2', userName: 'Vikram Iyer', from: ymdOf(8), to: ymdOf(10), note: 'Family function', createdBy: 'u-staff2', createdAt: now });
+  await orgRef.collection('leave').doc('lv2').set({ userId: 'u-staff1', userName: 'Sana Staff', from: ymdOf(20), to: ymdOf(21), note: 'Conference', createdBy: 'u-staff1', createdAt: now });
+
+  // Sprints on Apollo: two finished, one running; story points on its open tasks.
+  const sprintRef = (id) => apollo.collection('sprints').doc(id);
+  await sprintRef('s1').set({ name: 'Sprint 1 – Foundations', goal: 'Billing and data in place', startDate: ymdOf(-30), endDate: ymdOf(-17), status: 'closed', completedPoints: 13, createdBy: 'u-manager', createdAt: now });
+  await sprintRef('s2').set({ name: 'Sprint 2 – Onboarding', goal: 'New onboarding live', startDate: ymdOf(-16), endDate: ymdOf(-3), status: 'closed', completedPoints: 11, createdBy: 'u-manager', createdAt: now });
+  await sprintRef('s3').set({ name: 'Sprint 3 – Launch prep', goal: 'Checkout insights and launch checklist', startDate: ymdOf(-2), endDate: ymdOf(11), status: 'active', completedPoints: null, createdBy: 'u-manager', createdAt: now });
+  const points = {
+    'Rewrite the onboarding emails': [5, 's3'], 'Instrument the checkout funnel': [8, 's3'], 'Review the Apollo release checklist': [3, 's3'],
+    'Draft the accessibility statement': [3, null], 'Refresh the design tokens': [5, null], 'Approve the Q3 hiring plan': [2, 's3'],
+  };
+  for (const [title, [storyPoints, sprintId]] of Object.entries(points)) {
+    if (taskRefs[title]) await db.collection('tasks').doc(taskRefs[title]).update({ storyPoints, ...(sprintId ? { sprintId } : {}) });
+  }
+  const quick = await db.collection('tasks').add({
+    title: 'Launch banner copy', description: 'Short banner announcing the new checkout.', status: 'completed', priority: 'low',
+    assignedTo: 'u-staff1', createdBy: 'u-manager', orgId: ORG_ID, departmentId: DEPT_ENG, projectId: PROJ_APOLLO,
+    startDate: day(-2), deadline: day(-1), createdAt: day(-3), completedAt: day(-1), updatedAt: day(-1), storyPoints: 3, sprintId: 's3',
+  });
+  if (taskRefs['Instrument the checkout funnel']) {
+    await db.collection('tasks').doc(taskRefs['Instrument the checkout funnel']).update({ watchers: ['u-orgadmin'], estimateHours: 20 });
+  }
+  await db.collection('tasks').doc(signOff.id).update({ stage: 'client-check' });
+
+  // Goals
+  await orgRef.collection('goals').doc('g1').set({
+    title: 'Launch Apollo to every customer', description: 'New checkout and onboarding for all accounts.', ownerId: 'u-head', ownerName: 'Neha Head',
+    startDate: ymdOf(-30), dueDate: ymdOf(60), projectIds: [PROJ_APOLLO],
+    keyResults: [{ title: 'Accounts on the new checkout', start: 0, target: 120, current: 48, unit: 'accounts' }, { title: 'Checkout conversion', start: 2, target: 4, current: 2.9, unit: '%' }],
+    createdBy: 'u-orgadmin', createdAt: now, updatedAt: now,
+  });
+  await orgRef.collection('goals').doc('g2').set({
+    title: 'Close the books faster', description: 'Month-end close in three days.', ownerId: 'u-staff3', ownerName: 'Aisha Khan',
+    startDate: ymdOf(-30), dueDate: ymdOf(60), projectIds: [PROJ_ATLAS],
+    keyResults: [{ title: 'Days to close the month', start: 8, target: 3, current: 6, unit: 'days' }],
+    createdBy: 'u-orgadmin', createdAt: now, updatedAt: now,
+  });
+
+  // Weekly status updates, risks and a project page
+  await apollo.collection('updates').doc('u1').set({ health: 'on_track', summary: 'Sprint 3 under way: onboarding emails nearly done, funnel tracking in review. Launch checklist next week.', createdBy: 'u-manager', createdByName: 'Rohit Manager', createdAt: now });
+  await atlas.collection('updates').doc('u1').set({ health: 'at_risk', summary: 'Vendor audit is a day late and the Q2 ledger close depends on it. Extra reviewer added.', createdBy: 'u-head', createdByName: 'Neha Head', createdAt: now });
+  const raid = [
+    [apollo, 'risk', 'Payment provider changes its API before launch', 'Mitigation: pin the API version; test against the sandbox weekly.', 'high', 'u-staff2', 'Vikram Iyer', ymdOf(7)],
+    [apollo, 'decision', 'Launch to 10% of accounts first', 'Roll out gradually to watch conversion before everyone moves.', 'medium', 'u-manager', 'Rohit Manager', null],
+    [apollo, 'assumption', 'Design tokens are final by mid-month', 'The accessibility statement depends on them.', 'medium', 'u-staff1', 'Sana Staff', ymdOf(10)],
+    [atlas, 'issue', 'Vendor audit evidence incomplete', 'Two vendors have not sent their certificates.', 'high', 'u-staff3', 'Aisha Khan', ymdOf(2)],
+  ];
+  for (const [i, [proj, type, title, detail, impact, ownerId, ownerName, dueDate]] of raid.entries()) {
+    await proj.collection('raid').doc(`r${i + 1}`).set({ type, title, detail, impact, ownerId, ownerName, dueDate, status: 'open', createdBy: 'u-manager', createdByName: 'Rohit Manager', createdAt: now, updatedAt: now });
+  }
+  await apollo.collection('pages').doc('p1').set({
+    title: 'Launch plan',
+    body: '# Launch plan\n## Goals\n- New checkout for every account\n- Measure conversion before and after\n## Decisions\n- Roll out to 10% first, then everyone\n## Action items\n- [x] Funnel tracking in staging\n- [ ] Write the launch banner copy\n- [ ] Book the go/no-go meeting',
+    createdBy: 'u-manager', createdAt: now, updatedBy: 'u-manager', updatedByName: 'Rohit Manager', updatedAt: now,
+  });
+  await atlas.collection('pages').doc('p1').set({
+    title: 'Month-end close checklist',
+    body: '# Close checklist\n- [x] Bank reconciliation\n- [ ] Vendor audit sign-off\n- [ ] Accruals review',
+    createdBy: 'u-head', createdAt: now, updatedBy: 'u-head', updatedByName: 'Neha Head', updatedAt: now,
+  });
+
+  // Money: expenses, an approved week and two invoices
+  const expenses = [[apollo, 18000, 'Load testing service', 'tools', -12], [apollo, 42000, 'Contract designer', 'labor', -8], [apollo, 6500, 'Team travel to client', 'travel', -4], [atlas, 9000, 'Audit software licence', 'tools', -10]];
+  for (const [i, [proj, amount, description, category, offset]] of expenses.entries()) {
+    await proj.collection('expenses').doc(`e${i + 1}`).set({ amount, description, category, date: ymdOf(offset), addedBy: 'u-orgadmin', addedByName: 'Arjun Admin', createdAt: day(offset) });
+  }
+  const monday = (() => { const d = day(-7).toDate(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
+  await apollo.collection('timesheets').doc(`u-staff1_${monday}`).set({ userId: 'u-staff1', userName: 'Sana Staff', weekStart: monday, minutes: 300, status: 'approved', note: '', decidedBy: 'u-manager', decidedByName: 'Rohit Manager', decidedAt: now });
+  const invoice = (number, status, lines) => {
+    const subtotal = lines.reduce((s, l) => s + l.amount, 0);
+    const tax = Math.round(subtotal * 18) / 100;
+    return { number, projectId: PROJ_APOLLO, projectName: 'Apollo Platform', clientName: 'Acme Corp', from: ymdOf(-45), to: ymdOf(-16), currency: 'USD', lines, taxPercent: 18, subtotal, tax, total: subtotal + tax, status, notes: 'Payment due within 15 days.', createdBy: 'u-orgadmin', createdByName: 'Arjun Admin', createdAt: now, paidAt: status === 'paid' ? now : null };
+  };
+  const line = (description, hours, rate) => ({ userId: null, description, hours, rate, amount: hours * rate });
+  await orgRef.collection('invoices').doc('i1').set(invoice('INV-2026-0001', 'paid', [line('Sana Staff', 32, 60), line('Vikram Iyer', 28, 60)]));
+  await orgRef.collection('invoices').doc('i2').set(invoice('INV-2026-0002', 'issued', [line('Sana Staff', 24, 60)]));
+
+  // Automations, a client request and an email-in address
+  await orgRef.collection('integrations').doc('channels').set({ slack: 'https://hooks.slack.com/services/T000/B000/demo', teams: '', webhook: '', webhookSecret: '' });
+  await orgRef.collection('automations').doc('a1').set({
+    name: 'Tell #apollo when work is ready for review', enabled: true, trigger: 'status_changed', toStatus: 'review', projectId: PROJ_APOLLO, priority: '',
+    action: { type: 'notify_channels' }, updatedBy: 'u-orgadmin', updatedAt: now,
+  });
+  await db.collection('client_requests').add({
+    orgId: ORG_ID, projectId: PROJ_APOLLO, title: 'Add an export of monthly orders', details: 'Our finance team needs a CSV of orders each month.',
+    urgency: 'normal', neededBy: null, requestedBy: 'u-client', requestedByName: 'Acme Corp Client', status: 'new', notified: true, createdAt: day(-1),
+  });
+  await apollo.update({ inboxKey: 'apollodemokey001' });
+  await db.collection('inbound_keys').doc('apollodemokey001').set({ orgId: ORG_ID, projectId: PROJ_APOLLO, createdBy: 'u-orgadmin', createdAt: now });
+  void quick;
 
   console.log('Creating audit and error log entries…');
   // The shape the services write (see src/services/auditService.js), so the org admin's
