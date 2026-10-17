@@ -7,6 +7,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { toUserMessage } from '@/lib/errorMessages';
 import { formatDate, toDate } from '@/lib/format';
 import { useAuth } from './AuthContext';
+import { useFeatures } from './FeaturesContext';
 import { getAllTasks, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, subscribeTasks, computeTaskStatistics } from '@/services/taskService';
 import { safeUnsubscribe } from '@/lib/safeUnsubscribe';
 import { subscribeRules, recordTaskEvent } from '@/services/automationService';
@@ -639,11 +640,12 @@ export const TasksProvider = ({ children }) => {
     return filtered;
   };
 
+  const { isOn } = useFeatures();
   const value = {
     tasks,
     tasksTruncated,
-    customFields,
-    stages,
+    customFields: isOn('taskFields') ? customFields : [],
+    stages: isOn('taskFields') ? stages : [],
     loading,
     statistics,
     createTask,

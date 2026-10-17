@@ -14,6 +14,7 @@ const admin = require('firebase-admin');
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { APP_URL, EMAIL_RE } = require('./lib/tenant.cjs');
+const { orgHasFeature } = require('./lib/features.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const lib = (name) => import(pathToFileURL(path.join(__dirname, '..', 'src', 'lib', name)).href);
@@ -30,6 +31,7 @@ async function main() {
 
   const orgs = (await db.collection('organizations').get()).docs.filter((d) => d.data().status !== 'suspended');
   for (const org of orgs) {
+    if (!(await orgHasFeature(db, org.id, 'monthlyReport'))) continue; // not added there
     const people = (await db.collection('users').where('orgId', '==', org.id).get()).docs.map((d) => ({ id: d.id, ...d.data() }));
     const admins = people.filter((u) => ['org-admin', 'admin'].includes(u.role) && u.status !== 'inactive'
       && EMAIL_RE.test(String(u.email || '')) && wantsEmail(u.notificationPrefs, 'monthly_report'));

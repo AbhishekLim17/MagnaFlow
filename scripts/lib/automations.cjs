@@ -10,6 +10,7 @@
  */
 const crypto = require('crypto');
 const { APP_URL } = require('./tenant.cjs');
+const { orgHasFeature } = require('./features.cjs');
 
 const MAX_EVENTS_PER_RUN = 200;
 
@@ -111,6 +112,7 @@ async function runAutomations({ db, admin, lib, dryRun = false }) {
       const [orgSnap, rules, ch] = await Promise.all([org.get(), org.collection('automations').get(), org.collection('integrations').doc('channels').get()]);
       perOrg.set(orgId, {
         suspended: !orgSnap.exists || orgSnap.data().status === 'suspended',
+        off: !(await orgHasFeature(db, orgId, 'automations')),
         rules: rules.docs.map((d) => ({ id: d.id, ...d.data() })),
         channels: ch.exists ? ch.data() : {},
         projects: new Map(),
@@ -125,6 +127,8 @@ async function runAutomations({ db, admin, lib, dryRun = false }) {
     const o = event.orgId ? await orgData(event.orgId) : null;
     if (!o || o.suspended) {
       results.push('organisation not active');
+    } else if (o.off) {
+      results.push('automations are off');
     } else if (event.type === 'channel_test') {
       const notes = dryRun ? ['dry run'] : await postToChannels(o.channels, lib, 'Test message from MagnaFlow: your automations can post here.');
       results.push(`test: ${notes.join(', ')}`);

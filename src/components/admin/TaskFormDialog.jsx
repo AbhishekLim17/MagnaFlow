@@ -23,6 +23,7 @@ import { LINK_TYPES, MAX_LAG, normalizeLink } from '@/lib/dependencyLinks';
 import { MAX_ESTIMATE_HOURS, parseEstimate } from '@/lib/timeTracking';
 import { assignmentWarning } from '@/lib/capacity';
 import { MAX_POINTS } from '@/lib/sprints';
+import { useFeatures } from '@/contexts/FeaturesContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { roleLabel } from '@/lib/taskLabels';
 import { Textarea } from '@/components/ui/textarea';
@@ -70,6 +71,7 @@ const TaskFormDialog = ({
   const set = (patch) => setFormData({ ...formData, ...patch });
   // The organisation's own fields (Custom fields page); values are cleaned on save.
   const { customFields = [] } = useTasks();
+  const { isOn } = useFeatures();
   const setField = (fid, value) => set({ customFields: { ...(formData.customFields || {}), [fid]: value } });
   // Candidate prerequisites: never the task itself, and never a task that already
   // depends on it (directly or transitively) - that would be a loop.
@@ -269,7 +271,7 @@ const TaskFormDialog = ({
             })()}
           </div>
 
-          <div>
+          {isOn('sprints') && <div>
             <Label htmlFor={idFor('points')}>Story points <span className="text-muted-foreground text-xs font-normal">(optional, for sprints)</span></Label>
             <Input
               id={idFor('points')}
@@ -282,7 +284,7 @@ const TaskFormDialog = ({
               value={formData.storyPoints ?? ''}
               onChange={(e) => set({ storyPoints: e.target.value })}
             />
-          </div>
+          </div>}
 
           {customFields.length > 0 && (
             <fieldset className="grid gap-4 sm:grid-cols-2">

@@ -1910,3 +1910,26 @@ describe('workflow stages', () => {
     await assertFails(updateDoc(doc(asUser(STAFF_A), 'tasks', 'taskA'), { stage: 'qa', title: 'x' }));
   });
 });
+
+describe('feature settings', () => {
+  const ref = (db) => doc(db, 'organizations', ORG_A, 'features', 'settings');
+  const settings = (uid, enabled = ['sprints']) => ({ enabled, updatedBy: uid, updatedAt: serverTimestamp() });
+
+  test('org admins switch features on and off; everyone in the organisation reads them', async () => {
+    await assertSucceeds(setDoc(ref(asUser(ADMIN_A)), settings(ADMIN_A)));
+    await assertSucceeds(getDoc(ref(asUser(STAFF_A))));
+    await assertSucceeds(getDoc(ref(asUser(CLIENT_A))));
+    await assertFails(getDoc(ref(asUser(STAFF_B))));
+  });
+  test('nobody else changes them, and only the settings document', async () => {
+    await assertFails(setDoc(ref(asUser(MGR_A)), settings(MGR_A)));
+    await assertFails(setDoc(ref(asUser(STAFF_A)), settings(STAFF_A)));
+    await assertFails(setDoc(ref(asUser(ADMIN_B)), settings(ADMIN_B)));
+    await assertFails(setDoc(ref(asUser(ADMIN_A)), settings(MGR_A)));
+    await assertFails(setDoc(doc(asUser(ADMIN_A), 'organizations', ORG_A, 'features', 'other'), settings(ADMIN_A)));
+  });
+  test('a person hides features from their own menu on their own profile', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(STAFF_A), 'users', STAFF_A), { hiddenFeatures: ['goals'] }));
+    await assertFails(updateDoc(doc(asUser(STAFF_A), 'users', STAFF_SCOPED), { hiddenFeatures: ['goals'] }));
+  });
+});

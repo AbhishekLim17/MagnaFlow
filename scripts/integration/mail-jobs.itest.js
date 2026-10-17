@@ -52,11 +52,19 @@ const clearAll = async () => {
   }
 };
 
+// Every optional feature switched on (they start off; a job skips organisations without them).
+const enableAll = async (orgId) => {
+  const { OPTIONAL } = await import('../../src/lib/features.js');
+  await db.collection('organizations').doc(orgId).collection('features').doc('settings').set({ enabled: OPTIONAL });
+};
+
 const seedBase = async () => {
   await db.collection('organizations').doc('orgA').set({ name: 'Org A', status: 'active' });
+  await enableAll('orgA');
   await db.collection('organizations').doc('orgA').collection('private').doc('settings')
     .set({ ccEmails: ['boss@a.test'], seatLimit: 10 });
   await db.collection('organizations').doc('orgB').set({ name: 'Org B', status: 'active', ccEmails: ['boss@b.test'] });
+  await enableAll('orgB');
 
   const users = {
     uA1: { name: 'Ann A', email: 'ann@a.test', orgId: 'orgA', status: 'active', role: 'staff' },
@@ -381,6 +389,7 @@ describe('weekly project summary', () => {
     await clearAll();
     const orgA = db.collection('organizations').doc('orgA');
     await orgA.set({ name: 'Org A', status: 'active' });
+    await enableAll('orgA');
     await orgA.collection('projects').doc('pA').set({ name: 'Apollo', departmentId: 'dA' });
     await orgA.collection('projects').doc('pB').set({ name: 'Borealis', departmentId: 'dB' });
     await orgA.collection('projects').doc('pB').collection('updates').add({
@@ -432,6 +441,7 @@ describe('monthly report', () => {
     await clearAll();
     const orgA = db.collection('organizations').doc('orgA');
     await orgA.set({ name: 'Org A', status: 'active' });
+    await enableAll('orgA');
     await orgA.collection('projects').doc('pA').set({ name: 'Apollo' });
     await db.collection('organizations').doc('orgQ').set({ name: 'Quiet', status: 'active' });
     const people = {
@@ -462,6 +472,7 @@ describe('email-to-task', () => {
   test("a member's authenticated email becomes a task in the project; anything else is turned away", async () => {
     await clearAll();
     await db.collection('organizations').doc('orgA').set({ name: 'Org A', status: 'active' });
+    await enableAll('orgA');
     await db.collection('organizations').doc('orgA').collection('projects').doc('pA').set({ name: 'Apollo', departmentId: 'dA', inboxKey: 'apollokey123456' });
     await db.collection('inbound_keys').doc('apollokey123456').set({ orgId: 'orgA', projectId: 'pA' });
     await db.collection('users').doc('uM').set({ name: 'Mia Member', email: 'mia@a.test', orgId: 'orgA', status: 'active', role: 'staff', projectIds: ['pA'] });
@@ -494,6 +505,34 @@ describe('email-to-task', () => {
     const again = runScript('send-queued-emails.cjs', env);
     expect(again.status, again.stderr + again.stdout).toBe(0);
     expect((await db.collection('tasks').get()).size).toBe(1);
+    fs.unlinkSync(file);
+  });
+});
+
+describe('features switched off', () => {
+  test('an organisation that has not added a feature gets none of its emails', async () => {
+    await clearAll();
+    await db.collection('organizations').doc('orgA').set({ name: 'Org A', status: 'active' }); // nothing added
+    await db.collection('organizations').doc('orgA').collection('projects').doc('pA').set({ name: 'Apollo' });
+    await db.collection('inbound_keys').doc('apollokey123456').set({ orgId: 'orgA', projectId: 'pA' });
+    await db.collection('users').doc('uAdm').set({ name: 'Ada', email: 'ada@a.test', orgId: 'orgA', status: 'active', role: 'org-admin', projectIds: ['pA'] });
+    const now = new Date();
+    const lastMonth = admin.firestore.Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() - 1, 10, 12));
+    await db.collection('tasks').add({ title: 'Done', orgId: 'orgA', projectId: 'pA', assignedTo: 'uAdm', status: 'completed', createdAt: lastMonth, completedAt: lastMonth });
+
+    const report = runScript('send-monthly-report.cjs');
+    expect(report.status, report.stderr + report.stdout).toBe(0);
+    expect(report.mails).toHaveLength(0);
+    const digest = runScript('send-weekly-digest.cjs');
+    expect(digest.mails).toHaveLength(0);
+
+    const fs = require('fs');
+    const os = require('os');
+    const file = path.join(os.tmpdir(), `inbound-off-${Date.now()}.json`);
+    fs.writeFileSync(file, JSON.stringify([{ id: 'm1', messageId: '<m1@a.test>', to: ['magnaflow+apollokey123456@gmail.com'], from: 'ada@a.test', subject: 'Hi', text: 'x', authResults: 'dkim=pass' }]));
+    const inbound = runScript('send-queued-emails.cjs', { INBOUND_JSON: file, GMAIL_USER: 'magnaflow@gmail.com' });
+    expect(inbound.stdout).toContain('rejected (email-to-task is off)');
+    expect((await db.collection('tasks').where('source', '==', 'email').get()).size).toBe(0);
     fs.unlinkSync(file);
   });
 });

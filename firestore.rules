@@ -308,6 +308,19 @@ service cloud.firestore {
           && request.resource.data.stages.size() <= 30;
       }
 
+      // Which optional features are switched on (lib/features). Everyone in the organisation
+      // reads it (clients too: the portal is a feature); org admins change it, as themselves.
+      match /features/{docId} {
+        allow read: if isSignedIn() && (isOrgMember(orgId) || isMasterAdmin());
+        allow write: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin())
+          && docId == 'settings'
+          && request.resource.data.keys().hasOnly(['enabled', 'updatedBy', 'updatedAt'])
+          && request.resource.data.enabled is list
+          && request.resource.data.enabled.size() <= 60
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time;
+      }
+
       match /customFields/{fieldId} {
         allow read: if isSignedIn() && ((isOrgMember(orgId) && !isClient()) || isMasterAdmin());
         allow delete: if isSignedIn() && (isOrgAdmin(orgId) || isMasterAdmin());

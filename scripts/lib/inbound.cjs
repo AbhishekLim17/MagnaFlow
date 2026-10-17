@@ -12,6 +12,7 @@
  * Off unless INBOUND_EMAIL=on (or, in tests, INBOUND_JSON names a file of messages).
  */
 const crypto = require('crypto');
+const { orgHasFeature } = require('./features.cjs');
 
 const KEY_RE = /^[a-z0-9]{12,40}$/;
 const MAX_PER_RUN = 50;
@@ -103,6 +104,7 @@ async function runInbound({ db, admin, messages, markSeen, confirm, mailbox, dry
     const { orgId, projectId } = keyDoc.data();
     const org = await db.collection('organizations').doc(orgId).get();
     if (!org.exists || org.data().status === 'suspended') { await reject('organization unavailable'); continue; }
+    if (!(await orgHasFeature(db, orgId, 'emailToTask'))) { await reject('email-to-task is off'); continue; }
     const projectSnap = await db.collection('organizations').doc(orgId).collection('projects').doc(projectId).get();
     if (!projectSnap.exists) { await reject('project gone'); continue; }
     const project = { id: projectSnap.id, ...projectSnap.data() };

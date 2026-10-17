@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { DesignationsProvider } from "@/contexts/DesignationsContext";
 import { TasksProvider } from "@/contexts/TasksContext";
+import { FeaturesProvider } from "@/contexts/FeaturesContext";
 import {
   getHomeRoute,
   MASTER_ADMIN_ROLES,
@@ -178,6 +179,7 @@ function App() {
       <HelmetProvider>
         <ThemeProvider>
           <AuthProvider>
+            <FeaturesProvider>
             <TasksProvider>
               <DesignationsProvider>
                 <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -204,6 +206,7 @@ function App() {
                 </Router>
               </DesignationsProvider>
             </TasksProvider>
+            </FeaturesProvider>
           </AuthProvider>
         </ThemeProvider>
       </HelmetProvider>

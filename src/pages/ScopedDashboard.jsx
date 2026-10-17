@@ -30,6 +30,7 @@ import {
   BookOpen,
   Target,
   Flag,
+  Puzzle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,12 +57,20 @@ import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
 import GoalsPage from '@/components/shared/GoalsPage';
 import SprintsPage from '@/components/admin/SprintsPage';
+import FeaturesPage from '@/components/shared/FeaturesPage';
+import FeatureGate from '@/components/shared/FeatureGate';
+import { useFeatures } from '@/contexts/FeaturesContext';
+import { MENU_FEATURE } from '@/lib/features';
+
 import TaskManagement from '@/components/admin/TaskManagementNew';
 import ClientRequestsInbox from '@/components/admin/ClientRequestsInbox';
 import ProjectTimeline from '@/components/admin/ProjectTimeline';
 import PortfolioHealth from '@/components/admin/PortfolioHealth';
 import WorkloadPlanner from '@/components/admin/WorkloadPlanner';
 import { reportError } from '@/lib/reportError';
+
+// An optional feature's page, or a note that it is off (lib/features).
+const gated = (id, element) => <FeatureGate feature={MENU_FEATURE[id]}>{element}</FeatureGate>;
 
 export const SCOPE_CONFIG = {
   department: {
@@ -179,6 +188,7 @@ const ScopedDashboard = ({ scope }) => {
   const confirm = useConfirm();
   const cfg = SCOPE_CONFIG[scope];
   const { user } = useAuth();
+  const { menu } = useFeatures();
   const { tasks, statistics, loading: tasksLoading, rescheduleTask } = useTasks();
   const navigate = useNavigate();
   const location = useLocation();
@@ -279,6 +289,7 @@ const ScopedDashboard = ({ scope }) => {
     { id: 'timesheets', label: 'Timesheets', icon: CalendarClock },
     { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
     { id: 'requests', label: 'Client Requests', icon: Inbox },
+    { id: 'features', label: 'Features', icon: Puzzle },
   ];
 
   const staffNameFor = (uid) => staff.find((s) => s.id === uid)?.name || null;
@@ -384,7 +395,7 @@ const ScopedDashboard = ({ scope }) => {
     return (
       <DashboardLayout
         subtitle={cfg.subtitle}
-        menuItems={menuItems}
+        menuItems={menu(menuItems)}
         activeTab={activeTab}
         onTabChange={navigateToTab}
         title={`${cfg.roleLabel} Dashboard`}
@@ -401,7 +412,7 @@ const ScopedDashboard = ({ scope }) => {
   return (
     <DashboardLayout
       subtitle={cfg.subtitle}
-      menuItems={menuItems}
+      menuItems={menu(menuItems)}
       activeTab={activeTab}
       onTabChange={navigateToTab}
       title={menuItems.find((m) => m.id === activeTab)?.label || `${cfg.roleLabel} Dashboard`}
@@ -412,15 +423,16 @@ const ScopedDashboard = ({ scope }) => {
           <Route path="/tasks" element={<TaskManagement />} />
           <Route path="/staff" element={<StaffRoster />} />
           <Route path="/timeline" element={<ProjectTimeline />} />
-          <Route path="/portfolio" element={<PortfolioHealth />} />
-          <Route path="/workload" element={<WorkloadPlanner />} />
-          <Route path="/requests" element={<ClientRequestsInbox />} />
-          <Route path="/timesheets" element={<TimesheetsPage />} />
-          <Route path="/leave" element={<LeavePage />} />
-          <Route path="/risks" element={<RaidPage />} />
-          <Route path="/pages" element={<WikiPage />} />
-          <Route path="/goals" element={<GoalsPage />} />
-          <Route path="/sprints" element={<SprintsPage />} />
+          <Route path="/portfolio" element={gated('portfolio', <PortfolioHealth />)} />
+          <Route path="/workload" element={gated('workload', <WorkloadPlanner />)} />
+          <Route path="/requests" element={gated('requests', <ClientRequestsInbox />)} />
+          <Route path="/timesheets" element={gated('timesheets', <TimesheetsPage />)} />
+          <Route path="/leave" element={gated('leave', <LeavePage />)} />
+          <Route path="/risks" element={gated('risks', <RaidPage />)} />
+          <Route path="/pages" element={gated('pages', <WikiPage />)} />
+          <Route path="/goals" element={gated('goals', <GoalsPage />)} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/sprints" element={gated('sprints', <SprintsPage />)} />
         </Routes>
       </motion.div>
 

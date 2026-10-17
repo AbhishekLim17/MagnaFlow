@@ -25,6 +25,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { reportError } from '@/lib/reportError';
 import ProjectEmailIn from '@/components/admin/ProjectEmailIn';
+import { useFeatures } from '@/contexts/FeaturesContext';
 import { CURRENCIES, DEFAULT_CURRENCY, formatMoney } from '@/lib/money';
 import {
   getDepartments,
@@ -37,6 +38,7 @@ import {
 
 const DepartmentsProjectsManagement = () => {
   const { user } = useAuth();
+  const { isOn } = useFeatures();
   const { toast } = useToast();
   const [departments, setDepartments] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -218,12 +220,12 @@ const DepartmentsProjectsManagement = () => {
                         Budget: {formatMoney(proj.budget, proj.currency)}
                       </p>
                     )}
-                    <ProjectEmailIn
+                    {isOn('emailToTask') && <ProjectEmailIn
                       project={proj}
                       orgId={user?.orgId}
                       currentUser={user}
                       onChange={(inboxKey) => setProjects((list) => list.map((p) => (p.id === proj.id ? { ...p, inboxKey } : p)))}
-                    />
+                    />}
                   </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive-soft"
                     aria-label={`Delete project ${proj.name}`}

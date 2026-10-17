@@ -27,6 +27,7 @@ import {
   BookOpen,
   Target,
   Flag,
+  Puzzle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -58,6 +59,13 @@ import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
 import GoalsPage from '@/components/shared/GoalsPage';
 import SprintsPage from '@/components/admin/SprintsPage';
+import FeaturesPage from '@/components/shared/FeaturesPage';
+import FeatureGate from '@/components/shared/FeatureGate';
+import { useFeatures } from '@/contexts/FeaturesContext';
+import { MENU_FEATURE } from '@/lib/features';
+
+// An optional feature's page, or a note that it is off (lib/features).
+const gated = (id, element) => <FeatureGate feature={MENU_FEATURE[id]}>{element}</FeatureGate>;
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -83,10 +91,12 @@ const menuItems = [
   { id: 'fields', label: 'Task Fields', icon: ListPlus },
   { id: 'automations', label: 'Automations', icon: Zap },
   { id: 'activity', label: 'Activity Log', icon: History },
+  { id: 'features', label: 'Features', icon: Puzzle },
 ];
 
 const AdminDashboard = () => {
   const { statistics } = useTasks();
+  const { menu } = useFeatures();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -165,7 +175,7 @@ const AdminDashboard = () => {
   return (
     <DashboardLayout
       subtitle="Admin Panel"
-      menuItems={menuItems}
+      menuItems={menu(menuItems)}
       activeTab={activeTab}
       onTabChange={navigateToTab}
       title={menuItems.find((item) => item.id === activeTab)?.label || 'Dashboard'}
@@ -178,22 +188,23 @@ const AdminDashboard = () => {
         <Route path="/designations" element={<DesignationsManagement />} />
         <Route path="/tasks" element={<TaskManagement />} />
         <Route path="/timeline" element={<ProjectTimeline />} />
-        <Route path="/portfolio" element={<PortfolioHealth />} />
-        <Route path="/workload" element={<WorkloadPlanner />} />
-        <Route path="/timesheets" element={<TimesheetsPage />} />
-        <Route path="/leave" element={<LeavePage />} />
-        <Route path="/risks" element={<RaidPage />} />
-        <Route path="/pages" element={<WikiPage />} />
-        <Route path="/goals" element={<GoalsPage />} />
-        <Route path="/sprints" element={<SprintsPage />} />
-        <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/portfolio" element={gated('portfolio', <PortfolioHealth />)} />
+        <Route path="/workload" element={gated('workload', <WorkloadPlanner />)} />
+        <Route path="/timesheets" element={gated('timesheets', <TimesheetsPage />)} />
+        <Route path="/leave" element={gated('leave', <LeavePage />)} />
+        <Route path="/risks" element={gated('risks', <RaidPage />)} />
+        <Route path="/pages" element={gated('pages', <WikiPage />)} />
+        <Route path="/goals" element={gated('goals', <GoalsPage />)} />
+        <Route path="/sprints" element={gated('sprints', <SprintsPage />)} />
+        <Route path="/invoices" element={gated('invoices', <InvoicesPage />)} />
         <Route path="/reports" element={<PerformanceReports />} />
-        <Route path="/clients" element={<ClientsManagement />} />
-        <Route path="/requests" element={<ClientRequestsInbox />} />
-        <Route path="/budget" element={<BudgetTracker />} />
-        <Route path="/fields" element={<div className="space-y-6"><CustomFieldsPage /><WorkflowStagesCard /></div>} />
-        <Route path="/automations" element={<AutomationsPage />} />
-        <Route path="/activity" element={<ActivityLog />} />
+        <Route path="/clients" element={gated('clients', <ClientsManagement />)} />
+        <Route path="/requests" element={gated('requests', <ClientRequestsInbox />)} />
+        <Route path="/budget" element={gated('budget', <BudgetTracker />)} />
+        <Route path="/fields" element={gated('fields', <div className="space-y-6"><CustomFieldsPage /><WorkflowStagesCard /></div>)} />
+        <Route path="/automations" element={gated('automations', <AutomationsPage />)} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/activity" element={gated('activity', <ActivityLog />)} />
       </Routes>
     </DashboardLayout>
   );

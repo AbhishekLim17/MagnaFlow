@@ -14,6 +14,7 @@ const admin = require('firebase-admin');
 const { initAdmin } = require('./lib/admin.cjs');
 const { createTransport, sendNotification } = require('./lib/mailer.cjs');
 const { APP_URL, EMAIL_RE } = require('./lib/tenant.cjs');
+const { orgHasFeature } = require('./lib/features.cjs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const MAX_ROWS = 25; // projects listed per email; the page has the rest
@@ -69,6 +70,7 @@ async function main() {
 
   const orgs = (await db.collection('organizations').get()).docs.filter((d) => d.data().status !== 'suspended');
   for (const org of orgs) {
+    if (!(await orgHasFeature(db, org.id, 'portfolio'))) continue; // Portfolio health is off there
     const items = await orgItems(db, org.id, portfolio);
     if (items.length === 0) continue;
     const people = (await db.collection('users').where('orgId', '==', org.id).get()).docs.map((d) => d.data());

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, ShieldAlert, Palmtree, CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
+import { Puzzle, BookOpen, ShieldAlert, Palmtree, CheckSquare, Plus, Search, Clock, TrendingUp, Target, AlertCircle, MessageSquare, ListChecks, GanttChartSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,10 @@ import StatCard from '@/components/shared/StatCard';
 import MyTasksPanel from '@/components/shared/MyTasksPanel';
 import LeavePage from '@/components/shared/LeavePage';
 import StatusSelect from '@/components/shared/StatusSelect';
+import FeaturesPage from '@/components/shared/FeaturesPage';
+import FeatureGate from '@/components/shared/FeatureGate';
+import { useFeatures } from '@/contexts/FeaturesContext';
+import { MENU_FEATURE } from '@/lib/features';
 import RaidPage from '@/components/admin/RaidPage';
 import WikiPage from '@/components/shared/WikiPage';
 import GoalsPage from '@/components/shared/GoalsPage';
@@ -42,9 +46,10 @@ const STAFF_MENU = [
   { id: 'pages', label: 'Project Pages', icon: BookOpen },
   { id: 'risks', label: 'Risks & Issues', icon: ShieldAlert },
   { id: 'leave', label: 'Leave & Holidays', icon: Palmtree },
+  { id: 'features', label: 'Features', icon: Puzzle },
 ];
 // The other pages of the staff dashboard (the task list is the first).
-const STAFF_PAGES = { leave: LeavePage, risks: RaidPage, pages: WikiPage, goals: GoalsPage };
+const STAFF_PAGES = { leave: LeavePage, risks: RaidPage, pages: WikiPage, goals: GoalsPage, features: FeaturesPage };
 
 // Task Card Component with Comment Button
 const TaskCardWithComments = ({ task, index, onTaskClick, onStatusChange }) => {
@@ -166,6 +171,7 @@ const StaffDashboard = () => {
   const { tasks, statistics, loading, updateTaskStatus, deleteTask, refreshTasks, rescheduleTask } = useTasks();
   const { toast } = useToast();
   const [tab, setTab] = useState('dashboard');
+  const { menu } = useFeatures();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -265,12 +271,14 @@ const StaffDashboard = () => {
   return (
     <DashboardLayout
       subtitle="Staff Panel"
-      menuItems={STAFF_MENU}
+      menuItems={menu(STAFF_MENU)}
       activeTab={tab}
       onTabChange={setTab}
       title={STAFF_MENU.find((m) => m.id === tab).label}
     >
-      {STAFF_PAGES[tab] ? React.createElement(STAFF_PAGES[tab]) : (
+      {STAFF_PAGES[tab] ? (
+        <FeatureGate feature={MENU_FEATURE[tab]}>{React.createElement(STAFF_PAGES[tab])}</FeatureGate>
+      ) : (
       <div className="space-y-6">
         {/* The header already greets the user by name. */}
         <p className="text-sm text-muted-foreground">Manage your tasks and track your progress</p>

@@ -14,6 +14,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { getProjectsByIds, getOrganizationById } from "@/services/organizationService";
 import { getBranding } from "@/services/brandingService";
 import PortalBrandBar from "@/components/shared/PortalBrandBar";
+import FeatureGate from "@/components/shared/FeatureGate";
 import { EMPTY_BRANDING } from "@/lib/branding";
 import { getAllTasks } from "@/services/taskService";
 import ProjectGanttChart from "@/components/shared/ProjectGanttChart";
@@ -188,6 +189,7 @@ const ClientPortal = () => {
       </PortalBrandBar>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        <FeatureGate feature="clientPortal" hint="Your project portal is not available right now. Please contact your project team.">
 
         {branding.welcome && (
           <p
@@ -464,6 +466,7 @@ const ClientPortal = () => {
             )}
           </>
         )}
+        </FeatureGate>
       </main>
     </div>
   );

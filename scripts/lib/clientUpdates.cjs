@@ -17,6 +17,7 @@
  */
 const { APP_URL, EMAIL_RE } = require('./tenant.cjs');
 const { sendPush } = require('./push.cjs');
+const { orgHasFeature } = require('./features.cjs');
 
 const MAX_DOCS_PER_RUN = 100;
 const MAX_ATTEMPTS = 3;
@@ -218,6 +219,11 @@ async function sendClientUpdates(deps) {
       await skip(doc, admin, dryRun, 'task no longer matches');
       continue;
     }
+    if (!(await orgHasFeature(db, task.orgId, 'clientPortal'))) {
+      totals.skipped += 1;
+      await skip(doc, admin, dryRun, 'client portal is off');
+      continue;
+    }
     const name = (await project(task.orgId, task.projectId))?.name || '';
     const mails = (await recipientsFor(db, tenant, m, task)).map((r) => ({ mail: buildMail(m, task, name, r), prefs: r.prefs, uid: r.uid }));
     await deliver({ ...deps, doc, data: m, mails, orgId: task.orgId, dryRun, log, totals });
@@ -240,6 +246,11 @@ async function sendRequestUpdates(deps) {
   for (const doc of snap.docs) {
     const r = doc.data();
     const p = await project(r.orgId, r.projectId);
+    if (!(await orgHasFeature(db, r.orgId, 'clientPortal'))) {
+      totals.skipped += 1;
+      await skip(doc, admin, dryRun, 'client portal is off');
+      continue;
+    }
     if (!p) {
       totals.skipped += 1;
       await skip(doc, admin, dryRun, 'project no longer exists');
